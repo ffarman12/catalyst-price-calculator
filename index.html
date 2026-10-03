@@ -161,7 +161,12 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Catalyst Calculator">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-</head>
+<style>
+#serviceStatusModal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.58);align-items:flex-start;justify-content:flex-start;padding:56px 3vw 24px}
+#serviceStatusPanel{width:min(680px,94vw);max-height:88dvh;overflow:auto;margin:0;background:light-dark(#fff,#151a20);color:light-dark(#17202a,#eef2f6);border:1px solid rgba(127,127,127,.22);border-radius:16px;box-shadow:0 18px 55px rgba(0,0,0,.3);padding:16px}
+.serviceHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}.serviceHead h2{margin:0;font-size:19px}.serviceClose{border:0;background:transparent;color:inherit;font-size:28px;line-height:1;cursor:pointer;padding:0 4px}
+.serviceSub{font-size:12px;opacity:.72;margin-bottom:12px}.serviceActions{display:flex;gap:8px;margin-bottom:12px}.serviceRow{border:1px solid rgba(127,127,127,.22);border-radius:12px;padding:11px 12px;margin:8px 0}.serviceTop{display:flex;align-items:center;justify-content:space-between;gap:10px}.serviceName{font-weight:700}.serviceState{font-size:12px;font-weight:700}.serviceReason{font-size:12px;opacity:.76;margin-top:5px;line-height:1.35}.serviceTime{font-size:11px;opacity:.58;margin-top:4px}.serviceDot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:#999}.serviceDot.ok{background:#22a06b}.serviceDot.warn{background:#e09b20}.serviceDot.bad{background:#d64545}.serviceDot.check{background:#6b7280}
+</style></head>
 <body>
 <div id="app"><div class="wrap">
   <header class="top"><div style="display:flex;align-items:center;gap:6px"><button id="topNewBtn" aria-label="Menu" onclick="toggleNewMenu(event)">⋮</button></div><div></div><div style="display:flex;align-items:center;gap:8px;position:relative;margin-left:auto"><div class="badge" id="status" style="display:none">Ready</div><div class="badge" id="marketStatus">Manual Market</div></div></header>
@@ -319,7 +324,7 @@ function requestSectionUnlock(key,callback){if(!isSectionLocked(key)){callback()
 function showSection(view){requestSectionUnlock(view,()=>{document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(view).classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));if(view==='history'){const saved=safeStoreGet('cat_history',null);if(Array.isArray(saved))history=saved;renderHistory()}})}
 function openNewConverter(e){if(e){e.preventDefault();e.stopPropagation()}$('topNewMenu').style.display='none';requestSectionUnlock('home',()=>{localStorage.setItem('cat_last_view','home');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('home').classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='home'));clearForm();$('home').querySelector('.sectionTitle').textContent='New Converter';$('calculateBtn').textContent='Calculate Price';window.scrollTo({top:0,behavior:'auto'})})}
 function openAppSettings(){document.getElementById('topNewMenu').style.display='none';showSection('settings')}
-function openSettingsFolder(e){if(e){e.preventDefault();e.stopPropagation()}$('topNewMenu').style.display='none';requestSectionUnlock('settingsPanel',()=>{const m=$('topNewMenu');m.innerHTML='<div class="menuLabel">Settings</div><button type="button" onclick="shareWhatsApp()">📲 Share App</button><button type="button" onclick="installApp()">📥 Install App</button><div class="menuSep"></div><button type="button" onclick="openLessSettings(event)">↘ Less Refine</button><button type="button" onclick="openEntryPercentLess(event)">％ Less History</button><button type="button" onclick="openViewerPpmSettings(event)">👁 Viewer App — View PPM</button>';m.style.display='block'})}
+function openSettingsFolder(e){if(e){e.preventDefault();e.stopPropagation()}$('topNewMenu').style.display='none';requestSectionUnlock('settingsPanel',()=>{const m=$('topNewMenu');m.innerHTML='<div class="menuLabel">Settings</div><button type="button" onclick="shareWhatsApp()">📲 Share App</button><button type="button" onclick="installApp()">📥 Install App</button><div class="menuSep"></div><button type="button" onclick="openLessSettings(event)">↘ Less Refine</button><button type="button" onclick="openEntryPercentLess(event)">％ Less History</button><button type="button" onclick="openViewerPpmSettings(event)">👁 Viewer App — View PPM</button><button type="button" onclick="openServiceStatus(event)">🔗 Connections / Service Status</button>';m.style.display='block'})}
 let deferredInstallPrompt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e});async function installApp(){if(deferredInstallPrompt){deferredInstallPrompt.prompt();try{await deferredInstallPrompt.userChoice}catch(e){}deferredInstallPrompt=null;return}if(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches){alert('App already installed hai.');return}alert('Install option browser/device ke hisaab se available hoga. Chrome menu se “Add to Home screen” ya “Install app” choose karein.')}
 function openLessSettings(e){if(e){e.preventDefault();e.stopPropagation()}$('topNewMenu').style.display='none';requestSectionUnlock('lessRefine',()=>{$('lessPt').value=lessSettings.pt||'';$('lessPd').value=lessSettings.pd||'';$('lessRh').value=lessSettings.rh||'';$('lessMode').checked=!!lessSettings.enabled;$('lessSettingsModal').style.display='flex'})}
 function openEntryPercentLess(e){if(e){e.preventDefault();e.stopPropagation()}$('topNewMenu').style.display='none';requestSectionUnlock('lessHistory',()=>{$('entryPercentLessValue').value=entryPercentLess.percent||'';$('entryPercentLessMode').checked=!!entryPercentLess.enabled;$('entryPercentLessModal').style.display='flex'})}
@@ -529,4 +534,65 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootRecovery);else bootRecovery();
 })();
 </script>
-</body></html>
+<div id="serviceStatusModal" role="dialog" aria-modal="true" aria-label="Connections and Service Status">
+  <div id="serviceStatusPanel">
+    <div class="serviceHead"><h2>🔗 Connections / Service Status</h2><button class="serviceClose" type="button" onclick="closeServiceStatus()" aria-label="Close">×</button></div>
+    <div class="serviceSub">Live connection check. This page does not change your app data.</div>
+    <div class="serviceActions"><button type="button" class="btn secondary" onclick="checkServiceStatus(true)">↻ Check Again</button></div>
+    <div id="serviceStatusRows"></div>
+  </div>
+</div><script>
+let serviceStatusTimer=null;
+function openServiceStatus(e){
+  if(e){e.preventDefault();e.stopPropagation()}
+  $('topNewMenu').style.display='none';
+  requestSectionUnlock('settingsPanel',()=>{
+    $('serviceStatusModal').style.display='flex';
+    checkServiceStatus(false);
+  });
+}
+function closeServiceStatus(){
+  $('serviceStatusModal').style.display='none';
+  if(serviceStatusTimer){clearTimeout(serviceStatusTimer);serviceStatusTimer=null}
+}
+function serviceRow(name,state,reason,when){
+  const cls=state==='Connected'?'ok':(state==='Checking'?'check':(state==='Reachable'?'warn':'bad'));
+  return '<div class="serviceRow"><div class="serviceTop"><div class="serviceName"><span class="serviceDot '+cls+'"></span>'+name+'</div><div class="serviceState">'+state+'</div></div><div class="serviceReason">'+reason+'</div><div class="serviceTime">Last checked: '+when+'</div></div>';
+}
+function serviceNow(){return new Date().toLocaleString()}
+async function checkServiceStatus(manual){
+  const box=$('serviceStatusRows'); if(!box)return;
+  const checking=serviceNow();
+  box.innerHTML=['GitHub Pages','Supabase','Supabase Storage','Metal Price API','USD/INR API'].map(n=>serviceRow(n,'Checking','Checking connection…',checking)).join('');
+  const results=[];
+  try{
+    const u=location.href.split('?')[0]+'?service_check='+Date.now();
+    const res=await fetch(u,{cache:'no-store',method:'GET'});
+    results.push(serviceRow('GitHub Pages',res.ok?'Connected':'Failed',res.ok?'Page response OK':'HTTP '+res.status,serviceNow()));
+  }catch(err){results.push(serviceRow('GitHub Pages','Failed','Page request failed: '+(err&&err.message?err.message:'network error'),serviceNow()))}
+  try{
+    const res=await fetch(SUPABASE_URL+'/auth/v1/settings',{headers:{apikey:SUPABASE_PUBLISHABLE_KEY},cache:'no-store'});
+    results.push(serviceRow('Supabase',res.ok?'Connected':'Failed',res.ok?'Auth service reachable':'HTTP '+res.status,serviceNow()));
+  }catch(err){results.push(serviceRow('Supabase','Failed','Connection failed: '+(err&&err.message?err.message:'network error'),serviceNow()))}
+  try{
+    const sb=getEditorSupabase();
+    if(!sb){results.push(serviceRow('Supabase Storage','Reachable','Supabase client is not available on this page.',serviceNow()))}
+    else{
+      const {data,error}=await sb.storage.from('converter-photos').list('',{limit:1});
+      if(!error) results.push(serviceRow('Supabase Storage','Connected','Storage bucket request successful.',serviceNow()));
+      else if(error.statusCode===401||error.statusCode===403) results.push(serviceRow('Supabase Storage','Reachable','Storage is reachable; login/permission is required for this request.',serviceNow()));
+      else results.push(serviceRow('Supabase Storage','Failed',error.message||'Storage request failed.',serviceNow()));
+    }
+  }catch(err){results.push(serviceRow('Supabase Storage','Failed','Storage check failed: '+(err&&err.message?err.message:'unknown error'),serviceNow()))}
+  async function checkEndpoint(name,path){
+    try{
+      const res=await fetch(path,{cache:'no-store'});
+      if(res.ok) return serviceRow(name,'Connected','Endpoint response OK.',serviceNow());
+      return serviceRow(name,'Not configured','Endpoint unavailable on this deployment (HTTP '+res.status+').',serviceNow());
+    }catch(err){return serviceRow(name,'Not configured','No '+name+' endpoint is configured for this static deployment.',serviceNow())}
+  }
+  results.push(await checkEndpoint('Metal Price API','/api/market'));
+  results.push(await checkEndpoint('USD/INR API','/api/market'));
+  box.innerHTML=results.join('');
+}
+</script></body></html>
