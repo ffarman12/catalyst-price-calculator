@@ -677,9 +677,14 @@ async function checkServiceStatus(manual){
   }
   async function migrateLocalHistory(){
     const c=client(),wid=await workspaceId(); if(!c||!wid)return false;
-    if(localStorage.getItem(CLOUD_MIGRATION)==='done')return true;
     const local=Array.isArray(history)?history.slice():[];
-    if(!local.length){localStorage.setItem(CLOUD_MIGRATION,'done');return true;}
+    if(!local.length)return true;
+    const marker=localStorage.getItem(CLOUD_MIGRATION);
+    if(marker==='done'){
+      const chk=await c.from('converter_entries').select('id',{count:'exact',head:true}).eq('workspace_id',wid);
+      if((chk.count||0)>0)return true;
+      localStorage.removeItem(CLOUD_MIGRATION);
+    }
     cloudStatus('Cloud migration starting…');
     for(let i=local.length-1;i>=0;i--){
       try{await pushEntry(local[i]);cloudStatus('Cloud migration '+(local.length-i)+'/'+local.length+'…');}
@@ -728,7 +733,15 @@ async function checkServiceStatus(manual){
     if(typeof runHistoryAction==='function'&&!runHistoryAction.__cloudWrapped){const prev=runHistoryAction;const wrapped=function(action,i){const id=history&&history[i]&&history[i]._cloud_id;const r=prev.apply(this,arguments);if(action==='delete'&&id)cloudDelete(id);return r};wrapped.__cloudWrapped=true;runHistoryAction=wrapped;}
     if(typeof deleteSelected==='function'&&!deleteSelected.__cloudWrapped){const prev=deleteSelected;const wrapped=function(){const i=(typeof pendingIndex==='number')?pendingIndex:deleteTargetIndex;const id=history&&history[i]&&history[i]._cloud_id;const r=prev.apply(this,arguments);if(id)cloudDelete(id);return r};wrapped.__cloudWrapped=true;deleteSelected=wrapped;}
   }
-  const boot=()=>{installWrappers();setTimeout(()=>{installWrappers();cloudBootstrap()},900)};
+  const boot=()=>{
+    installWrappers();
+    setTimeout(()=>{installWrappers();cloudBootstrap()},1200);
+    try{
+      const c=client();
+      if(c&&c.auth&&c.auth.onAuthStateChange)c.auth.onAuthStateChange((event,session)=>{if(session){setTimeout(()=>cloudBootstrap(),400)}});
+    }catch(e){}
+    [3000,7000,12000].forEach(ms=>setTimeout(()=>cloudBootstrap(),ms));
+  };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
   window.CatalystCloudMaster={sync:cloudBootstrap,saveLatest:cloudSaveLatest};
 })();
