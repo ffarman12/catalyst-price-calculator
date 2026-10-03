@@ -704,6 +704,12 @@ async function checkServiceStatus(manual){
     const c=client(),wid=await workspaceId(); if(!c||!wid)return false;
     const {data:entries,error}=await c.from('converter_entries').select('*').eq('workspace_id',wid).order('created_at',{ascending:false});
     if(error)throw error;
+    /* Never let an empty cloud result erase a non-empty local History. */
+    if((entries||[]).length===0 && Array.isArray(history) && history.length>0){
+      try{localStorage.removeItem(CLOUD_MIGRATION)}catch(e){}
+      await migrateLocalHistory();
+      return false;
+    }
     const ids=(entries||[]).map(x=>x.id); let photos=[];
     if(ids.length){const r=await c.from('converter_photos').select('*').in('entry_id',ids).order('sort_order',{ascending:true});if(r.error)throw r.error;photos=r.data||[];}
     const byEntry={}; for(const p of photos){(byEntry[p.entry_id]||(byEntry[p.entry_id]=[])).push(p)}
@@ -732,7 +738,8 @@ async function checkServiceStatus(manual){
     finally{cloudBusy=false;}
   }
   async function cloudSaveLatest(index){
-    try{if(!Array.isArray(history)||!history[index])return;const saved=await pushEntry(history[index]);history[index]=saved;localStorage.setItem('cat_history',JSON.stringify(history));}catch(e){console.error('Cloud save failed',e);cloudStatus('Saved locally; cloud sync pending');}}
+    try{if(!Array.isArray(history)||!history[index])return;const saved=await pushEntry(history[index]);history[index]=saved;localStorage.setItem('cat_history',JSON.stringify(history));cloudStatus('Saved to Cloud');}
+    catch(e){console.error('Cloud save failed',e);cloudStatus('Saved locally; cloud sync pending');setTimeout(()=>{if(Array.isArray(history)&&history[index])pushEntry(history[index]).then(saved=>{history[index]=saved;saveHistoryStorage();cloudStatus('Cloud sync complete')}).catch(err=>console.error('Cloud retry failed',err))},3000);}}
   async function cloudDelete(id){try{const c=client();if(!c||!id)return;const {data:rows}=await c.from('converter_photos').select('storage_path').eq('entry_id',id);if(rows&&rows.length)await c.storage.from(CLOUD_BUCKET).remove(rows.map(x=>x.storage_path).filter(Boolean));await c.from('converter_photos').delete().eq('entry_id',id);await c.from('converter_entries').delete().eq('id',id);}catch(e){console.error('Cloud delete failed',e);}}
   function installWrappers(){
     if(typeof calculate==='function'&&!calculate.__cloudWrapped){const prev=calculate;const wrapped=async function(){const idx=editingIndex;const before=history[idx];await prev();let target=idx!==null&&idx!==undefined?idx:0;if(idx!==null&&idx!==undefined&&history[idx]!==before)target=idx;setTimeout(()=>cloudSaveLatest(target),0);};wrapped.__cloudWrapped=true;calculate=wrapped;}
