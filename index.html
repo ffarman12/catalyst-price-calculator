@@ -751,8 +751,25 @@ async function checkServiceStatus(manual){
     finally{cloudBusy=false;}
   }
   async function cloudSaveLatest(index){
-    try{if(!Array.isArray(history)||!history[index])return;const saved=await pushEntry(history[index]);saved._cloud_sync_pending=false;history[index]=saved;saveHistoryStorage();cloudStatus('Saved to Cloud');}
-    catch(e){console.error('Cloud save failed',e);if(Array.isArray(history)&&history[index]){history[index]._cloud_sync_pending=true;saveHistoryStorage()}cloudStatus('Saved locally; cloud sync pending');setTimeout(()=>cloudRetryPending(),3000);}}
+    try{
+      if(!Array.isArray(history)||!history[index])return;
+      cloudStatus('Cloud save: connecting…');
+      const saved=await pushEntry(history[index]);
+      saved._cloud_sync_pending=false;
+      history[index]=saved;
+      saveHistoryStorage();
+      cloudStatus('Saved to Cloud');
+    }catch(e){
+      console.error('Cloud save failed',e);
+      if(Array.isArray(history)&&history[index]){
+        history[index]._cloud_sync_pending=true;
+        saveHistoryStorage();
+      }
+      const msg=String(e&&e.message||e||'Unknown cloud error');
+      cloudStatus('Cloud save error: '+msg.slice(0,140));
+      setTimeout(()=>cloudRetryPending(),3000);
+    }
+  }
   async function cloudRetryPending(){
     if(cloudBusy||!Array.isArray(history))return;
     const c=client();if(!c)return;
