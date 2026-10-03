@@ -650,7 +650,6 @@ async function checkServiceStatus(manual){
       if(error)throw error;
       rows.push({entry_id:entryId,storage_path:path,file_name:(p&&p.name)||('Photo '+(i+1)),sort_order:i,is_default:i===0});
     }
-    if(rows.length){const {error}=await c.from('converter_photos').insert(rows);if(error)throw error;}
     return rows;
   }
   async function replaceCloudPhotos(entryId, photos, wid){
@@ -661,6 +660,7 @@ async function checkServiceStatus(manual){
       const rows=await uploadPhotos(entryId,photos,wid); uploaded.push(...rows);
       if(old&&old.length){await c.storage.from(CLOUD_BUCKET).remove(old.map(x=>x.storage_path).filter(Boolean));}
       await c.from('converter_photos').delete().eq('entry_id',entryId);
+      if(rows.length){const {error}=await c.from('converter_photos').insert(rows);if(error)throw error;}
     }catch(e){
       if(uploaded.length)await c.storage.from(CLOUD_BUCKET).remove(uploaded.map(x=>x.storage_path));
       throw e;
