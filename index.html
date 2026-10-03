@@ -738,8 +738,18 @@ async function checkServiceStatus(manual){
     finally{cloudBusy=false;}
   }
   async function cloudSaveLatest(index){
-    try{if(!Array.isArray(history)||!history[index])return;const saved=await pushEntry(history[index]);history[index]=saved;localStorage.setItem('cat_history',JSON.stringify(history));cloudStatus('Saved to Cloud');}
-    catch(e){console.error('Cloud save failed',e);cloudStatus('Saved locally; cloud sync pending');setTimeout(()=>{if(Array.isArray(history)&&history[index])pushEntry(history[index]).then(saved=>{history[index]=saved;saveHistoryStorage();cloudStatus('Cloud sync complete')}).catch(err=>console.error('Cloud retry failed',err))},3000);}}
+    try{if(!Array.isArray(history)||!history[index])return;const saved=await pushEntry(history[index]);saved._cloud_sync_pending=false;history[index]=saved;saveHistoryStorage();cloudStatus('Saved to Cloud');}
+    catch(e){console.error('Cloud save failed',e);if(Array.isArray(history)&&history[index]){history[index]._cloud_sync_pending=true;saveHistoryStorage()}cloudStatus('Saved locally; cloud sync pending');setTimeout(()=>cloudRetryPending(),3000);}}
+  async function cloudRetryPending(){
+    if(cloudBusy||!Array.isArray(history))return;
+    const c=client();if(!c)return;
+    try{const {data}=await c.auth.getSession();if(!data||!data.session)return;}catch(e){return}
+    for(let i=0;i<history.length;i++){
+      if(!history[i]||!history[i]._cloud_sync_pending)continue;
+      try{const saved=await pushEntry(history[i]);saved._cloud_sync_pending=false;history[i]=saved;saveHistoryStorage()}catch(e){console.error('Pending cloud sync failed',e)}
+    }
+    try{renderHistory()}catch(e){}
+  }
   async function cloudDelete(id){try{const c=client();if(!c||!id)return;const {data:rows}=await c.from('converter_photos').select('storage_path').eq('entry_id',id);if(rows&&rows.length)await c.storage.from(CLOUD_BUCKET).remove(rows.map(x=>x.storage_path).filter(Boolean));await c.from('converter_photos').delete().eq('entry_id',id);await c.from('converter_entries').delete().eq('id',id);}catch(e){console.error('Cloud delete failed',e);}}
   function installWrappers(){
     if(typeof calculate==='function'&&!calculate.__cloudWrapped){const prev=calculate;const wrapped=async function(){const idx=editingIndex;const before=history[idx];await prev();let target=idx!==null&&idx!==undefined?idx:0;if(idx!==null&&idx!==undefined&&history[idx]!==before)target=idx;setTimeout(()=>cloudSaveLatest(target),0);};wrapped.__cloudWrapped=true;calculate=wrapped;}
@@ -751,9 +761,10 @@ async function checkServiceStatus(manual){
     setTimeout(()=>{installWrappers();cloudBootstrap()},1200);
     try{
       const c=client();
-      if(c&&c.auth&&c.auth.onAuthStateChange)c.auth.onAuthStateChange((event,session)=>{if(session){setTimeout(()=>cloudBootstrap(),400)}});
+      if(c&&c.auth&&c.auth.onAuthStateChange)c.auth.onAuthStateChange((event,session)=>{if(session){setTimeout(()=>{cloudBootstrap();cloudRetryPending()},400)}});
     }catch(e){}
     [3000,7000,12000].forEach(ms=>setTimeout(()=>cloudBootstrap(),ms));
+    [5000,15000,30000].forEach(ms=>setTimeout(()=>cloudRetryPending(),ms));
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
   window.CatalystCloudMaster={sync:cloudBootstrap,saveLatest:cloudSaveLatest};
