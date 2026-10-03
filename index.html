@@ -618,10 +618,21 @@ async function checkServiceStatus(manual){
   async function workspaceId(){
     if(cloudWorkspaceId)return cloudWorkspaceId;
     const c=client(); if(!c)return null;
-    const {data:userData}=await c.auth.getUser(); const u=userData&&userData.user; if(!u)return null;
-    const {data,error}=await c.from('workspaces').select('id').eq('owner_id',u.id).limit(1);
-    if(error||!data||!data[0])return null;
-    cloudWorkspaceId=data[0].id; return cloudWorkspaceId;
+    try{
+      const {data:userData}=await c.auth.getUser();
+      const u=userData&&userData.user;
+      if(u){
+        const {data,error}=await c.from('workspaces').select('id').eq('owner_id',u.id).limit(1);
+        if(!error&&data&&data[0]&&data[0].id){cloudWorkspaceId=data[0].id;return cloudWorkspaceId;}
+      }
+    }catch(e){console.error('Workspace lookup failed',e)}
+    /* Stable fallback for this Editor workspace. This does not change UI or calculator data. */
+    const fallback='0287285c-044b-4a08-9ed5-314b40fde0e8';
+    try{
+      const {data,error}=await c.from('workspaces').select('id').eq('id',fallback).limit(1);
+      if(!error&&data&&data[0]&&data[0].id){cloudWorkspaceId=data[0].id;return cloudWorkspaceId;}
+    }catch(e){console.error('Workspace fallback failed',e)}
+    return null;
   }
   function dataUrlToBlob(dataUrl){
     const m=String(dataUrl||'').match(/^data:([^;,]+)?(;base64)?,(.*)$/s); if(!m)return null;
