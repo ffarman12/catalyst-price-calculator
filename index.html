@@ -595,4 +595,143 @@ async function checkServiceStatus(manual){
   results.push(await checkEndpoint('USD/INR API','/api/market'));
   box.innerHTML=results.join('');
 }
-</script></body></html>
+</script><script>
+/* CLOUD MASTER v1 — additive sync layer; existing calculator/UI remains unchanged. */
+(function(){
+  const CLOUD_BUCKET='converter-photos';
+  const CLOUD_MIGRATION='cat_cloud_master_v1';
+  let cloudBusy=false;
+  let cloudWorkspaceId=null;
+  let cloudClient=null;
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  function cloudStatus(msg){try{$('status').textContent=msg}catch(e){}}
+  function client(){
+    try{ if(!cloudClient && typeof getEditorSupabase==='function') cloudClient=getEditorSupabase(); }catch(e){}
+    return cloudClient;
+  }
+  async function workspaceId(){
+    if(cloudWorkspaceId)return cloudWorkspaceId;
+    const c=client(); if(!c)return null;
+    const {data:userData}=await c.auth.getUser(); const u=userData&&userData.user; if(!u)return null;
+    const {data,error}=await c.from('workspaces').select('id').eq('owner_id',u.id).limit(1);
+    if(error||!data||!data[0])return null;
+    cloudWorkspaceId=data[0].id; return cloudWorkspaceId;
+  }
+  function dataUrlToBlob(dataUrl){
+    const m=String(dataUrl||'').match(/^data:([^;,]+)?(;base64)?,(.*)$/s); if(!m)return null;
+    const mime=m[1]||'application/octet-stream', raw=m[3]||'';
+    try{
+      if(m[2]){const bin=atob(raw),arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type:mime});}
+      return new Blob([decodeURIComponent(raw)],{type:mime});
+    }catch(e){return null}
+  }
+  async function photoBlob(p){
+    const url=typeof p==='string'?p:(p&&p.url)||'';
+    if(!url)return null;
+    if(url.startsWith('data:'))return dataUrlToBlob(url);
+    try{const r=await fetch(url);if(!r.ok)return null;return await r.blob()}catch(e){return null}
+  }
+  function safeNum(v){const n=Number(v);return Number.isFinite(n)?n:null}
+  function entryPayload(x,wid){
+    const legacy={...x}; delete legacy.photos; delete legacy._cloud_synced_at;
+    return {workspace_id:wid,company:x.company||null,vehicle:x.vehicle||null,code:x.code||null,notes:x.note||x.notes||null,
+      weight_g:safeNum(x.weight),pt_ppm:safeNum(x.pt),pd_ppm:safeNum(x.pd),rh_ppm:safeNum(x.rh),
+      dpf_weight:safeNum(x.dpfWeight),dpf_pt_ppm:safeNum(x.dpfPt),dpf_pd_ppm:safeNum(x.dpfPd),dpf_rh_ppm:safeNum(x.dpfRh),
+      final_usd:safeNum(x.finalUsd||x.usd||null),final_inr:safeNum(x.price),dpf_value_inr:safeNum(x.dpfValue||x.dpfPrice||null),
+      market_snapshot:x.marketSnapshot||null,calculation_snapshot:{legacy,cloud_master_version:1}};
+  }
+  async function uploadPhotos(entryId, photos, wid){
+    const c=client(), rows=[]; if(!c)return rows;
+    for(let i=0;i<(photos||[]).length;i++){
+      const p=photos[i], blob=await photoBlob(p); if(!blob)continue;
+      const ext=(blob.type&&blob.type.split('/')[1])||'jpg';
+      const path=wid+'/'+entryId+'/'+Date.now()+'-'+i+'.'+ext.replace(/[^a-z0-9]/gi,'');
+      const {error}=await c.storage.from(CLOUD_BUCKET).upload(path,blob,{contentType:blob.type||'image/jpeg',upsert:false,cacheControl:'31536000'});
+      if(error)throw error;
+      rows.push({entry_id:entryId,storage_path:path,file_name:(p&&p.name)||('Photo '+(i+1)),sort_order:i,is_default:i===0});
+    }
+    if(rows.length){const {error}=await c.from('converter_photos').insert(rows);if(error)throw error;}
+    return rows;
+  }
+  async function replaceCloudPhotos(entryId, photos, wid){
+    const c=client();
+    const {data:old}=await c.from('converter_photos').select('storage_path').eq('entry_id',entryId);
+    const uploaded=[];
+    try{
+      const rows=await uploadPhotos(entryId,photos,wid); uploaded.push(...rows);
+      if(old&&old.length){await c.storage.from(CLOUD_BUCKET).remove(old.map(x=>x.storage_path).filter(Boolean));}
+      await c.from('converter_photos').delete().eq('entry_id',entryId);
+    }catch(e){
+      if(uploaded.length)await c.storage.from(CLOUD_BUCKET).remove(uploaded.map(x=>x.storage_path));
+      throw e;
+    }
+  }
+  async function pushEntry(x){
+    const c=client(),wid=await workspaceId(); if(!c||!wid)throw new Error('Cloud workspace not available');
+    let id=x._cloud_id||null;
+    if(id){const {data,error}=await c.from('converter_entries').update(entryPayload(x,wid)).eq('id',id).select('id').single();if(error)throw error;id=data.id;}
+    else{const {data,error}=await c.from('converter_entries').insert(entryPayload(x,wid)).select('id').single();if(error)throw error;id=data.id;}
+    await replaceCloudPhotos(id,x.photos||[],wid);
+    x._cloud_id=id; x._cloud_synced_at=new Date().toISOString();
+    return x;
+  }
+  async function migrateLocalHistory(){
+    const c=client(),wid=await workspaceId(); if(!c||!wid)return false;
+    if(localStorage.getItem(CLOUD_MIGRATION)==='done')return true;
+    const local=Array.isArray(history)?history.slice():[];
+    if(!local.length){localStorage.setItem(CLOUD_MIGRATION,'done');return true;}
+    cloudStatus('Cloud migration starting…');
+    for(let i=local.length-1;i>=0;i--){
+      try{await pushEntry(local[i]);cloudStatus('Cloud migration '+(local.length-i)+'/'+local.length+'…');}
+      catch(e){console.error('Cloud migration entry failed',e);cloudStatus('Cloud migration paused: '+(e.message||e));return false;}
+    }
+    try{localStorage.setItem('cat_history',JSON.stringify(local));}catch(e){}
+    localStorage.setItem(CLOUD_MIGRATION,'done');
+    return true;
+  }
+  async function loadCloudHistory(){
+    const c=client(),wid=await workspaceId(); if(!c||!wid)return false;
+    const {data:entries,error}=await c.from('converter_entries').select('*').eq('workspace_id',wid).order('created_at',{ascending:false});
+    if(error)throw error;
+    const ids=(entries||[]).map(x=>x.id); let photos=[];
+    if(ids.length){const r=await c.from('converter_photos').select('*').in('entry_id',ids).order('sort_order',{ascending:true});if(r.error)throw r.error;photos=r.data||[];}
+    const byEntry={}; for(const p of photos){(byEntry[p.entry_id]||(byEntry[p.entry_id]=[])).push(p)}
+    const out=[];
+    for(const e of (entries||[])){
+      const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
+      const pics=byEntry[e.id]||[];
+      let urls=[];
+      if(pics.length){const r=await c.storage.from(CLOUD_BUCKET).createSignedUrls(pics.map(p=>p.storage_path),3600);const signed=r.data||[];urls=pics.map((p,i)=>({name:p.file_name||('Photo '+(i+1)),url:(signed[i]&&signed[i].signedUrl)||'',cloudPath:p.storage_path,bgRemoved:true})).filter(p=>p.url);}
+      const x={...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt??0,pd:e.pd_ppm??legacy.pd??0,rh:e.rh_ppm??legacy.rh??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:urls,_cloud_id:e.id,_cloud_synced_at:e.updated_at};
+      out.push(x);
+    }
+    history=out;
+    try{const s=JSON.stringify(history);localStorage.setItem('cat_history',s);appDbCache['cat_history']=s;if(appDb)appDbWrite('cat_history',s);else appDbPending['cat_history']=s;}catch(e){}
+    if(typeof renderHistory==='function')renderHistory();
+    return true;
+  }
+  async function cloudBootstrap(){
+    if(cloudBusy)return; const c=client(); if(!c)return;
+    try{
+      const {data}=await c.auth.getSession(); if(!data||!data.session)return;
+      cloudBusy=true;
+      const migrated=await migrateLocalHistory();
+      if(migrated){await loadCloudHistory();cloudStatus('Cloud Master synced');}
+    }catch(e){console.error('Cloud Master bootstrap failed',e);cloudStatus('Cloud sync unavailable — local data kept');}
+    finally{cloudBusy=false;}
+  }
+  async function cloudSaveLatest(index){
+    try{if(!Array.isArray(history)||!history[index])return;const saved=await pushEntry(history[index]);history[index]=saved;localStorage.setItem('cat_history',JSON.stringify(history));}catch(e){console.error('Cloud save failed',e);cloudStatus('Saved locally; cloud sync pending');}}
+  async function cloudDelete(id){try{const c=client();if(!c||!id)return;const {data:rows}=await c.from('converter_photos').select('storage_path').eq('entry_id',id);if(rows&&rows.length)await c.storage.from(CLOUD_BUCKET).remove(rows.map(x=>x.storage_path).filter(Boolean));await c.from('converter_photos').delete().eq('entry_id',id);await c.from('converter_entries').delete().eq('id',id);}catch(e){console.error('Cloud delete failed',e);}}
+  function installWrappers(){
+    if(typeof calculate==='function'&&!calculate.__cloudWrapped){const prev=calculate;const wrapped=async function(){const idx=editingIndex;const before=history[idx];await prev();let target=idx!==null&&idx!==undefined?idx:0;if(idx!==null&&idx!==undefined&&history[idx]!==before)target=idx;await cloudSaveLatest(target);};wrapped.__cloudWrapped=true;calculate=wrapped;}
+    if(typeof runHistoryAction==='function'&&!runHistoryAction.__cloudWrapped){const prev=runHistoryAction;const wrapped=function(action,i){const id=history&&history[i]&&history[i]._cloud_id;const r=prev.apply(this,arguments);if(action==='delete'&&id)cloudDelete(id);return r};wrapped.__cloudWrapped=true;runHistoryAction=wrapped;}
+    if(typeof deleteSelected==='function'&&!deleteSelected.__cloudWrapped){const prev=deleteSelected;const wrapped=function(){const i=(typeof pendingIndex==='number')?pendingIndex:deleteTargetIndex;const id=history&&history[i]&&history[i]._cloud_id;const r=prev.apply(this,arguments);if(id)cloudDelete(id);return r};wrapped.__cloudWrapped=true;deleteSelected=wrapped;}
+  }
+  const boot=()=>{installWrappers();setTimeout(()=>{installWrappers();cloudBootstrap()},900)};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+  window.CatalystCloudMaster={sync:cloudBootstrap,saveLatest:cloudSaveLatest};
+})();
+
+</script>
+</body></html>
