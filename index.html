@@ -805,29 +805,40 @@ async function checkServiceStatus(manual){
       const sessionResult=await c.auth.getSession();
       const session=sessionResult&&sessionResult.data&&sessionResult.data.session;
       if(!session||!session.access_token)throw new Error('Login session unavailable');
-      const params=new URLSearchParams({
-        select:'*',
-        workspace_id:'eq.'+wid,
-        code_normalized:'like.'+key+'%',
-        order:'created_at.desc',
-        limit:'50'
-      });
-      const resp=await fetch(SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString(),{
-        method:'GET',
-        headers:{
-          apikey:SUPABASE_PUBLISHABLE_KEY,
-          Authorization:'Bearer '+session.access_token,
-          Accept:'application/json'
-        },
-        cache:'no-store'
-      });
-      const body=await resp.text();
-      if(!resp.ok)throw new Error('Cloud search HTTP '+resp.status);
-      try{rows=JSON.parse(body)||[]}catch(e){throw new Error('Invalid Cloud search response')}
-      rows=rows.filter(e=>normalizeHistoryCode(e.code).startsWith(key));
+
+      /* Use the tested secure RPC first. This avoids relying on PostgREST's
+         generated-column schema cache and keeps the search logic server-side. */
+      const rpc=await c.rpc('search_converter_history',{p_workspace_id:wid,p_prefix:key});
+      if(!rpc.error){
+        rows=Array.isArray(rpc.data)?rpc.data:[];
+      }else{
+        console.warn('Cloud search RPC failed; using REST fallback',rpc.error);
+        const params=new URLSearchParams({
+          select:'*',
+          workspace_id:'eq.'+wid,
+          code_normalized:'like.'+key+'%',
+          order:'created_at.desc',
+          limit:'50'
+        });
+        const resp=await fetch(SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString(),{
+          method:'GET',
+          headers:{
+            apikey:SUPABASE_PUBLISHABLE_KEY,
+            Authorization:'Bearer '+session.access_token,
+            Accept:'application/json'
+          },
+          cache:'no-store'
+        });
+        const body=await resp.text();
+        if(!resp.ok)throw new Error('Cloud search HTTP '+resp.status);
+        try{rows=JSON.parse(body)||[]}catch(e){throw new Error('Invalid Cloud search response')}
+      }
+      rows=rows.filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,50);
     }catch(e){
-      console.error('Cloud history direct search failed',e);
-      cloudStatus('Search failed — '+String(e&&e.message||e).slice(0,70));
+      console.error('Cloud history search failed',e);
+      history=[];
+      renderHistory();
+      cloudStatus('Search failed — '+String(e&&e.message||e).slice(0,90));
       return false;
     }
     history=rows.map(e=>{
