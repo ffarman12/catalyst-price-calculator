@@ -808,11 +808,40 @@ async function checkServiceStatus(manual){
 
       /* Use the tested secure RPC first. This avoids relying on PostgREST's
          generated-column schema cache and keeps the search logic server-side. */
-      const rpc=await c.rpc('search_converter_history',{p_workspace_id:wid,p_prefix:key});
-      if(!rpc.error){
-        rows=Array.isArray(rpc.data)?rpc.data:[];
-      }else{
-        console.warn('Cloud search RPC failed; using REST fallback',rpc.error);
+      /* Try the Supabase client RPC first. If it returns no rows (even without
+         an error), retry the same RPC through the authenticated REST endpoint.
+         This avoids a browser/client schema-cache edge case where a valid RPC
+         can appear empty. Only after both RPC paths are empty do we use the
+         indexed generated-column REST query. */
+      let rpcError=null;
+      try{
+        const rpc=await c.rpc('search_converter_history',{p_workspace_id:wid,p_prefix:key});
+        if(!rpc.error)rows=Array.isArray(rpc.data)?rpc.data:[];
+        else rpcError=rpc.error;
+      }catch(e){rpcError=e}
+      if(!rows.length){
+        try{
+          const rpcResp=await fetch(SUPABASE_URL+'/rest/v1/rpc/search_converter_history',{
+            method:'POST',
+            headers:{
+              apikey:SUPABASE_PUBLISHABLE_KEY,
+              Authorization:'Bearer '+session.access_token,
+              'Content-Type':'application/json',
+              Accept:'application/json'
+            },
+            body:JSON.stringify({p_workspace_id:wid,p_prefix:key}),
+            cache:'no-store'
+          });
+          const rpcBody=await rpcResp.text();
+          if(rpcResp.ok){
+            try{rows=JSON.parse(rpcBody)||[]}catch(e){rows=[]}
+          }else{
+            console.warn('Cloud search REST RPC failed',rpcResp.status,rpcBody);
+          }
+        }catch(e){console.warn('Cloud search REST RPC request failed',e)}
+      }
+      if(!rows.length){
+        if(rpcError)console.warn('Cloud search RPC failed; using indexed REST fallback',rpcError);
         const params=new URLSearchParams({
           select:'*',
           workspace_id:'eq.'+wid,
