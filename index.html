@@ -758,6 +758,9 @@ async function checkServiceStatus(manual){
       saved._cloud_sync_pending=false;
       history[index]=saved;
       saveHistoryStorage();
+      const verify=await client().from('converter_entries').select('id',{count:'exact',head:true}).eq('id',saved._cloud_id);
+      if(verify.error)throw verify.error;
+      if((verify.count||0)<1)throw new Error('Cloud save could not be verified');
       cloudStatus('Saved to Cloud');
     }catch(e){
       console.error('Cloud save failed',e);
