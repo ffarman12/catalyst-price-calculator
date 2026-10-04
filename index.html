@@ -634,6 +634,15 @@ async function checkServiceStatus(manual){
   async function workspaceId(){
     if(cloudWorkspaceId)return cloudWorkspaceId;
     const c=client(); if(!c)return null;
+    /* This Editor app has one established Cloud Master workspace. Prefer it first.
+       The owner-workspace lookup can return a different/empty workspace when the
+       browser is logged into another Supabase account, which previously made
+       History show 0 even though the project's Cloud Master contained entries. */
+    const fallback='0287285c-044b-4a08-9ed5-314b40fde0e8';
+    try{
+      const {data,error}=await c.from('workspaces').select('id').eq('id',fallback).limit(1);
+      if(!error&&data&&data[0]&&data[0].id){cloudWorkspaceId=data[0].id;return cloudWorkspaceId;}
+    }catch(e){console.error('Workspace Master lookup failed',e)}
     try{
       const {data:userData}=await c.auth.getUser();
       const u=userData&&userData.user;
@@ -641,13 +650,7 @@ async function checkServiceStatus(manual){
         const {data,error}=await c.from('workspaces').select('id').eq('owner_id',u.id).limit(1);
         if(!error&&data&&data[0]&&data[0].id){cloudWorkspaceId=data[0].id;return cloudWorkspaceId;}
       }
-    }catch(e){console.error('Workspace lookup failed',e)}
-    /* Stable fallback for this Editor workspace. This does not change UI or calculator data. */
-    const fallback='0287285c-044b-4a08-9ed5-314b40fde0e8';
-    try{
-      const {data,error}=await c.from('workspaces').select('id').eq('id',fallback).limit(1);
-      if(!error&&data&&data[0]&&data[0].id){cloudWorkspaceId=data[0].id;return cloudWorkspaceId;}
-    }catch(e){console.error('Workspace fallback failed',e)}
+    }catch(e){console.error('Workspace owner lookup failed',e)}
     return null;
   }
   function dataUrlToBlob(dataUrl){
