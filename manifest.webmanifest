@@ -1,6 +1,6 @@
 {
-  "name": "Catalyst Price Calculator",
-  "short_name": "Catalyst Calculator",
+  "name": "Catalyst Price Calculator - Cata-Logic",
+  "short_name": "Cata-Logic",
   "description": "Catalyst converter price calculator",
   "start_url": "./Catalyst%20Price%20Calculator%20Prototype%20-%20Less%20Refine%20Refresh%20Fixed.html",
   "scope": "./",
