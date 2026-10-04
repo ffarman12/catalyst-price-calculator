@@ -850,7 +850,8 @@ async function checkServiceStatus(manual){
     [5000,15000,30000].forEach(ms=>setTimeout(()=>cloudRetryPending(),ms));
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.CatalystCloudMaster={sync:cloudBootstrap,saveLatest:cloudSaveLatest};
+  async function cloudSyncReliable(){for(let attempt=0;attempt<8;attempt++){try{await cloudBootstrap();}catch(e){console.error('Cloud sync attempt failed',e)}if(!cloudBusy){try{if(window.__catalystCloudHistoryLoaded)return true}catch(e){} }await sleep(400)}return !!window.__catalystCloudHistoryLoaded}
+  window.CatalystCloudMaster={sync:cloudSyncReliable,saveLatest:cloudSaveLatest};
 })();
 
 </script>
