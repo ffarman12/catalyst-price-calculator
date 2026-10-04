@@ -789,35 +789,33 @@ async function checkServiceStatus(manual){
     }
     return out;
   }
+  function normalizeHistoryCode(v){
+    return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  }
   async function cloudSearchHistory(searchTerm){
-    const qRaw=String(searchTerm||'').trim();
-    if(!qRaw){history=[];renderHistory();return true}
+    const raw=String(searchTerm||'').trim();
+    const normalized=normalizeHistoryCode(raw);
+    if(!normalized){history=[];renderHistory();cloudStatus('History ready — enter converter code');return true}
     const c=client(),wid=await workspaceId();
     if(!c||!wid){history=[];renderHistory();cloudStatus('Cloud search unavailable');return false}
-    const variants=[];
-    const add=v=>{v=String(v||'').trim();if(v&&!variants.includes(v))variants.push(v)};
-    add(qRaw);
-    add(qRaw.replace(/[\\/\\s]+/g,'-'));
-    add(qRaw.replace(/[-\\/\\s]+/g,''));
-    add(qRaw.replace(/[-\\s]+/g,'/'));
+    // Long codes: the first 4 normalized characters are the search key.
+    // Short codes (2–3 characters) use their complete normalized value.
+    const key=normalized.length>=4?normalized.slice(0,4):normalized;
     let rows=[];
     try{
-      let q=c.from('converter_entries').select('*').eq('workspace_id',wid);
-      if(typeof q.ilikeAnyOf==='function'){
-        q=q.ilikeAnyOf('code',variants.map(v=>'%'+v.replace(/[%_]/g,'')+'%'));
-      }else{
-        q=q.ilike('code','%'+qRaw.replace(/[%_]/g,'')+'%');
-      }
-      const r=await q.order('created_at',{ascending:false}).limit(50);
+      const r=await c.from('converter_entries')
+        .select('*')
+        .eq('workspace_id',wid)
+        .ilike('code','%'+key.replace(/[%_]/g,'')+'%')
+        .order('created_at',{ascending:false})
+        .limit(50);
       if(r.error)throw r.error;
-      rows=r.data||[];
+      rows=(r.data||[]).filter(e=>normalizeHistoryCode(e.code).startsWith(key));
     }catch(e){
       console.error('Cloud history search failed',e);
       cloudStatus('History search error: '+String(e&&e.message||e).slice(0,90));
       return false;
     }
-    const normalizedQuery=qRaw.toLowerCase().replace(/[^a-z0-9]/g,'');
-    rows=rows.filter(e=>String(e.code||'').toLowerCase().replace(/[^a-z0-9]/g,'').includes(normalizedQuery));
     history=await mapCloudHistoryEntries(rows,c);
     window.__catalystCloudHistoryLoaded=true;
     renderHistory();
