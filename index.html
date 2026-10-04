@@ -804,12 +804,7 @@ async function checkServiceStatus(manual){
     const key=normalized.length>=4?normalized.slice(0,4):normalized;
     let rows=[];
     try{
-      const r=await c.from('converter_entries')
-        .select('*')
-        .eq('workspace_id',wid)
-        .ilike('code_normalized',key.replace(/[%_]/g,'')+'%')
-        .order('created_at',{ascending:false})
-        .limit(50);
+      const r=await c.rpc('search_converter_history',{p_workspace_id:wid,p_prefix:key});
       if(r.error)throw r.error;
       rows=(r.data||[]).filter(e=>normalizeHistoryCode(e.code).startsWith(key));
     }catch(e){
