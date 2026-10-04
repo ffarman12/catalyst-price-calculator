@@ -251,6 +251,7 @@ initIndexedDBStorage();
 const defaults={pt:1770,pd:1250,rh:8600,usd:92, rpt:1,rpd:1,rrh:1,treatment:1,spt:80,spd:80,srh:80,days:120,interest:5};
 function safeStoreGet(key,fallback){try{const v=localStorage.getItem(key);return v===null?fallback:JSON.parse(v)}catch(e){return fallback}}
 let history=safeStoreGet('cat_history',[]);
+recoverHistoryFromBackup();
 let market=safeStoreGet('cat_market',null)||{...defaults};
 let settings=safeStoreGet('cat_settings',null)||{...defaults};
 let lessSettings=safeStoreGet('cat_less_settings',null)||{pt:0,pd:0,rh:0,enabled:false};
