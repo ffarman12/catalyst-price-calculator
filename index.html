@@ -786,13 +786,18 @@ async function checkServiceStatus(manual){
     return true;
   }
   async function cloudBootstrap(){
-    if(cloudBusy||window.__catalystCalcBusy)return; const c=client(); if(!c)return;
+    if(cloudBusy||window.__catalystCalcBusy)return false; const c=client(); if(!c)return false;
     try{
-      const {data}=await c.auth.getSession(); if(!data||!data.session)return;
+      const {data}=await c.auth.getSession(); if(!data||!data.session)return false;
       cloudBusy=true;
+      /* Cloud is authoritative for existing History. Load it first so local/IndexedDB
+         data can never hide existing Cloud entries. Only migrate local data when Cloud is empty. */
+      const loaded=await loadCloudHistory();
+      if(loaded){cloudStatus('Cloud Master synced');return true;}
       const migrated=await migrateLocalHistory();
-      if(migrated){await loadCloudHistory();cloudStatus('Cloud Master synced');}
-    }catch(e){console.error('Cloud Master bootstrap failed',e);cloudStatus('Cloud sync unavailable — local data kept');}
+      if(migrated){const loadedAfterMigration=await loadCloudHistory();if(loadedAfterMigration){cloudStatus('Cloud Master synced');return true;}}
+      return false;
+    }catch(e){console.error('Cloud Master bootstrap failed',e);cloudStatus('Cloud sync unavailable — local data kept');return false;}
     finally{cloudBusy=false;}
   }
   async function cloudSaveLatest(index){
