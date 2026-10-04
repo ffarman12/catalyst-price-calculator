@@ -746,9 +746,12 @@ async function checkServiceStatus(manual){
     const {data:sessionData}=await c.auth.getSession();
     const debugUid=sessionData&&sessionData.session&&sessionData.session.user?sessionData.session.user.id:'NO-SESSION';
     try{cloudStatus('Cloud UID '+String(debugUid).slice(0,12)+'… WID '+String(wid).slice(0,12)+'…')}catch(e){}
-    const {data:entries,error}=await c.from('converter_entries').select('*').eq('workspace_id',wid).order('created_at',{ascending:false});
-    if(error){try{cloudStatus('History cloud error: '+String(error.message||error).slice(0,120))}catch(e){}throw error;}
-    try{cloudStatus('History Cloud records: '+String((entries||[]).length)+' | UID '+String(debugUid).slice(0,8)+'…')}catch(e){}
+    const {data:allVisible,error:allErr}=await c.from('converter_entries').select('id,workspace_id,code,created_at').order('created_at',{ascending:false});
+    if(allErr){try{cloudStatus('History cloud error: '+String(allErr.message||allErr).slice(0,120))}catch(e){}throw allErr;}
+    const visible=(allVisible||[]);
+    const workspaceSet=[...new Set(visible.map(x=>x.workspace_id).filter(Boolean))];
+    try{cloudStatus('Cloud visible: '+visible.length+' | WID: '+workspaceSet.map(x=>String(x).slice(0,8)).join(',')+' | UID '+String(debugUid).slice(0,8)+'…')}catch(e){}
+    const entries=visible.filter(x=>x.workspace_id===wid);
     /* Cloud is master only when it actually has data. Never replace local History with an empty cloud result. */
     if((entries||[]).length===0){
       if(Array.isArray(history) && history.length>0){
@@ -854,7 +857,7 @@ async function checkServiceStatus(manual){
     installWrappers();
     /* Auth session can be restored after the first 1.2s timer. Retry Cloud Master
        bootstrap itself (not just pending saves) so existing Cloud History is loaded. */
-    [1200,5000,15000,30000].forEach(ms=>setTimeout(()=>{installWrappers();cloudBootstrap()},ms));
+    [1200].forEach(ms=>setTimeout(()=>{installWrappers();cloudBootstrap()},ms));
     try{
       const c=client();
       if(c&&c.auth&&c.auth.onAuthStateChange)c.auth.onAuthStateChange((event,session)=>{
@@ -863,7 +866,7 @@ async function checkServiceStatus(manual){
         }
       });
     }catch(e){}
-    [5000,15000,30000].forEach(ms=>setTimeout(()=>cloudRetryPending(),ms));
+    [5000].forEach(ms=>setTimeout(()=>cloudRetryPending(),ms));
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
   async function cloudSyncReliable(){for(let attempt=0;attempt<8;attempt++){try{await cloudBootstrap();}catch(e){console.error('Cloud sync attempt failed',e)}if(!cloudBusy){try{if(window.__catalystCloudHistoryLoaded)return true}catch(e){} }await sleep(400)}return !!window.__catalystCloudHistoryLoaded}
