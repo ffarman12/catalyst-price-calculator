@@ -746,11 +746,11 @@ async function checkServiceStatus(manual){
     const {data:sessionData}=await c.auth.getSession();
     const debugUid=sessionData&&sessionData.session&&sessionData.session.user?sessionData.session.user.id:'NO-SESSION';
     try{cloudStatus('Cloud UID '+String(debugUid).slice(0,12)+'… WID '+String(wid).slice(0,12)+'…')}catch(e){}
-    const {data:allVisible,error:allErr}=await c.from('converter_entries').select('id,workspace_id,code,created_at').order('created_at',{ascending:false});
+    const {data:allVisible,error:allErr}=await c.from('converter_entries').select('*').order('created_at',{ascending:false});
     if(allErr){try{cloudStatus('History cloud error: '+String(allErr.message||allErr).slice(0,120))}catch(e){}throw allErr;}
     const visible=(allVisible||[]);
     const workspaceSet=[...new Set(visible.map(x=>x.workspace_id).filter(Boolean))];
-    try{cloudStatus('Cloud visible: '+visible.length+' | WID: '+workspaceSet.map(x=>String(x).slice(0,8)).join(',')+' | UID '+String(debugUid).slice(0,8)+'…')}catch(e){}
+    try{cloudStatus('Cloud Master synced')}catch(e){}
     const entries=visible.filter(x=>x.workspace_id===wid);
     /* Cloud is master only when it actually has data. Never replace local History with an empty cloud result. */
     if((entries||[]).length===0){
