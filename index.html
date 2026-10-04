@@ -751,14 +751,28 @@ async function checkServiceStatus(manual){
       return false;
     }
     const ids=(entries||[]).map(x=>x.id); let photos=[];
-    if(ids.length){const r=await c.from('converter_photos').select('*').in('entry_id',ids).order('sort_order',{ascending:true});if(r.error)throw r.error;photos=r.data||[];}
+    /* Photos are optional. Never let one photo/RLS/storage problem hide the entire
+       Cloud History list. Entry records are the source of truth for History. */
+    if(ids.length){
+      try{
+        const r=await c.from('converter_photos').select('*').in('entry_id',ids).order('sort_order',{ascending:true});
+        if(!r.error)photos=r.data||[];
+        else console.error('Cloud photo metadata read failed',r.error);
+      }catch(e){console.error('Cloud photo metadata read failed',e)}
+    }
     const byEntry={}; for(const p of photos){(byEntry[p.entry_id]||(byEntry[p.entry_id]=[])).push(p)}
     const out=[];
     for(const e of (entries||[])){
       const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
       const pics=byEntry[e.id]||[];
       let urls=[];
-      if(pics.length){const r=await c.storage.from(CLOUD_BUCKET).createSignedUrls(pics.map(p=>p.storage_path),3600);const signed=r.data||[];urls=pics.map((p,i)=>({name:p.file_name||('Photo '+(i+1)),url:(signed[i]&&signed[i].signedUrl)||'',cloudPath:p.storage_path,bgRemoved:true})).filter(p=>p.url);}
+      if(pics.length){
+        try{
+          const r=await c.storage.from(CLOUD_BUCKET).createSignedUrls(pics.map(p=>p.storage_path),3600);
+          const signed=r.data||[];
+          urls=pics.map((p,i)=>({name:p.file_name||('Photo '+(i+1)),url:(signed[i]&&signed[i].signedUrl)||'',cloudPath:p.storage_path,bgRemoved:true})).filter(p=>p.url);
+        }catch(e){console.error('Cloud photo URL read failed',e)}
+      }
       const x={...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt??0,pd:e.pd_ppm??legacy.pd??0,rh:e.rh_ppm??legacy.rh??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:urls,_cloud_id:e.id,_cloud_synced_at:e.updated_at};
       out.push(x);
     }
