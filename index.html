@@ -626,7 +626,7 @@ async function checkServiceStatus(manual){
   let cloudWorkspaceId=null;
   let cloudClient=null;
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  function cloudStatus(msg){try{$('status').textContent=msg}catch(e){}}
+  function cloudStatus(msg){try{const el=$('status');if(!el)return;el.style.display='inline-flex';el.textContent=msg}catch(e){}}
   function client(){
     try{ if(!cloudClient && typeof getEditorSupabase==='function') cloudClient=getEditorSupabase(); }catch(e){}
     return cloudClient;
