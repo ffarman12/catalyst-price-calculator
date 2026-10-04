@@ -807,7 +807,7 @@ async function checkServiceStatus(manual){
       const r=await c.from('converter_entries')
         .select('*')
         .eq('workspace_id',wid)
-        .ilike('code','%'+key.replace(/[%_]/g,'').split('').join('%')+'%')
+        .ilike('code_normalized',key.replace(/[%_]/g,'')+'%')
         .order('created_at',{ascending:false})
         .limit(50);
       if(r.error)throw r.error;
