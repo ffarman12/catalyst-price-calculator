@@ -208,7 +208,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     </div><div class="row" style="margin-top:12px"><button class="btn primary" onclick="demoLive()">Update Live</button><button class="btn secondary" onclick="saveMarket()">Save Manual</button><button class="btn secondary" type="button" onclick="(async()=>{const box=$('apiDiagnostic');box.style.display='block';box.textContent='Checking secure market service...';try{const res=await fetch('/api/market',{cache:'no-store'});const raw=await res.text();let msg=raw;try{const j=JSON.parse(raw);msg=JSON.stringify(j,null,2)}catch(e){}box.textContent='HTTP '+res.status+'\n'+msg}catch(err){box.textContent='API ERROR\n'+String(err&&err.message||err)}})()">API Diagnostic</button></div><div id="apiDiagnostic" style="display:none;margin-top:8px;padding:10px;border-radius:10px;background:light-dark(#edf1f7,#202731);font-size:11px;line-height:1.4;white-space:pre-wrap;overflow:auto;max-height:180px"></div><div class="note">Live market uses the secure server-side market service. Manual values are fallback only when the secure service is unavailable.</div></div>
   </section>
 
-  <section id="history" class="view"><div class="card"><div class="sectionTitle">Search / History</div><input id="search" placeholder="Search converter code" oninput="renderHistory()"><div id="historyList"></div></div></section>
+  <section id="history" class="view"><div class="card"><div class="sectionTitle">Search / History</div><input id="search" placeholder="Search converter code" oninput="historySearchInput()" autocomplete="off"><div id="historyList"></div></div></section>
 
   <section id="historyDetail" class="view"><div class="card" style="position:relative;padding-top:16px"><button type="button" aria-label="Back" onclick="event.preventDefault();event.stopPropagation();closeHistoryDetails()" style="position:absolute;left:50%;top:8px;transform:translateX(-50%);border:0;background:transparent;color:inherit;font-size:30px;line-height:1;padding:0;cursor:pointer;z-index:10">⌄</button><div id="historyDetailContent" style="margin-top:0"></div></div></section>
 
@@ -343,7 +343,7 @@ async function shareWhatsApp(){const url=window.location.href,text='Catalyst Pri
 function toggleAccountNameMenu(e){if(e){e.preventDefault();e.stopPropagation()}const b=$('accountLogoutBtn');if(b)b.style.setProperty('display',b.style.display==='none'?'block':'none','important')}
 function isSectionLocked(key){return !!sectionLocks[key]}
 function requestSectionUnlock(key,callback){if(!isSectionLocked(key)){callback();return}sectionUnlockCallback=callback;pendingAction='sectionUnlock';pendingIndex=null;$('pinTitle').textContent='Section Lock PIN';$('pinInput').value='';$('pinModal').style.display='flex';setTimeout(()=>$('pinInput').focus(),50)}
-function showSection(view){if(view==='history'&&!isLoggedIn())return;requestSectionUnlock(view,()=>{document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(view).classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));if(view==='history'){const saved=safeStoreGet('cat_history',null);if(Array.isArray(saved))history=saved;renderHistory();if(isLoggedIn()){try{cloudStatus('History: Cloud check…')}catch(e){}const cloud=window.CatalystCloudMaster;if(cloud&&typeof cloud.sync==='function'){cloud.sync().then(()=>{try{renderHistory()}catch(e){}}).catch(e=>{console.error('History cloud sync failed',e);try{cloudStatus('History cloud error: '+String(e&&e.message||e).slice(0,100))}catch(e2){}try{renderHistory()}catch(e3){}})}}}})}
+function showSection(view){if(view==='history'&&!isLoggedIn())return;requestSectionUnlock(view,()=>{document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(view).classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));if(view==='history'){history=[];const input=$('search');if(input)input.value='';renderHistory();cloudStatus('History ready — enter converter code')}})}
 function openNewConverter(e){if(e){e.preventDefault();e.stopPropagation()}$('topNewMenu').style.display='none';requestSectionUnlock('home',()=>{localStorage.setItem('cat_last_view','home');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('home').classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='home'));clearForm();$('home').querySelector('.sectionTitle').textContent='+New';$('calculateBtn').textContent='Calculate Price';window.scrollTo({top:0,behavior:'auto'})})}
 function openAppSettings(){document.getElementById('topNewMenu').style.display='none';showSection('settings')}
 function openSettingsFolder(e){if(e){e.preventDefault();e.stopPropagation()}$('topNewMenu').style.display='none';requestSectionUnlock('settingsPanel',()=>{const m=$('topNewMenu');m.innerHTML='<div class="menuLabel">Settings</div><button type="button" onclick="shareWhatsApp()">📲 Share App</button><button type="button" onclick="installApp()">📥 Install App</button><div class="menuSep"></div><button type="button" onclick="openLessSettings(event)">↘ Excel Mode</button><button type="button" onclick="openEntryPercentLess(event)">％ Less History</button><button type="button" onclick="openViewerPpmSettings(event)">👁 Viewer App — View PPM</button><button type="button" onclick="openServiceStatus(event)">🔗 Connections / Service Status</button>';m.style.display='block'})}
@@ -386,7 +386,25 @@ async function calculate(){const less=getActiveLess(),w=+$('weight').value,ptppm
 const originalCalculate=calculate;calculate=async function(){const editAt=editingIndex,note=$('notes').value||'';window.__catalystCalcBusy=true;try{await originalCalculate();if(editAt!==null&&editAt!==undefined&&!history[editAt]){console.warn('Edit target disappeared during Calculate; restoring from local backup');const backup=safeStoreGet('cat_history_backup',[]);if(Array.isArray(backup)&&backup[editAt]){history.splice(editAt,0,backup[editAt]);}}if(editAt!==null&&editAt!==undefined&&history[editAt]){if(history[editAt].rh===undefined&&history[editAt].rhppm!==undefined){history[editAt].rh=history[editAt].rhppm;delete history[editAt].rhppm}history[editAt].note=note}else if(history[0]){if(history[0].rh===undefined&&history[0].rhppm!==undefined){history[0].rh=history[0].rhppm;delete history[0].rhppm}history[0].note=note}saveHistoryStorage();renderHistory();const bgTargetIndex=editAt!==null&&editAt!==undefined?editAt:0;const bgTarget=history[bgTargetIndex];if(bgTarget&&Array.isArray(bgTarget.photos)){const startBg=()=>{bgTarget.photos.forEach((p,pi)=>queuePhotoBackgroundRemoval(bgTargetIndex,pi))};if(typeof requestIdleCallback==='function')requestIdleCallback(startBg,{timeout:1800});else setTimeout(startBg,1200)}{const saveTarget=editAt!==null&&editAt!==undefined?editAt:0;setTimeout(()=>{try{const cloud=window.CatalystCloudMaster;if(cloud&&typeof cloud.saveLatest==='function')cloud.saveLatest(saveTarget)}catch(e){console.error('Cloud save trigger failed',e)}},0)}}finally{window.__catalystCalcBusy=false}};calculate.__cloudWrapped=true;
 let pendingAction=null,pendingIndex=null,deleteTargetIndex=null;
 function applyAccessUI(){const logged=isLoggedIn();document.body.classList.toggle('loggedOut',!logged);const historyBtn=document.querySelector('.nav button[data-view="history"]');if(historyBtn)historyBtn.style.display='';if(!logged){document.querySelectorAll('#history,#historyDetail').forEach(v=>v.classList.remove('active'));if($('market'))$('market').classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='market'));}if($('loginMenuBtn')){const name=String(localStorage.getItem('cat_profile_name')||'').trim();$('loginMenuBtn').textContent=logged?'👤 '+(name||'Account')+' ▾':'⇄ Login'}}
-function renderHistory(){const qRaw=String($('search')?.value||'').toLowerCase().trim(),q=qRaw.replace(/[^a-z0-9]/g,'');const rows=history.map((x,i)=>({x,i})).filter(o=>{const c=String(o.x.code||'').toLowerCase(),n=c.replace(/[^a-z0-9]/g,'');return !q||c.includes(qRaw)||n.includes(q)});if(!rows.length){$('historyList').innerHTML='<div class="empty">No converters found</div>';applyAccessUI();return}$('historyList').innerHTML=rows.map(o=>{const x=o.x,i=o.i,pics=(x.photos||[]).map(p=>typeof p==='string'?{name:p,url:''}:p),j=inlinePhotoIndex[i]||0,p=pics[j]||{},displayPrice=getEntryDisplayPrice(x.price||0),displayDpf=Number(x.dpfWeight)>0?getEntryDisplayPrice(calcDpfValue(x.dpfWeight,x.dpfPt,x.dpfPd,x.dpfRh)):0;return `<div class="historyItem" style="display:block;cursor:pointer" data-history-index="${i}"><div style="display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start"><div><div style="font-size:18px;font-weight:900">${x.company||'Company not added'}</div><div style="font-size:13px;font-weight:700;margin-top:4px">${formatConverterCode(x.code||'No code')}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:900;line-height:1.05">${money(displayPrice)}</div>${Number(x.dpfWeight)>0?`<div style="font-size:15px;font-weight:800;margin-top:6px">D ${money(displayDpf)}</div>`:''}<button class="btn secondary" style="padding:9px 12px;font-size:12px;margin-top:8px" onclick="showPPM(${i})">View PPM</button><button aria-label="More options" style="border:0;background:transparent;color:inherit;font-size:28px;line-height:1;padding:1px 4px;cursor:pointer;display:block;margin:3px 0 0 auto" onclick="openMenu(event,${i})">⋮</button></div></div><div style="height:280px;margin:18px 0 8px;border-radius:16px;background:light-dark(#f3f6fa,#202731);display:flex;align-items:center;justify-content:center;overflow:hidden"><img id="gallery-${i}" src="${p.url||''}" alt="Converter photo" style="max-width:100%;max-height:100%;object-fit:contain;display:${p.url?'block':'none'};touch-action:none" onclick="inlineZoom(event,${i})">${p.url?'':'<span class="muted">Photo available nahi hai.</span>'}</div>${pics.length>1?`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px"><button class="btn secondary" style="padding:8px 12px;font-size:12px" onclick="inlinePrev(event,${i})">‹ Previous</button><span id="galleryCount-${i}" class="muted" style="font-size:14px">${j+1} / ${pics.length}</span><button class="btn secondary" style="padding:8px 12px;font-size:12px" onclick="inlineNext(event,${i})">Next ›</button></div>`:''}<div id="ppm-${i}" style="display:none;margin-top:10px;padding:12px;border-radius:12px;background:light-dark(#f3f6fa,#202731);font-size:12px;line-height:1.6">Weight: ${x.weight||0} g · Pt: ${x.pt||0} ppm · Pd: ${x.pd||0} ppm · Rh: ${x.rh||0} ppm${Number(x.dpfWeight)>0?`<hr style="border:0;border-top:1px solid #aaa;margin:8px 0"><b>DPF</b> · Weight: ${Number(x.dpfWeight).toFixed(2)} kg · Pt: ${x.dpfPt||0} ppm · Pd: ${x.dpfPd||0} ppm · Rh: ${x.dpfRh||0} ppm`:''}</div></div>`}).join('');rows.forEach(o=>renderHistoryGallery(o.i));applyAccessUI()}
+function renderHistory(){
+  const rows=Array.isArray(history)?history.map((x,i)=>({x,i})):[];
+  if(!rows.length){$('historyList').innerHTML='<div class="empty">Enter converter code to search</div>';applyAccessUI();return}
+  $('historyList').innerHTML=rows.map(o=>{const x=o.x,i=o.i,pics=(x.photos||[]).map(p=>typeof p==='string'?{name:p,url:''}:p),j=inlinePhotoIndex[i]||0,p=pics[j]||{},displayPrice=getEntryDisplayPrice(x.price||0),displayDpf=Number(x.dpfWeight)>0?getEntryDisplayPrice(calcDpfValue(x.dpfWeight,x.dpfPt,x.dpfPd,x.dpfRh)):0;return `<div class="historyItem" style="display:block;cursor:pointer" data-history-index="${i}"><div style="display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start"><div><div style="font-size:18px;font-weight:900">${x.company||'Company not added'}</div><div style="font-size:13px;font-weight:700;margin-top:4px">${formatConverterCode(x.code||'No code')}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:900;line-height:1.05">${money(displayPrice)}</div>${Number(x.dpfWeight)>0?`<div style="font-size:15px;font-weight:800;margin-top:6px">D ${money(displayDpf)}</div>`:''}<button class="btn secondary" style="padding:9px 12px;font-size:12px;margin-top:8px" onclick="showPPM(${i})">View PPM</button><button aria-label="More options" style="border:0;background:transparent;color:inherit;font-size:28px;line-height:1;padding:1px 4px;cursor:pointer;display:block;margin:3px 0 0 auto" onclick="openMenu(event,${i})">⋮</button></div></div><div style="height:280px;margin:18px 0 8px;border-radius:16px;background:light-dark(#f3f6fa,#202731);display:flex;align-items:center;justify-content:center;overflow:hidden"><img id="gallery-${i}" src="${p.url||''}" alt="Converter photo" style="max-width:100%;max-height:100%;object-fit:contain;display:${p.url?'block':'none'};touch-action:none" onclick="inlineZoom(event,${i})">${p.url?'':'<span class="muted">Photo available nahi hai.</span>'}</div>${pics.length>1?`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px"><button class="btn secondary" style="padding:8px 12px;font-size:12px" onclick="inlinePrev(event,${i})">‹ Previous</button><span id="galleryCount-${i}" class="muted" style="font-size:14px">${j+1} / ${pics.length}</span><button class="btn secondary" style="padding:8px 12px;font-size:12px" onclick="inlineNext(event,${i})">Next ›</button></div>`:''}<div id="ppm-${i}" style="display:none;margin-top:10px;padding:12px;border-radius:12px;background:light-dark(#f3f6fa,#202731);font-size:12px;line-height:1.6">Weight: ${x.weight||0} g · Pt: ${x.pt||0} ppm · Pd: ${x.pd||0} ppm · Rh: ${x.rh||0} ppm${Number(x.dpfWeight)>0?`<hr style="border:0;border-top:1px solid #aaa;margin:8px 0"><b>DPF</b> · Weight: ${Number(x.dpfWeight).toFixed(2)} kg · Pt: ${x.dpfPt||0} ppm · Pd: ${x.dpfPd||0} ppm · Rh: ${x.dpfRh||0} ppm`:''}</div></div>`}).join('');
+  rows.forEach(o=>renderHistoryGallery(o.i));applyAccessUI()
+}
+let historySearchTimer=null,historySearchSeq=0;
+function historySearchInput(){
+  const q=String($('search')?.value||'').trim();
+  clearTimeout(historySearchTimer);
+  historySearchTimer=setTimeout(async()=>{
+    const seq=++historySearchSeq;
+    if(!q){history=[];renderHistory();cloudStatus('History ready — enter converter code');return}
+    cloudStatus('Searching Cloud…');
+    const ok=await window.CatalystCloudMaster?.searchHistory?.(q);
+    if(seq!==historySearchSeq)return;
+    if(!ok)renderHistory();
+  },250);
+}
 const inlinePhotoIndex={};const inlineZoomed={};
 document.getElementById('historyList').addEventListener('click',e=>{const item=e.target.closest&&e.target.closest('.historyItem');if(!item||e.target.closest('button'))return;const i=Number(item.dataset.historyIndex);if(Number.isInteger(i))openHistoryDetails(i)});
 function inlinePrev(e,i){e.stopPropagation();const pics=history[i].photos||[];if(!pics.length)return;const current=inlinePhotoIndex[i]||0;if(current<=0)return;inlinePhotoIndex[i]=current-1;renderHistoryGallery(i)}
@@ -741,28 +759,11 @@ async function checkServiceStatus(manual){
     localStorage.setItem(CLOUD_MIGRATION,'done');
     return true;
   }
-  async function loadCloudHistory(){
-    const c=client(),wid=await workspaceId(); if(!c||!wid)return false;
-    const {data:sessionData}=await c.auth.getSession();
-    const debugUid=sessionData&&sessionData.session&&sessionData.session.user?sessionData.session.user.id:'NO-SESSION';
-    try{cloudStatus('Cloud UID '+String(debugUid).slice(0,12)+'… WID '+String(wid).slice(0,12)+'…')}catch(e){}
-    const {data:allVisible,error:allErr}=await c.from('converter_entries').select('*').order('created_at',{ascending:false});
-    if(allErr){try{cloudStatus('History cloud error: '+String(allErr.message||allErr).slice(0,120))}catch(e){}throw allErr;}
-    const visible=(allVisible||[]);
-    const workspaceSet=[...new Set(visible.map(x=>x.workspace_id).filter(Boolean))];
-    try{cloudStatus('Cloud Master synced')}catch(e){}
-    const entries=visible.filter(x=>x.workspace_id===wid);
-    /* Cloud is master only when it actually has data. Never replace local History with an empty cloud result. */
-    if((entries||[]).length===0){
-      if(Array.isArray(history) && history.length>0){
-        try{localStorage.removeItem(CLOUD_MIGRATION)}catch(e){}
-        await migrateLocalHistory();
-      }
-      return false;
-    }
-    const ids=(entries||[]).map(x=>x.id); let photos=[];
-    /* Photos are optional. Never let one photo/RLS/storage problem hide the entire
-       Cloud History list. Entry records are the source of truth for History. */
+  async function mapCloudHistoryEntries(entries,c){
+    const rows=Array.isArray(entries)?entries:[];
+    if(!rows.length)return [];
+    const ids=rows.map(x=>x.id).filter(Boolean);
+    let photos=[];
     if(ids.length){
       try{
         const r=await c.from('converter_photos').select('*').in('entry_id',ids).order('sort_order',{ascending:true});
@@ -770,9 +771,10 @@ async function checkServiceStatus(manual){
         else console.error('Cloud photo metadata read failed',r.error);
       }catch(e){console.error('Cloud photo metadata read failed',e)}
     }
-    const byEntry={}; for(const p of photos){(byEntry[p.entry_id]||(byEntry[p.entry_id]=[])).push(p)}
+    const byEntry={};
+    for(const p of photos)(byEntry[p.entry_id]||(byEntry[p.entry_id]=[])).push(p);
     const out=[];
-    for(const e of (entries||[])){
+    for(const e of rows){
       const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
       const pics=byEntry[e.id]||[];
       let urls=[];
@@ -783,17 +785,50 @@ async function checkServiceStatus(manual){
           urls=pics.map((p,i)=>({name:p.file_name||('Photo '+(i+1)),url:(signed[i]&&signed[i].signedUrl)||'',cloudPath:p.storage_path,bgRemoved:true})).filter(p=>p.url);
         }catch(e){console.error('Cloud photo URL read failed',e)}
       }
-      const x={...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt??0,pd:e.pd_ppm??legacy.pd??0,rh:e.rh_ppm??legacy.rh??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:urls,_cloud_id:e.id,_cloud_synced_at:e.updated_at};
-      out.push(x);
+      out.push({...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt??0,pd:e.pd_ppm??legacy.pd??0,rh:e.rh_ppm??legacy.rh??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:urls,_cloud_id:e.id,_cloud_synced_at:e.updated_at});
     }
-    /* Keep local entries that are not yet represented in Cloud. This prevents a refresh from hiding unsynced History. */
-    const cloudIds=new Set(out.map(x=>x&&x._cloud_id).filter(Boolean));
-    const localOnly=Array.isArray(history)?history.filter(x=>x&&(!x._cloud_id||!cloudIds.has(x._cloud_id))):[];
-    history=out.concat(localOnly);
+    return out;
+  }
+  async function cloudSearchHistory(searchTerm){
+    const qRaw=String(searchTerm||'').trim();
+    if(!qRaw){history=[];renderHistory();return true}
+    const c=client(),wid=await workspaceId();
+    if(!c||!wid){history=[];renderHistory();cloudStatus('Cloud search unavailable');return false}
+    const variants=[];
+    const add=v=>{v=String(v||'').trim();if(v&&!variants.includes(v))variants.push(v)};
+    add(qRaw);
+    add(qRaw.replace(/[\\/\\s]+/g,'-'));
+    add(qRaw.replace(/[-\\/\\s]+/g,''));
+    add(qRaw.replace(/[-\\s]+/g,'/'));
+    let rows=[];
+    try{
+      let q=c.from('converter_entries').select('*').eq('workspace_id',wid);
+      if(typeof q.ilikeAnyOf==='function'){
+        q=q.ilikeAnyOf('code',variants.map(v=>'%'+v.replace(/[%_]/g,'')+'%'));
+      }else{
+        q=q.ilike('code','%'+qRaw.replace(/[%_]/g,'')+'%');
+      }
+      const r=await q.order('created_at',{ascending:false}).limit(50);
+      if(r.error)throw r.error;
+      rows=r.data||[];
+    }catch(e){
+      console.error('Cloud history search failed',e);
+      cloudStatus('History search error: '+String(e&&e.message||e).slice(0,90));
+      return false;
+    }
+    const normalizedQuery=qRaw.toLowerCase().replace(/[^a-z0-9]/g,'');
+    rows=rows.filter(e=>String(e.code||'').toLowerCase().replace(/[^a-z0-9]/g,'').includes(normalizedQuery));
+    history=await mapCloudHistoryEntries(rows,c);
     window.__catalystCloudHistoryLoaded=true;
-    try{const s=JSON.stringify(history);localStorage.setItem('cat_history',s);appDbCache['cat_history']=s;if(appDb)appDbWrite('cat_history',s);else appDbPending['cat_history']=s;}catch(e){}
-    if(typeof renderHistory==='function')renderHistory();
+    renderHistory();
+    cloudStatus(history.length?'Cloud search: '+history.length+' result'+(history.length===1?'':'s'):'No matching converter');
     return true;
+  }
+  async function loadCloudHistory(){
+    /* History is intentionally NOT bulk-loaded. It is fetched only after a code search. */
+    history=[];
+    if(typeof renderHistory==='function')renderHistory();
+    return false;
   }
   async function cloudBootstrap(){
     if(cloudBusy||window.__catalystCalcBusy)return false; const c=client(); if(!c)return false;
@@ -870,7 +905,7 @@ async function checkServiceStatus(manual){
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
   async function cloudSyncReliable(){for(let attempt=0;attempt<8;attempt++){try{await cloudBootstrap();}catch(e){console.error('Cloud sync attempt failed',e)}if(!cloudBusy){try{if(window.__catalystCloudHistoryLoaded)return true}catch(e){} }await sleep(400)}return !!window.__catalystCloudHistoryLoaded}
-  window.CatalystCloudMaster={sync:cloudSyncReliable,saveLatest:cloudSaveLatest};
+  window.CatalystCloudMaster={sync:cloudSyncReliable,saveLatest:cloudSaveLatest,searchHistory:cloudSearchHistory};
 })();
 
 </script>
