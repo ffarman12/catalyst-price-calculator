@@ -743,9 +743,12 @@ async function checkServiceStatus(manual){
   }
   async function loadCloudHistory(){
     const c=client(),wid=await workspaceId(); if(!c||!wid)return false;
+    const {data:sessionData}=await c.auth.getSession();
+    const debugUid=sessionData&&sessionData.session&&sessionData.session.user?sessionData.session.user.id:'NO-SESSION';
+    try{cloudStatus('Cloud UID '+String(debugUid).slice(0,12)+'… WID '+String(wid).slice(0,12)+'…')}catch(e){}
     const {data:entries,error}=await c.from('converter_entries').select('*').eq('workspace_id',wid).order('created_at',{ascending:false});
     if(error){try{cloudStatus('History cloud error: '+String(error.message||error).slice(0,120))}catch(e){}throw error;}
-    try{cloudStatus('History Cloud records: '+String((entries||[]).length))}catch(e){}
+    try{cloudStatus('History Cloud records: '+String((entries||[]).length)+' | UID '+String(debugUid).slice(0,8)+'…')}catch(e){}
     /* Cloud is master only when it actually has data. Never replace local History with an empty cloud result. */
     if((entries||[]).length===0){
       if(Array.isArray(history) && history.length>0){
