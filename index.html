@@ -822,10 +822,16 @@ async function checkServiceStatus(manual){
   }
   const boot=()=>{
     installWrappers();
-    setTimeout(()=>{installWrappers();cloudBootstrap()},1200);
+    /* Auth session can be restored after the first 1.2s timer. Retry Cloud Master
+       bootstrap itself (not just pending saves) so existing Cloud History is loaded. */
+    [1200,5000,15000,30000].forEach(ms=>setTimeout(()=>{installWrappers();cloudBootstrap()},ms));
     try{
       const c=client();
-      if(c&&c.auth&&c.auth.onAuthStateChange)c.auth.onAuthStateChange((event,session)=>{if(session&&event==='SIGNED_IN'){setTimeout(()=>{cloudBootstrap();cloudRetryPending()},400)}});
+      if(c&&c.auth&&c.auth.onAuthStateChange)c.auth.onAuthStateChange((event,session)=>{
+        if(session&&(event==='SIGNED_IN'||event==='INITIAL_SESSION')){
+          setTimeout(()=>{cloudBootstrap();cloudRetryPending()},300);
+        }
+      });
     }catch(e){}
     [5000,15000,30000].forEach(ms=>setTimeout(()=>cloudRetryPending(),ms));
   };
