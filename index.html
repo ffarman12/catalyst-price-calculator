@@ -940,6 +940,7 @@ async function checkServiceStatus(manual){
         new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timeout')),5000))
       ]);
       if(result.error)throw result.error;
+      if(searchVersion!==cloudHistorySearchVersion)return true;
       rows=Array.isArray(result.data)?result.data:[];
       /* Cloud is authoritative: use only rows returned by this exact search request. */
       const seenIds=new Set();
