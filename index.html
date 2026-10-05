@@ -209,7 +209,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     </div><div class="row" style="margin-top:12px"><button class="btn primary" onclick="demoLive()">Update Live</button><button class="btn secondary" onclick="saveMarket()">Save Manual</button><button class="btn secondary" type="button" onclick="(async()=>{const box=$('apiDiagnostic');box.style.display='block';box.textContent='Checking secure market service...';try{const res=await fetch('/api/market',{cache:'no-store'});const raw=await res.text();let msg=raw;try{const j=JSON.parse(raw);msg=JSON.stringify(j,null,2)}catch(e){}box.textContent='HTTP '+res.status+'\n'+msg}catch(err){box.textContent='API ERROR\n'+String(err&&err.message||err)}})()">API Diagnostic</button></div><div id="apiDiagnostic" style="display:none;margin-top:8px;padding:10px;border-radius:10px;background:light-dark(#edf1f7,#202731);font-size:11px;line-height:1.4;white-space:pre-wrap;overflow:auto;max-height:180px"></div><div class="note">Live market uses the secure server-side market service. Manual values are fallback only when the secure service is unavailable.</div></div>
   </section>
 
-  <section id="history" class="view"><div class="card"><div class="sectionTitle" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Search / History</span><button id="viewCloudDataBtn" type="button" class="btn secondary" style="padding:7px 9px;font-size:10px;white-space:nowrap" onclick="event.preventDefault();event.stopPropagation();toggleCloudDataView();return false">☁ View Cloud Data <span id="cloudEntryCount" style="display:none;font-weight:900"></span></button></div><form id="historySearchForm" onsubmit="event.preventDefault();event.stopPropagation();historySearchInput(true);return false" style="position:relative"><input id="search" type="search" enterkeyhint="search" inputmode="search" placeholder="Search converter code" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true)}" style="padding-left:44px;padding-right:54px;width:100%;box-sizing:border-box"><button id="historySearchBtn" type="button" aria-label="Search" onclick="event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true);return false" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1;padding:6px 8px;cursor:pointer;z-index:2;pointer-events:auto;touch-action:manipulation">🔍</button></form><div id="historyList"></div></div></section>
+  <section id="history" class="view"><div class="card"><div class="sectionTitle" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Search / History</span><button id="viewCloudDataBtn" type="button" class="btn secondary" style="padding:7px 9px;font-size:10px;white-space:nowrap" onclick="event.preventDefault();event.stopPropagation();openProtectedCloudData();return false">☁ View Cloud Data <span id="cloudEntryCount" style="display:none;font-weight:900"></span></button></div><form id="historySearchForm" onsubmit="event.preventDefault();event.stopPropagation();historySearchInput(true);return false" style="position:relative"><input id="search" type="search" enterkeyhint="search" inputmode="search" placeholder="Search converter code" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true)}" style="padding-left:44px;padding-right:54px;width:100%;box-sizing:border-box"><button id="historySearchBtn" type="button" aria-label="Search" onclick="event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true);return false" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1;padding:6px 8px;cursor:pointer;z-index:2;pointer-events:auto;touch-action:manipulation">🔍</button></form><div id="historyList"></div></div></section>
 
   <section id="historyDetail" class="view"><div class="card" style="position:relative;padding-top:16px"><button type="button" aria-label="Back" onclick="event.preventDefault();event.stopPropagation();closeHistoryDetails()" style="position:absolute;left:50%;top:8px;transform:translateX(-50%);border:0;background:transparent;color:inherit;font-size:30px;line-height:1;padding:0;cursor:pointer;z-index:10">⌄</button><div id="historyDetailContent" style="margin-top:0"></div></div></section>
 
@@ -354,7 +354,24 @@ function openEntryPercentLess(e){if(e){e.preventDefault();e.stopPropagation()}$(
 function resetTopMenu(){const m=$('topNewMenu');const logged=isLoggedIn(),name=String(localStorage.getItem('cat_profile_name')||'').trim();m.innerHTML='<div class="menuLabel">ACCOUNT</div>'+(logged?'<button type="button" id="loginMenuBtn" onclick="toggleAccountNameMenu(event)">👤 '+(name||'Account')+' ▾</button><button type="button" id="accountLogoutBtn" style="display:none!important" onclick="toggleLogin(event)">⇥ Logout</button><button type="button" onclick="openProfileSettings(event)">👤 Profile</button><button type="button" onclick="openPasswordSettings(event)">🔒 Password Settings</button><div class="menuSep"></div><button type="button" onclick="openNewConverter(event)">+New</button><button type="button" onclick="openSectionLock(event)">🔐 Section Lock</button><button type="button" onclick="openSettingsFolder(event)">⚙ Settings</button>':'<button type="button" id="loginMenuBtn" onclick="toggleLogin(event)">⇄ Login</button><button type="button" onclick="openProfileSettings(event)">👤 Profile</button><div class="menuSep"></div><button type="button" onclick="openNewConverter(event)">+New</button><button type="button" onclick="openSettingsFolder(event)">⚙ Settings</button>');m.style.display='none';applyAccessUI()}
 function openSectionLock(e){if(e){e.preventDefault();e.stopPropagation()}const menu=$('topNewMenu');if(menu)menu.style.display='none';sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;const open=()=>{const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','historyActions'];keys.forEach(k=>{const el=$('lock'+k.charAt(0).toUpperCase()+k.slice(1));if(el)el.checked=!!sectionLocks[k]});$('sectionLockPin').value=String(sectionLocks.pin||'');$('sectionLockModal').style.display='flex'};const hasLock=Object.keys(sectionLocks).some(k=>k!=='pin'&&sectionLocks[k]);if(hasLock){sectionUnlockCallback=open;pendingAction='sectionLockSettings';pendingIndex=null;$('pinTitle').textContent='Section Lock PIN';$('pinInput').value='';$('pinModal').style.display='flex';setTimeout(()=>$('pinInput').focus(),50)}else{open()}}
 function closeSectionLock(){$('sectionLockModal').style.display='none';resetTopMenu()}
-function saveSectionLock(e){if(e){e.preventDefault();e.stopPropagation()}const pin=$('sectionLockPin').value.trim();const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','historyActions'];const next={};keys.forEach(k=>{const el=$('lock'+k.charAt(0).toUpperCase()+k.slice(1));next[k]=!!(el&&el.checked)});const anyLocked=Object.values(next).some(Boolean);if(anyLocked&&!/^\d{4}$/.test(pin)){alert('Locked section ke liye 4 digit PIN enter karein');return false}if(pin&&!/^\d{4}$/.test(pin)){alert('PIN 4 digits ka hona chahiye');return false}sectionLocks={...next,pin:anyLocked?pin:''};localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks));localStorage.setItem('cat_cloud_data_lock',sectionLocks.cloudData?'1':'0');$('status').textContent=anyLocked?'Section locks ON':'Section locks OFF';closeSectionLock();return false}
+function saveSectionLock(e){
+  if(e){e.preventDefault();e.stopPropagation()}
+  const pin=String($('sectionLockPin').value||'').trim();
+  const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','historyActions'];
+  const next={}; keys.forEach(k=>{const el=$('lock'+k.charAt(0).toUpperCase()+k.slice(1));next[k]=!!(el&&el.checked)});
+  const anyLocked=Object.values(next).some(Boolean);
+  if(anyLocked&&!/^\d{4}$/.test(pin)){alert('Locked section ke liye 4 digit PIN enter karein');return false}
+  if(pin&&!/^\d{4}$/.test(pin)){alert('PIN 4 digits ka hona chahiye');return false}
+  sectionLocks={...next,pin:anyLocked?pin:''};
+  try{
+    localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks));
+    localStorage.setItem('cat_cloud_data_lock',sectionLocks.cloudData?'1':'0');
+  }catch(err){console.error('Section Lock save error',err)}
+  $('status').textContent=anyLocked?'Section locks ON':'Section locks OFF';
+  $('sectionLockModal').style.display='none';
+  try{resetTopMenu()}catch(err){}
+  return false;
+}
 function saveEntryPercentLess(){entryPercentLess={percent:Math.max(0,Math.min(100,Number($('entryPercentLessValue').value)||0)),enabled:!!$('entryPercentLessMode').checked};localStorage.setItem('cat_entry_percent_less',JSON.stringify(entryPercentLess));renderHistory();$('status').textContent=entryPercentLess.enabled?'Percentage Less ON':'Percentage Less OFF'}
 function closeEntryPercentLess(){$('entryPercentLessModal').style.display='none';resetTopMenu()}
 function getEntryDisplayPrice(price){const saved=safeStoreGet('cat_entry_percent_less',null)||entryPercentLess;entryPercentLess={percent:Number(saved.percent)||0,enabled:!!saved.enabled};const p=Number(price)||0;return entryPercentLess.enabled?p*(1-Math.max(0,Math.min(100,entryPercentLess.percent))/100):p}
@@ -585,7 +602,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=26-force-update',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=28-section-lock-fix',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
@@ -811,6 +828,19 @@ function guardedCloudDataClick(){
     if(visible){hideCloudEntryCount();cloudStatus('Cloud data count hidden')}
     else{refreshCloudEntryCount(true);cloudStatus('Cloud data count updated')}
   }catch(e){console.error('Cloud Data lock error',e)}
+}
+function openProtectedCloudData(){
+  sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;
+  const locked=sectionLocks.cloudData===true||localStorage.getItem('cat_cloud_data_lock')==='1';
+  const el=$('cloudEntryCount');
+  const visible=!!(el&&el.style.display!=='none'&&el.textContent);
+  const reveal=()=>{if(visible){hideCloudEntryCount();cloudStatus('Cloud data count hidden')}else{refreshCloudEntryCount(true);cloudStatus('Cloud data count updated')}};
+  if(!locked){reveal();return}
+  const savedPin=String(sectionLocks.pin||'');
+  const p=window.prompt('Section Lock PIN (4 digit)');
+  if(p===null)return;
+  if(!savedPin||String(p).trim()!==savedPin){alert('Wrong Section Lock PIN');return}
+  reveal();
 }
 function toggleCloudDataView(){
   sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;
