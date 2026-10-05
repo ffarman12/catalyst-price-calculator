@@ -457,7 +457,23 @@ function historySearchInput(immediate){
 (function installHistorySearchController(){
   const form=$('historySearchForm'),input=$('search');
   if(!form||!input)return;
-  input.addEventListener('input',()=>historySearchInput(false),true);
+  input.addEventListener('input',()=>{
+    clearTimeout(historySearchTimer);
+    const q=String(input.value||'').trim();
+    if(!q){
+      historySearchInput(false);
+      return;
+    }
+    historySearchTimer=setTimeout(()=>historySearchInput(true),450);
+  },true);
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      e.stopPropagation();
+      clearTimeout(historySearchTimer);
+      historySearchInput(true);
+    }
+  },true);
 })();
 const inlinePhotoIndex={};const inlineZoomed={};
 document.getElementById('historyList').addEventListener('click',e=>{const item=e.target.closest&&e.target.closest('.historyItem');if(!item||e.target.closest('button'))return;const i=Number(item.dataset.historyIndex);if(Number.isInteger(i))openHistoryDetails(i)});
