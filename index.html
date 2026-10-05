@@ -811,25 +811,17 @@ async function checkServiceStatus(manual){
     if(!c||!wid){history=[];renderHistory();cloudStatus('Cloud search unavailable');return false}
     const key=normalized.length>=4?normalized.slice(0,4):normalized;
     let rows=[];
+    const withTimeout=(promise,ms)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timed out')),ms))]);
     try{
-      const sessionResult=await c.auth.getSession();
+      const sessionResult=await withTimeout(c.auth.getSession(),8000);
       const session=sessionResult&&sessionResult.data&&sessionResult.data.session;
       if(!session||!session.access_token)throw new Error('Login session unavailable');
 
-      /* Use the tested secure RPC first. This avoids relying on PostgREST's
-         generated-column schema cache and keeps the search logic server-side. */
-      /* Try the Supabase client RPC first. If it returns no rows (even without
-         an error), retry the same RPC through the authenticated REST endpoint.
-         This avoids a browser/client schema-cache edge case where a valid RPC
-         can appear empty. Only after both RPC paths are empty do we use the
-         indexed generated-column REST query. */
-      let rpcError=null;
+      /* Use the authenticated REST RPC first so a Supabase client RPC cannot
+         leave the search spinner waiting indefinitely. */
       try{
-        const rpc=await c.rpc('search_converter_history',{p_workspace_id:wid,p_prefix:key});
-        if(!rpc.error)rows=Array.isArray(rpc.data)?rpc.data:[];
-        else rpcError=rpc.error;
-      }catch(e){rpcError=e}
-      if(!rows.length){
+        const controller=new AbortController();
+        const timer=setTimeout(()=>controller.abort(),8000);
         try{
           const rpcResp=await fetch(SUPABASE_URL+'/rest/v1/rpc/search_converter_history',{
             method:'POST',
@@ -840,7 +832,8 @@ async function checkServiceStatus(manual){
               Accept:'application/json'
             },
             body:JSON.stringify({p_workspace_id:wid,p_prefix:key}),
-            cache:'no-store'
+            cache:'no-store',
+            signal:controller.signal
           });
           const rpcBody=await rpcResp.text();
           if(rpcResp.ok){
@@ -848,30 +841,45 @@ async function checkServiceStatus(manual){
           }else{
             console.warn('Cloud search REST RPC failed',rpcResp.status,rpcBody);
           }
-        }catch(e){console.warn('Cloud search REST RPC request failed',e)}
-      }
+        }finally{clearTimeout(timer)}
+      }catch(e){console.warn('Cloud search REST RPC request failed',e)}
+
+      /* Client RPC is only a secondary path and is time-limited. */
       if(!rows.length){
-        if(rpcError)console.warn('Cloud search RPC failed; using indexed REST fallback',rpcError);
-        const params=new URLSearchParams({
-          select:'*',
-          workspace_id:'eq.'+wid,
-          code_normalized:'like.'+key+'%',
-          order:'created_at.desc',
-          limit:'50'
-        });
-        const resp=await fetch(SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString(),{
-          method:'GET',
-          headers:{
-            apikey:SUPABASE_PUBLISHABLE_KEY,
-            Authorization:'Bearer '+session.access_token,
-            Accept:'application/json'
-          },
-          cache:'no-store'
-        });
-        const body=await resp.text();
-        if(!resp.ok)throw new Error('Cloud search HTTP '+resp.status);
-        try{rows=JSON.parse(body)||[]}catch(e){throw new Error('Invalid Cloud search response')}
+        try{
+          const rpc=await withTimeout(c.rpc('search_converter_history',{p_workspace_id:wid,p_prefix:key}),8000);
+          if(!rpc.error)rows=Array.isArray(rpc.data)?rpc.data:[];
+        }catch(e){console.warn('Cloud search client RPC failed',e)}
       }
+
+      /* Indexed REST fallback. */
+      if(!rows.length){
+        const controller=new AbortController();
+        const timer=setTimeout(()=>controller.abort(),8000);
+        try{
+          const params=new URLSearchParams({
+            select:'*',
+            workspace_id:'eq.'+wid,
+            code_normalized:'like.'+key+'%',
+            order:'created_at.desc',
+            limit:'50'
+          });
+          const resp=await fetch(SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString(),{
+            method:'GET',
+            headers:{
+              apikey:SUPABASE_PUBLISHABLE_KEY,
+              Authorization:'Bearer '+session.access_token,
+              Accept:'application/json'
+            },
+            cache:'no-store',
+            signal:controller.signal
+          });
+          const body=await resp.text();
+          if(!resp.ok)throw new Error('Cloud search HTTP '+resp.status);
+          try{rows=JSON.parse(body)||[]}catch(e){throw new Error('Invalid Cloud search response')}
+        }finally{clearTimeout(timer)}
+      }
+
       rows=rows.filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,50);
     }catch(e){
       console.error('Cloud history search failed',e);
@@ -880,6 +888,7 @@ async function checkServiceStatus(manual){
       cloudStatus('Search failed — '+String(e&&e.message||e).slice(0,90));
       return false;
     }
+
     history=rows.map(e=>{
       const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
       return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt??0,pd:e.pd_ppm??legacy.pd??0,rh:e.rh_ppm??legacy.rh??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
@@ -887,14 +896,19 @@ async function checkServiceStatus(manual){
     window.__catalystCloudHistoryLoaded=true;
     renderHistory();
     cloudStatus(history.length?'Cloud search: '+history.length+' result'+(history.length===1?'':'s'):'No matching reference found');
+
+    /* Results are complete enough to show immediately. Photos are enhanced
+       asynchronously so photo loading can never hold the search spinner. */
     if(history.length){
-      try{
-        const withPhotos=await mapCloudHistoryEntries(rows,c);
-        const byId={};
-        withPhotos.forEach(x=>{if(x._cloud_id)byId[x._cloud_id]=x});
-        history=history.map(x=>byId[x._cloud_id]?{...x,photos:byId[x._cloud_id].photos||[]}:x);
-        renderHistory();
-      }catch(e){console.error('Cloud history photo load failed',e)}
+      Promise.resolve().then(async()=>{
+        try{
+          const withPhotos=await mapCloudHistoryEntries(rows,c);
+          const byId={};
+          withPhotos.forEach(x=>{if(x._cloud_id)byId[x._cloud_id]=x});
+          history=history.map(x=>byId[x._cloud_id]?{...x,photos:byId[x._cloud_id].photos||[]}:x);
+          renderHistory();
+        }catch(e){console.error('Cloud history photo load failed',e)}
+      });
     }
     return true;
   }
