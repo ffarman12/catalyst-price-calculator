@@ -400,10 +400,35 @@ function historySearchInput(immediate){
   clearTimeout(historySearchTimer);
   const run=async()=>{
     const seq=++historySearchSeq;
-    if(!q){history=[];renderHistory();cloudStatus('History ready — enter reference code to search');setHistorySearchLoading(false);return}
+    if(!q){
+      history=[];
+      renderHistory();
+      cloudStatus('History ready — enter reference code to search');
+      setHistorySearchLoading(false);
+      return;
+    }
+    const normalized=normalizeHistoryCode(q);
+    const key=normalized.length>=4?normalized.slice(0,4):normalized;
+
+    /* Local-first: show any already-saved matching History immediately.
+       Cloud enhancement runs afterward and can never block the result UI. */
+    try{
+      const localRows=safeStoreGet('cat_history',[]);
+      if(Array.isArray(localRows)&&localRows.length){
+        const matches=localRows.filter(x=>normalizeHistoryCode(x&&x.code).startsWith(key)).slice(0,50);
+        if(matches.length){
+          history=matches;
+          renderHistory();
+          cloudStatus('History result: '+matches.length);
+          setHistorySearchLoading(false);
+        }
+      }
+    }catch(e){console.warn('Local History search failed',e)}
+
     cloudStatus('Searching Cloud…');
     setHistorySearchLoading(true);
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+
     try{
       const searchPromise=window.CatalystCloudMaster?.searchHistory?.(q);
       const ok=await Promise.race([
@@ -412,13 +437,18 @@ function historySearchInput(immediate){
       ]);
       if(seq!==historySearchSeq)return;
       if(!ok){
-        renderHistory();
-        cloudStatus('Search timed out — please try again');
+        /* Keep local results if they were found; otherwise show a clean timeout. */
+        if(!Array.isArray(history)||!history.length){
+          renderHistory();
+          cloudStatus('Search timed out — please try again');
+        }
       }
     }catch(e){
       console.error('History search trigger failed',e);
-      renderHistory();
-      cloudStatus('Search failed — please try again');
+      if(!Array.isArray(history)||!history.length){
+        renderHistory();
+        cloudStatus('Search failed — please try again');
+      }
     }finally{
       if(seq===historySearchSeq)setHistorySearchLoading(false);
     }
