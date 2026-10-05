@@ -616,7 +616,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=40-less-apply',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=50-section-lock',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
@@ -1271,6 +1271,44 @@ async function showCloudData(){
   window.CatalystCloudMaster={sync:cloudSyncReliable,saveLatest:cloudSaveLatest,searchHistory:cloudSearchHistory,loadAllHistory:loadAllCloudHistory,entryCount:loadCloudEntryCount,status:cloudStatus,deleteEntry:cloudDelete};
 })();
 
+</script>
+
+<script>
+/* FINAL SECTION LOCK SAVE FIX v50 — keep all lock options and make Save deterministic. */
+(function(){
+  window.saveSectionLock=function(e){
+    try{if(e){e.preventDefault();e.stopPropagation()}}catch(ignore){}
+    const pin=String(($('sectionLockPin')&&$('sectionLockPin').value)||'').trim();
+    const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','historyActions'];
+    const next={};
+    keys.forEach(function(k){
+      const el=$('lock'+k.charAt(0).toUpperCase()+k.slice(1));
+      next[k]=!!(el&&el.checked);
+    });
+    const anyLocked=Object.values(next).some(Boolean);
+    if(anyLocked&&!/^\\d{4}$/.test(pin)){
+      alert('Locked section ke liye 4 digit PIN enter karein');
+      return false;
+    }
+    if(pin&&!/^\\d{4}$/.test(pin)){
+      alert('PIN 4 digits ka hona chahiye');
+      return false;
+    }
+    sectionLocks=Object.assign({},next,{pin:anyLocked?pin:''});
+    try{
+      localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks));
+      localStorage.setItem('cat_cloud_data_lock',sectionLocks.cloudData?'1':'0');
+    }catch(err){
+      console.error('Section Lock save error',err);
+      alert('Section Lock save nahi ho saka');
+      return false;
+    }
+    try{$('status').textContent=anyLocked?'Section locks ON':'Section locks OFF'}catch(ignore){}
+    try{$('sectionLockModal').style.display='none'}catch(ignore){}
+    try{resetTopMenu()}catch(ignore){}
+    return false;
+  };
+})();
 </script>
 </body></html>
 +Number(price).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});const rr=$('refineResult');if(rr)rr.style.display='block'}
