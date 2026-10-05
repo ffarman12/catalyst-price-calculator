@@ -2277,12 +2277,16 @@ async function showCloudData(){
 })();
 </script>
 <script>
-/* PERSISTENT SETTINGS v1 — user-saved Section Lock / Viewer PPM / Less History / Excel Mode live in Supabase app_settings.
-   Rule: once initialized, Cloud is authoritative; settings change only when the user explicitly saves them. */
+/* PERSISTENT SETTINGS v2 — Cloud is authoritative only after a saved configuration exists.
+   IMPORTANT: an empty/partial cloud Section Lock object must never erase a real local saved lock configuration. */
 (function(){
   const PERSIST_KEY='_catalyst_persistent_settings_v1';
   const WORKSPACE_ID='0287285c-044b-4a08-9ed5-314b40fde0e8';
   let syncing=false;
+  const expectedLockKeys=['home','history','cloudData','market','refine','settings','settingsPanel','lessHistory','lessRefine','view','historyActions','pin'];
+  function lockConfigExists(x){
+    return !!(x&&typeof x==='object'&&expectedLockKeys.some(k=>Object.prototype.hasOwnProperty.call(x,k)));
+  }
   function localState(){
     let locks={},less={};
     try{locks=JSON.parse(localStorage.getItem('cat_section_locks')||'{}')||{}}catch(e){}
@@ -2304,15 +2308,23 @@ async function showCloudData(){
   async function writeCloud(state){
     const c=await getClient();if(!c)return false;
     try{
+      /* Never replace a configured Cloud Section Lock with an empty/partial object
+         unless the current local object itself is a complete saved Section Lock config. */
+      let locks=state.sectionLocks||{};
+      const existing=await c.from('app_settings').select('settings').eq('workspace_id',WORKSPACE_ID).maybeSingle();
+      if(existing&&!existing.error){
+        const oldLocks=existing.data&&existing.data.settings&&existing.data.settings.sectionLocks;
+        if(lockConfigExists(oldLocks)&&!lockConfigExists(locks))locks=oldLocks;
+      }
       const payload={workspace_id:WORKSPACE_ID,viewer_ppm_enabled:!!state.viewerPpmEnabled,excel_mode_enabled:!!state.excelModeEnabled,
-        settings:{[PERSIST_KEY]:true,sectionLocks:state.sectionLocks||{},lessHistory:state.lessHistory||{},savedAt:new Date().toISOString()}};
+        settings:{[PERSIST_KEY]:true,sectionLocks:locks,lessHistory:state.lessHistory||{},savedAt:new Date().toISOString()}};
       const q=await c.from('app_settings').upsert(payload,{onConflict:'workspace_id'});
       if(q.error){console.warn('Persistent settings save failed',q.error);return false}return true;
     }catch(e){console.warn('Persistent settings save failed',e);return false}
   }
   function applyState(state){
     if(!state)return;
-    try{if(state.sectionLocks&&typeof state.sectionLocks==='object'){sectionLocks=Object.assign({cloudData:false},state.sectionLocks);localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks))}}catch(e){}
+    try{if(state.sectionLocks&&typeof state.sectionLocks==='object'&&lockConfigExists(state.sectionLocks)){sectionLocks=Object.assign({cloudData:false},state.sectionLocks);localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks))}}catch(e){}
     try{
       const less=state.lessHistory||{};
       if(validLess(less)){lessSettings={pt:Number(less.pt),pd:Number(less.pd),rh:Number(less.rh),enabled:!!state.excelModeEnabled};localStorage.setItem('cat_less_settings',JSON.stringify(lessSettings))}
@@ -2330,7 +2342,15 @@ async function showCloudData(){
       const cloud=await readCloud();if(!cloud)return false;
       const settings=cloud.settings||{};
       if(settings[PERSIST_KEY]===true){
-        applyState({sectionLocks:settings.sectionLocks||{},viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||{}});
+        const local=localState();
+        const cloudLocks=settings.sectionLocks||{};
+        /* If Cloud has no saved Section Lock but this browser still has one, migrate
+           the local saved configuration instead of wiping it. */
+        if(!lockConfigExists(cloudLocks)&&lockConfigExists(local.sectionLocks)){
+          const pushed=await writeCloud(local);
+          if(pushed){localStorage.removeItem('cat_persistent_settings_pending');return true}
+        }
+        applyState({sectionLocks:cloudLocks,viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||{}});
         return true;
       }
       const ok=await writeCloud(localState());
@@ -2355,6 +2375,5 @@ async function showCloudData(){
     }catch(e){}
   },0);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-})();
-</script>
+})();</script>
 </body></html>
