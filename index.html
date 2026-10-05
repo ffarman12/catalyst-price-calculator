@@ -765,12 +765,19 @@ function hideCloudEntryCount(){
 }
 function toggleCloudDataView(){
   sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;
-  /* Keep a dedicated flag too, so the Cloud Data lock cannot be lost by legacy lock settings. */
-  sectionLocks.cloudData=!!(sectionLocks.cloudData||safeStoreGet('cat_cloud_data_lock',false));
+  const dedicatedLock=localStorage.getItem('cat_cloud_data_lock')==='1';
+  const locked=sectionLocks.cloudData===true||dedicatedLock;
   const el=$('cloudEntryCount');
   const visible=!!(el&&el.style.display!=='none'&&el.textContent);
   const reveal=()=>{if(visible){hideCloudEntryCount();cloudStatus('Cloud data count hidden');}else{refreshCloudEntryCount(true);cloudStatus('Cloud data count updated');}};
-  requestSectionUnlock('cloudData',reveal);
+  if(!locked){reveal();return;}
+  sectionUnlockCallback=reveal;
+  pendingAction='sectionUnlock';
+  pendingIndex=null;
+  $('pinTitle').textContent='Section Lock PIN';
+  $('pinInput').value='';
+  $('pinModal').style.display='flex';
+  setTimeout(()=>$('pinInput').focus(),50);
 }
 async function showCloudData(){
   /* Kept as a compatibility wrapper; Cloud Data button now only toggles the count. */
