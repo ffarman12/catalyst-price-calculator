@@ -872,8 +872,15 @@ function closeCloudPin(){
 function confirmCloudPin(){
   const entered=String(($('cloudPinInput')&&$('cloudPinInput').value)||'').trim();
   const savedPin=String(sectionLocks.pin||'');
-  if(!/^\\d{4}$/.test(entered)){alert('4 digit PIN enter karein');return false}
-  if(!savedPin||entered!==savedPin){alert('Wrong Section Lock PIN');return false}
+  const err=$('cloudPinError');
+  if(!/^\d{4}$/.test(entered)){
+    if(err)err.textContent='4 digit PIN enter karein';
+    return false;
+  }
+  if(!savedPin||entered!==savedPin){
+    if(err)err.textContent='Wrong Section Lock PIN';
+    return false;
+  }
   const cb=window.__cloudPinReveal;
   closeCloudPin();
   if(typeof cb==='function')cb();
