@@ -544,7 +544,29 @@ const sectionLockConfirm=confirmPin;confirmPin=function(){if(pendingAction==='se
 function openMenu(e,i){e.preventDefault();e.stopPropagation();const run=()=>{pendingIndex=i;const m=$('actionMenu');m.innerHTML='<button class="btn secondary" onclick="event.preventDefault();event.stopPropagation();editSelected('+i+')">Edit</button><button class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();deleteSelected('+i+')">Delete</button>';m.style.display='block';m.style.left=Math.max(10,e.clientX-110)+'px';m.style.top=Math.max(10,e.clientY-55)+'px'};if(isSectionLocked('historyActions')){pendingAction='historyMenu';pendingIndex=i;pendingMenuX=e.clientX;pendingMenuY=e.clientY;$('pinTitle').textContent='Section Lock PIN';$('pinInput').value='';$('pinModal').style.display='flex';setTimeout(()=>$('pinInput').focus(),50)}else{run()}};
 let historyMenuUnlocked=false;
 const baseHistoryConfirmPin=confirmPin;
-function runHistoryAction(action,i){const x=history[i];if(!x)return;if(action==='ppm'){const el=$('ppm-'+i);if(el)el.style.display=el.style.display==='none'?'block':'none';return}if(action==='detailPpm'){const el=$('detailPpm-'+i);if(el)el.style.display=el.style.display==='none'?'block':'none';return}if(action==='delete'){history.splice(i,1);localStorage.setItem('cat_history',JSON.stringify(history));renderHistory();$('status').textContent='Deleted';return}if(action==='edit'){closeMenu();editingIndex=i;$('company').value=String(x.company||'');$('vehicle').value=String(x.vehicle||'');$('code').value=String(x.code||'');$('weight').value=x.weight??'';$('pt').value=x.pt??'';$('pd').value=x.pd??'';$('rh').value=x.rh??'';$('dpfWeight').value=x.dpfWeight??'';$('dpfPt').value=x.dpfPt??'';$('dpfPd').value=x.dpfPd??'';$('dpfRh').value=x.dpfRh??'';$('notes').value=String(x.note||'');updateCompanyLogo();const hasDpf=Number(x.dpfWeight)>0;$('dpfFields').style.display=hasDpf?'grid':'none';$('dpfToggle').textContent=hasDpf?'− DPF Details':'+ DPF Details';const pics=(x.photos||[]).map(p=>typeof p==='string'?{name:p,url:p}:p).filter(p=>p&&p.url);$('photos').value='';$('selectedPhotoPreview').innerHTML=pics.length?pics.map((p,n)=>'<img src="'+p.url+'" alt="'+(p.name||('Photo '+(n+1)))+'" style="width:70px;height:70px;object-fit:cover;border-radius:10px;border:1px solid #aaa">').join(''):'<span class="muted">Saved photos nahi hain.';$('resultBox').style.display='none';$('home').querySelector('.sectionTitle').textContent='Edit Converter';$('calculateBtn').textContent='Update Converter';document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('home').classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='home'));window.scrollTo({top:0,behavior:'smooth'})}}
+async function runHistoryAction(action,i){const x=history[i];if(!x)return;if(action==='ppm'){const el=$('ppm-'+i);if(el)el.style.display=el.style.display==='none'?'block':'none';return}if(action==='detailPpm'){const el=$('detailPpm-'+i);if(el)el.style.display=el.style.display==='none'?'block':'none';return}if(action==='delete'){
+  const cloudId=x._cloud_id;
+  if(cloudId){
+    $('status').textContent='Deleting from Cloud…';
+    const cloud=window.CatalystCloudMaster;
+    if(!cloud||typeof cloud.deleteEntry!=='function'){
+      $('status').textContent='Cloud delete unavailable — not deleted';
+      alert('Cloud delete is not ready. The converter was not deleted.');
+      return;
+    }
+    const ok=await cloud.deleteEntry(cloudId);
+    if(!ok){
+      $('status').textContent='Cloud delete failed — not deleted';
+      alert('Cloud se delete nahi hua. Safety ke liye local entry bhi delete nahi ki gayi.');
+      return;
+    }
+  }
+  history.splice(i,1);
+  localStorage.setItem('cat_history',JSON.stringify(history));
+  renderHistory();
+  $('status').textContent='Deleted from Cloud';
+  return;
+}if(action==='edit'){closeMenu();editingIndex=i;$('company').value=String(x.company||'');$('vehicle').value=String(x.vehicle||'');$('code').value=String(x.code||'');$('weight').value=x.weight??'';$('pt').value=x.pt??'';$('pd').value=x.pd??'';$('rh').value=x.rh??'';$('dpfWeight').value=x.dpfWeight??'';$('dpfPt').value=x.dpfPt??'';$('dpfPd').value=x.dpfPd??'';$('dpfRh').value=x.dpfRh??'';$('notes').value=String(x.note||'');updateCompanyLogo();const hasDpf=Number(x.dpfWeight)>0;$('dpfFields').style.display=hasDpf?'grid':'none';$('dpfToggle').textContent=hasDpf?'− DPF Details':'+ DPF Details';const pics=(x.photos||[]).map(p=>typeof p==='string'?{name:p,url:p}:p).filter(p=>p&&p.url);$('photos').value='';$('selectedPhotoPreview').innerHTML=pics.length?pics.map((p,n)=>'<img src="'+p.url+'" alt="'+(p.name||('Photo '+(n+1)))+'" style="width:70px;height:70px;object-fit:cover;border-radius:10px;border:1px solid #aaa">').join(''):'<span class="muted">Saved photos nahi hain.';$('resultBox').style.display='none';$('home').querySelector('.sectionTitle').textContent='Edit Converter';$('calculateBtn').textContent='Update Converter';document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('home').classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='home'));window.scrollTo({top:0,behavior:'smooth'})}}
 function requestHistoryAction(action,i){if(!requireLogin())return;sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;if(action==='ppm'&&!isSectionLocked('view')){runHistoryAction(action,i);return}pendingAction='historyAction';pendingIndex=i;pendingHistoryAction=action;$('pinTitle').textContent='Enter PIN';$('pinInput').value='';$('pinModal').style.display='flex';setTimeout(()=>$('pinInput').focus(),50)}
 function openMenu(e,i){e.preventDefault();e.stopPropagation();const show=()=>{pendingIndex=i;const m=$('actionMenu');m.innerHTML='<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();runHistoryAction(\'edit\','+i+');">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();runHistoryAction(\'delete\','+i+');">Delete</button>';m.style.display='block';m.style.left=Math.max(10,e.clientX-110)+'px';m.style.top=Math.max(10,e.clientY-55)+'px'};if(!isSectionLocked('historyActions')){show();return}pendingAction='historyMenu';pendingIndex=i;pendingMenuX=e.clientX;pendingMenuY=e.clientY;$('pinTitle').textContent='Section Lock PIN';$('pinInput').value='';$('pinModal').style.display='flex';setTimeout(()=>$('pinInput').focus(),50)}
 confirmPin=function(){const pin=String($('pinInput').value||'');const sectionPin=String(sectionLocks.pin||'');const appPin=String(localStorage.getItem('cat_pin')||'1234');if(pendingAction==='historyMenu'){if(!sectionPin||pin!==sectionPin&&pin!==appPin){alert('Wrong PIN');return}const i=pendingIndex,x=pendingMenuX,y=pendingMenuY;pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';const m=$('actionMenu');m.innerHTML='<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();runHistoryAction(\'edit\','+i+');">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();runHistoryAction(\'delete\','+i+');">Delete</button>';m.style.display='block';m.style.left=Math.max(10,x-110)+'px';m.style.top=Math.max(10,y-55)+'px';return}if(pendingAction==='historyAction'){if(pin!==sectionPin&&pin!==appPin){alert('Wrong PIN');return}const action=pendingHistoryAction,i=pendingIndex;pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';runHistoryAction(action,i);return}baseHistoryConfirmPin()};
@@ -996,11 +1018,33 @@ async function checkServiceStatus(manual){
     }
     try{renderHistory()}catch(e){}
   }
-  async function cloudDelete(id){try{const c=client();if(!c||!id)return;const {data:rows}=await c.from('converter_photos').select('storage_path').eq('entry_id',id);if(rows&&rows.length)await c.storage.from(CLOUD_BUCKET).remove(rows.map(x=>x.storage_path).filter(Boolean));await c.from('converter_photos').delete().eq('entry_id',id);await c.from('converter_entries').delete().eq('id',id);}catch(e){console.error('Cloud delete failed',e);}}
+  async function cloudDelete(id){
+    try{
+      const c=client();
+      if(!c||!id)throw new Error('Cloud delete is not available');
+      const {data:photoRows,error:photoReadError}=await c.from('converter_photos').select('storage_path').eq('entry_id',id);
+      if(photoReadError)throw photoReadError;
+      const {data:deletedRows,error:deleteError}=await c.from('converter_entries').delete().eq('id',id).select('id');
+      if(deleteError)throw deleteError;
+      if(!Array.isArray(deletedRows)||!deletedRows.some(x=>x&&x.id===id)){
+        throw new Error('Cloud record was not deleted (permission/RLS or record not found)');
+      }
+      const paths=(photoRows||[]).map(x=>x&&x.storage_path).filter(Boolean);
+      if(paths.length){
+        const storageResult=await c.storage.from(CLOUD_BUCKET).remove(paths);
+        if(storageResult&&storageResult.error)console.warn('Cloud photo storage cleanup failed',storageResult.error);
+      }
+      const {error:photoDeleteError}=await c.from('converter_photos').delete().eq('entry_id',id);
+      if(photoDeleteError)console.warn('Cloud photo metadata cleanup failed',photoDeleteError);
+      return true;
+    }catch(e){
+      console.error('Cloud delete failed',e);
+      return false;
+    }
+  }
   function installWrappers(){
     if(typeof calculate==='function'&&!calculate.__cloudWrapped){const prev=calculate;const wrapped=async function(){const idx=editingIndex;const before=history[idx];await prev();let target=idx!==null&&idx!==undefined?idx:0;if(idx!==null&&idx!==undefined&&history[idx]!==before)target=idx;setTimeout(()=>cloudSaveLatest(target),0);};wrapped.__cloudWrapped=true;calculate=wrapped;}
-    if(typeof runHistoryAction==='function'&&!runHistoryAction.__cloudWrapped){const prev=runHistoryAction;const wrapped=function(action,i){const id=history&&history[i]&&history[i]._cloud_id;const r=prev.apply(this,arguments);if(action==='delete'&&id)cloudDelete(id);return r};wrapped.__cloudWrapped=true;runHistoryAction=wrapped;}
-    if(typeof deleteSelected==='function'&&!deleteSelected.__cloudWrapped){const prev=deleteSelected;const wrapped=function(){const i=(typeof pendingIndex==='number')?pendingIndex:deleteTargetIndex;const id=history&&history[i]&&history[i]._cloud_id;const r=prev.apply(this,arguments);if(id)cloudDelete(id);return r};wrapped.__cloudWrapped=true;deleteSelected=wrapped;}
+    /* Delete is handled inside runHistoryAction after PIN confirmation. */
   }
   const boot=()=>{
     installWrappers();
@@ -1020,7 +1064,7 @@ async function checkServiceStatus(manual){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
   async function cloudSyncReliable(){for(let attempt=0;attempt<8;attempt++){try{await cloudBootstrap();}catch(e){console.error('Cloud sync attempt failed',e)}if(!cloudBusy){try{if(window.__catalystCloudHistoryLoaded)return true}catch(e){} }await sleep(400)}return !!window.__catalystCloudHistoryLoaded}
   window.cloudStatus=cloudStatus;
-  window.CatalystCloudMaster={sync:cloudSyncReliable,saveLatest:cloudSaveLatest,searchHistory:cloudSearchHistory,status:cloudStatus};
+  window.CatalystCloudMaster={sync:cloudSyncReliable,saveLatest:cloudSaveLatest,searchHistory:cloudSearchHistory,status:cloudStatus,deleteEntry:cloudDelete};
 })();
 
 </script>
