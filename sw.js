@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v23-cloud-lock-direct';
+const CACHE='catalyst-calculator-v24-cloud-data-lock';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
