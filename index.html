@@ -2325,6 +2325,8 @@ async function showCloudData(){
   async function syncFromCloud(){
     if(syncing)return false;syncing=true;
     try{
+      const pending=localStorage.getItem('cat_persistent_settings_pending')==='1';
+      if(pending){const pushed=await writeCloud(localState());if(pushed){localStorage.removeItem('cat_persistent_settings_pending');return true}}
       const cloud=await readCloud();if(!cloud)return false;
       const settings=cloud.settings||{};
       if(settings[PERSIST_KEY]===true){
@@ -2335,7 +2337,12 @@ async function showCloudData(){
       return ok;
     }finally{syncing=false}
   }
-  async function persistNow(){return writeCloud(localState())}
+  async function persistNow(){
+    try{localStorage.setItem('cat_persistent_settings_pending','1')}catch(e){}
+    const ok=await writeCloud(localState());
+    if(ok){try{localStorage.removeItem('cat_persistent_settings_pending')}catch(e){}}
+    return ok;
+  }
   window.__persistSettingsToCloud=persistNow;
   window.__syncPersistentSettings=syncFromCloud;
   function hookAuth(){try{const c=getEditorSupabase();if(!c)return false;c.auth.onAuthStateChange((event,session)=>{if(session&&(event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='TOKEN_REFRESHED'))setTimeout(syncFromCloud,250)});return true}catch(e){return false}}
