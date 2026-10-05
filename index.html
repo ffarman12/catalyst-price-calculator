@@ -483,7 +483,7 @@ const detailPhotoIndex={};const detailPhotoTouch={};function detailPrev(e,i){e.p
 function closeHistoryDetails(){closePhotoViewer();document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('history').classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='history'));renderHistory()}
 function closeDetails(){closeHistoryDetails()}
 document.addEventListener('click',e=>{if($('topNewMenu').style.display==='block'&&!$('topNewMenu').contains(e.target)&&!e.target.closest('#topNewBtn'))$('topNewMenu').style.display='none';if($('actionMenu').style.display==='block'&&!$('actionMenu').contains(e.target)&&!e.target.closest('#historyDetailContent button')&&!e.target.closest('#pinModal')){closeMenu();e.stopImmediatePropagation();return}})
-if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{})})}
+
 document.addEventListener('DOMContentLoaded',()=>{$('pinInput').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key==='Done'||e.key==='Go'||e.keyCode===13){e.preventDefault();confirmPin()}})})
 document.addEventListener('click',e=>{if(!$('actionMenu').contains(e.target))closeMenu()});
 document.addEventListener('click',e=>{const img=e.target.closest&&e.target.closest('#historyDetailContent img');if(!img)return;e.preventDefault();e.stopPropagation();const box=img.parentElement;if(box)box.classList.toggle('photoExpanded')});
@@ -522,7 +522,7 @@ document.querySelectorAll('.nav button[data-view="home"],#bottomNewBtn').forEach
 </script>
 <script>
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  window.addEventListener('load', function(){ navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(function(){}); });
 }
 </script>
 <script>(function(){const previousConfirmPin=confirmPin;confirmPin=function(){if(pendingAction==='topMenu'){const pin=String($('pinInput').value||'');if(pin!=='549936'){alert('Wrong PIN');return}pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';showProtectedMainMenu();return}return previousConfirmPin()}})();</script>
