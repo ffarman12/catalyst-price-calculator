@@ -217,6 +217,14 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     <div class="field"><label>Pt Return %</label><input id="spt" type="number" value="80"></div><div class="field"><label>Pd Return %</label><input id="spd" type="number" value="80"></div><div class="field"><label>Rh Return %</label><input id="srh" type="number" value="80"></div><div class="field"><label>Days Out</label><input id="days" type="number" value="120"></div><div class="field"><label>Interest Rate %</label><input id="interest" type="number" value="5"></div><div class="field"><label>Treatment $/lb</label><input id="treatment" type="number" value="1"></div><div class="field"><label>Refining Pt $/kg</label><input id="rpt" type="number" value="1"></div><div class="field"><label>Refining Pd $/kg</label><input id="rpd" type="number" value="1"></div><div class="field"><label>Refining Rh $/kg</label><input id="rrh" type="number" value="1"></div>
   </div><button class="btn primary" style="width:100%;margin-top:12px" onclick="saveSettings()">Save Settings</button><div class="note">Minimum deductions are kept at zero in this first prototype. The final app can expose them under Advanced Settings.</div></div></section>
   <div id="pinModal" style="display:none;position:fixed;inset:0;background:#0008;align-items:center;justify-content:center;padding:20px;z-index:20"><div style="width:100%;max-width:360px;background:light-dark(#fff,#171c22);border-radius:18px;padding:18px"><div class="sectionTitle" id="pinTitle">Enter PIN</div><input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder=""><div class="row" style="margin-top:12px"><button class="btn secondary" onclick="closePin()">Cancel</button><button class="btn primary" onclick="event.preventDefault();event.stopPropagation();window.confirmTopMenuPin()">Continue</button></div></div></div>
+  <div id="cloudPinModal" style="display:none;position:fixed;top:12px;right:12px;width:min(280px,calc(100vw - 24px));z-index:100;background:light-dark(#fff,#171c22);border:1px solid light-dark(#dfe4ea,#303943);border-radius:14px;box-shadow:0 10px 28px #0004;padding:12px">
+    <div class="sectionTitle" style="font-size:15px;margin:0 0 8px">Section Lock PIN</div>
+    <input id="cloudPinInput" type="password" inputmode="numeric" maxlength="4" placeholder="4 digit PIN" style="width:100%;box-sizing:border-box">
+    <div class="row" style="margin-top:9px;gap:8px">
+      <button class="btn secondary" style="flex:1;padding:8px" onclick="closeCloudPin()">Cancel</button>
+      <button class="btn primary" style="flex:1;padding:8px" onclick="event.preventDefault();event.stopPropagation();confirmCloudPin()">OK</button>
+    </div>
+  </div>
   <div id="actionMenu" style="display:none;position:fixed;z-index:25;background:light-dark(#fff,#171c22);border:1px solid light-dark(#dfe4ea,#303943);border-radius:12px;box-shadow:0 8px 24px #0003;padding:6px"><button class="btn secondary" onclick="deleteSelected()">Delete</button></div>
   <div id="detailsModal" style="display:none;position:fixed;inset:0;background:#0009;z-index:29;align-items:center;justify-content:center;padding:18px"><div style="width:100%;max-width:560px;max-height:90vh;overflow:auto;background:light-dark(#fff,#171c22);border-radius:18px;padding:18px"><div id="detailsContent"></div><button class="btn secondary" style="width:100%;margin-top:12px" onclick="closeDetails()">Close</button></div></div>
   <div id="topNewMenu"><div class="menuLabel">ACCOUNT</div><button type="button" onclick="toggleLogin()">⇄ Login</button></div>
@@ -836,11 +844,25 @@ function openProtectedCloudData(){
   const visible=!!(el&&el.style.display!=='none'&&el.textContent);
   const reveal=()=>{if(visible){hideCloudEntryCount();cloudStatus('Cloud data count hidden')}else{refreshCloudEntryCount(true);cloudStatus('Cloud data count updated')}};
   if(!locked){reveal();return}
+  window.__cloudPinReveal=reveal;
+  $('cloudPinInput').value='';
+  $('cloudPinModal').style.display='block';
+  setTimeout(()=>{try{$('cloudPinInput').focus()}catch(e){}},50);
+}
+function closeCloudPin(){
+  const m=$('cloudPinModal');
+  if(m)m.style.display='none';
+  window.__cloudPinReveal=null;
+}
+function confirmCloudPin(){
+  const entered=String(($('cloudPinInput')&&$('cloudPinInput').value)||'').trim();
   const savedPin=String(sectionLocks.pin||'');
-  const p=window.prompt('Section Lock PIN (4 digit)');
-  if(p===null)return;
-  if(!savedPin||String(p).trim()!==savedPin){alert('Wrong Section Lock PIN');return}
-  reveal();
+  if(!/^\\d{4}$/.test(entered)){alert('4 digit PIN enter karein');return false}
+  if(!savedPin||entered!==savedPin){alert('Wrong Section Lock PIN');return false}
+  const cb=window.__cloudPinReveal;
+  closeCloudPin();
+  if(typeof cb==='function')cb();
+  return false;
 }
 function toggleCloudDataView(){
   sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;
