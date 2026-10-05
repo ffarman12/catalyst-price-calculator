@@ -209,7 +209,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     </div><div class="row" style="margin-top:12px"><button class="btn primary" onclick="demoLive()">Update Live</button><button class="btn secondary" onclick="saveMarket()">Save Manual</button><button class="btn secondary" type="button" onclick="(async()=>{const box=$('apiDiagnostic');box.style.display='block';box.textContent='Checking secure market service...';try{const res=await fetch('/api/market',{cache:'no-store'});const raw=await res.text();let msg=raw;try{const j=JSON.parse(raw);msg=JSON.stringify(j,null,2)}catch(e){}box.textContent='HTTP '+res.status+'\n'+msg}catch(err){box.textContent='API ERROR\n'+String(err&&err.message||err)}})()">API Diagnostic</button></div><div id="apiDiagnostic" style="display:none;margin-top:8px;padding:10px;border-radius:10px;background:light-dark(#edf1f7,#202731);font-size:11px;line-height:1.4;white-space:pre-wrap;overflow:auto;max-height:180px"></div><div class="note">Live market uses the secure server-side market service. Manual values are fallback only when the secure service is unavailable.</div></div>
   </section>
 
-  <section id="history" class="view"><div class="card"><div class="sectionTitle">Search / History</div><form id="historySearchForm" onsubmit="event.preventDefault();event.stopPropagation();historySearchInput(true);return false" style="position:relative"><input id="search" type="search" enterkeyhint="search" inputmode="search" placeholder="Search converter code" autocomplete="off" style="padding-left:44px;padding-right:54px;width:100%;box-sizing:border-box"><button id="historySearchBtn" type="button" aria-label="Search" onpointerup="return runHistorySearchButton(event)" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1;padding:6px 8px;cursor:pointer;z-index:2;pointer-events:auto;touch-action:manipulation">🔍</button></form><div id="historyList"></div></div></section>
+  <section id="history" class="view"><div class="card"><div class="sectionTitle">Search / History</div><form id="historySearchForm" onsubmit="event.preventDefault();event.stopPropagation();historySearchInput(true);return false" style="position:relative"><input id="search" type="search" enterkeyhint="search" inputmode="search" placeholder="Search converter code" autocomplete="off" oninput="clearTimeout(window.__historySearchInlineTimer);window.__historySearchInlineTimer=setTimeout(function(){if(window.historySearchInput)window.historySearchInput(true)},450)" onkeydown="if(event.key==='Enter'){event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true)}" style="padding-left:44px;padding-right:54px;width:100%;box-sizing:border-box"><button id="historySearchBtn" type="button" aria-label="Search" onclick="event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true);return false" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1;padding:6px 8px;cursor:pointer;z-index:2;pointer-events:auto;touch-action:manipulation">🔍</button></form><div id="historyList"></div></div></section>
 
   <section id="historyDetail" class="view"><div class="card" style="position:relative;padding-top:16px"><button type="button" aria-label="Back" onclick="event.preventDefault();event.stopPropagation();closeHistoryDetails()" style="position:absolute;left:50%;top:8px;transform:translateX(-50%);border:0;background:transparent;color:inherit;font-size:30px;line-height:1;padding:0;cursor:pointer;z-index:10">⌄</button><div id="historyDetailContent" style="margin-top:0"></div></div></section>
 
@@ -454,6 +454,7 @@ function historySearchInput(immediate){
     }
   })();
 }
+window.historySearchInput=historySearchInput;window.runHistorySearchButton=runHistorySearchButton;
 (function installHistorySearchController(){
   const form=$('historySearchForm'),input=$('search');
   if(!form||!input)return;
@@ -553,13 +554,13 @@ document.querySelectorAll('.nav button[data-view="home"],#bottomNewBtn').forEach
 <script>
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', function(){
-    const SW_UPDATE_KEY='cata_sw_v12_reloaded'; let reloaded=false;
+    const SW_UPDATE_KEY='cata_sw_v13_reloaded'; let reloaded=false;
     navigator.serviceWorker.addEventListener('controllerchange', function(){
       if(reloaded)return; reloaded=true;
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=12-search-control',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=13-search-hardfix',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
