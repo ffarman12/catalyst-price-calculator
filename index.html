@@ -209,7 +209,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     </div><div class="row" style="margin-top:12px"><button class="btn primary" onclick="demoLive()">Update Live</button><button class="btn secondary" onclick="saveMarket()">Save Manual</button><button class="btn secondary" type="button" onclick="(async()=>{const box=$('apiDiagnostic');box.style.display='block';box.textContent='Checking secure market service...';try{const res=await fetch('/api/market',{cache:'no-store'});const raw=await res.text();let msg=raw;try{const j=JSON.parse(raw);msg=JSON.stringify(j,null,2)}catch(e){}box.textContent='HTTP '+res.status+'\n'+msg}catch(err){box.textContent='API ERROR\n'+String(err&&err.message||err)}})()">API Diagnostic</button></div><div id="apiDiagnostic" style="display:none;margin-top:8px;padding:10px;border-radius:10px;background:light-dark(#edf1f7,#202731);font-size:11px;line-height:1.4;white-space:pre-wrap;overflow:auto;max-height:180px"></div><div class="note">Live market uses the secure server-side market service. Manual values are fallback only when the secure service is unavailable.</div></div>
   </section>
 
-  <section id="history" class="view"><div class="card"><div class="sectionTitle">Search / History</div><form id="historySearchForm" onsubmit="event.preventDefault();event.stopPropagation();setHistorySearchLoading(true);historySearchInput(true);return false" style="position:relative"><input id="search" type="search" enterkeyhint="search" inputmode="search" placeholder="Search converter code" oninput="historySearchInput()" onkeyup="if(event.key==='Enter'||event.keyCode===13){event.preventDefault();event.stopPropagation();setHistorySearchLoading(true);historySearchInput(true);return false}" autocomplete="off" style="padding-left:44px;padding-right:54px;width:100%;box-sizing:border-box"><button type="button" aria-label="Search" onclick="event.preventDefault();event.stopPropagation();setHistorySearchLoading(true);historySearchInput(true);return false" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1;padding:6px 8px;cursor:pointer;z-index:2">🔍</button></form><div id="historyList"></div></div></section>
+  <section id="history" class="view"><div class="card"><div class="sectionTitle">Search / History</div><form id="historySearchForm" style="position:relative"><input id="search" type="search" enterkeyhint="search" inputmode="search" placeholder="Search converter code" autocomplete="off" style="padding-left:44px;padding-right:54px;width:100%;box-sizing:border-box"><button id="historySearchBtn" type="submit" aria-label="Search" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1;padding:6px 8px;cursor:pointer;z-index:2">🔍</button></form><div id="historyList"></div></div></section>
 
   <section id="historyDetail" class="view"><div class="card" style="position:relative;padding-top:16px"><button type="button" aria-label="Back" onclick="event.preventDefault();event.stopPropagation();closeHistoryDetails()" style="position:absolute;left:50%;top:8px;transform:translateX(-50%);border:0;background:transparent;color:inherit;font-size:30px;line-height:1;padding:0;cursor:pointer;z-index:10">⌄</button><div id="historyDetailContent" style="margin-top:0"></div></div></section>
 
@@ -393,14 +393,21 @@ function renderHistory(){
   $('historyList').innerHTML=rows.map(o=>{const x=o.x,i=o.i,pics=(x.photos||[]).map(p=>typeof p==='string'?{name:p,url:''}:p),j=inlinePhotoIndex[i]||0,p=pics[j]||{},displayPrice=getEntryDisplayPrice(x.price||0),displayDpf=Number(x.dpfWeight)>0?getEntryDisplayPrice(calcDpfValue(x.dpfWeight,x.dpfPt,x.dpfPd,x.dpfRh)):0;return `<div class="historyItem" style="display:block;cursor:pointer" data-history-index="${i}"><div style="display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start"><div><div style="font-size:18px;font-weight:900">${x.company||'Company not added'}</div><div style="font-size:13px;font-weight:700;margin-top:4px">${formatConverterCode(x.code||'No code')}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:900;line-height:1.05">${money(displayPrice)}</div>${Number(x.dpfWeight)>0?`<div style="font-size:15px;font-weight:800;margin-top:6px">D ${money(displayDpf)}</div>`:''}<button class="btn secondary" style="padding:9px 12px;font-size:12px;margin-top:8px" onclick="showPPM(${i})">View PPM</button><button aria-label="More options" style="border:0;background:transparent;color:inherit;font-size:28px;line-height:1;padding:1px 4px;cursor:pointer;display:block;margin:3px 0 0 auto" onclick="openMenu(event,${i})">⋮</button></div></div><div style="height:280px;margin:18px 0 8px;border-radius:16px;background:light-dark(#f3f6fa,#202731);display:flex;align-items:center;justify-content:center;overflow:hidden"><img id="gallery-${i}" src="${p.url||''}" alt="Converter photo" style="max-width:100%;max-height:100%;object-fit:contain;display:${p.url?'block':'none'};touch-action:none" onclick="inlineZoom(event,${i})">${p.url?'':'<span class="muted">Photo available nahi hai.</span>'}</div>${pics.length>1?`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px"><button class="btn secondary" style="padding:8px 12px;font-size:12px" onclick="inlinePrev(event,${i})">‹ Previous</button><span id="galleryCount-${i}" class="muted" style="font-size:14px">${j+1} / ${pics.length}</span><button class="btn secondary" style="padding:8px 12px;font-size:12px" onclick="inlineNext(event,${i})">Next ›</button></div>`:''}<div id="ppm-${i}" style="display:none;margin-top:10px;padding:12px;border-radius:12px;background:light-dark(#f3f6fa,#202731);font-size:12px;line-height:1.6">Weight: ${x.weight||0} g · Pt: ${x.pt||0} ppm · Pd: ${x.pd||0} ppm · Rh: ${x.rh||0} ppm${Number(x.dpfWeight)>0?`<hr style="border:0;border-top:1px solid #aaa;margin:8px 0"><b>DPF</b> · Weight: ${Number(x.dpfWeight).toFixed(2)} kg · Pt: ${x.dpfPt||0} ppm · Pd: ${x.dpfPd||0} ppm · Rh: ${x.dpfRh||0} ppm`:''}</div></div>`}).join('');
   rows.forEach(o=>renderHistoryGallery(o.i));applyAccessUI()
 }
-let historySearchTimer=null,historySearchSeq=0;
-function setHistorySearchLoading(show){const el=$('historySearchLoading');if(el)el.style.display=show?'flex':'none'}
+let historySearchTimer=null,historySearchSeq=0,historySearchHardTimer=null;
+function setHistorySearchLoading(show){
+  const el=$('historySearchLoading');
+  if(el)el.style.display=show?'flex':'none';
+  if(show){
+    clearTimeout(historySearchHardTimer);
+    historySearchHardTimer=setTimeout(()=>{if($('historySearchLoading'))$('historySearchLoading').style.display='none'},6500);
+  }else{
+    clearTimeout(historySearchHardTimer);
+    historySearchHardTimer=null;
+  }
+}
 function historySearchInput(immediate){
   const q=String($('search')?.value||'').trim();
-  clearTimeout(historySearchTimer);
   if(!immediate){
-    /* EcoCat-style: typing never starts a Cloud search. Search starts only
-       when the user explicitly taps the search button or presses Enter. */
     if(!q){
       historySearchSeq++;
       history=[];
@@ -411,6 +418,7 @@ function historySearchInput(immediate){
     return;
   }
   const seq=++historySearchSeq;
+  clearTimeout(historySearchTimer);
   if(!q){
     history=[];
     renderHistory();
@@ -418,18 +426,18 @@ function historySearchInput(immediate){
     setHistorySearchLoading(false);
     return;
   }
+  setHistorySearchLoading(true);
   (async()=>{
-    cloudStatus('Searching Cloud…');
-    setHistorySearchLoading(true);
     try{
-      const searchPromise=window.CatalystCloudMaster?.searchHistory?.(q);
-      if(!searchPromise)throw new Error('Cloud search is not ready');
-      const ok=await Promise.race([
-        searchPromise,
-        new Promise(resolve=>setTimeout(()=>resolve(false),4000))
+      cloudStatus('Searching Cloud…');
+      const fn=window.CatalystCloudMaster&&window.CatalystCloudMaster.searchHistory;
+      if(typeof fn!=='function')throw new Error('Cloud search is not ready');
+      const result=await Promise.race([
+        Promise.resolve().then(()=>fn(q)),
+        new Promise(resolve=>setTimeout(()=>resolve(false),5000))
       ]);
       if(seq!==historySearchSeq)return;
-      if(!ok){
+      if(result===false){
         history=[];
         renderHistory();
         cloudStatus('Search failed — please try again');
@@ -445,6 +453,12 @@ function historySearchInput(immediate){
     }
   })();
 }
+(function installHistorySearchController(){
+  const form=$('historySearchForm'),input=$('search');
+  if(!form||!input)return;
+  form.addEventListener('submit',e=>{e.preventDefault();e.stopPropagation();historySearchInput(true)},true);
+  input.addEventListener('input',()=>historySearchInput(false),true);
+})();
 const inlinePhotoIndex={};const inlineZoomed={};
 document.getElementById('historyList').addEventListener('click',e=>{const item=e.target.closest&&e.target.closest('.historyItem');if(!item||e.target.closest('button'))return;const i=Number(item.dataset.historyIndex);if(Number.isInteger(i))openHistoryDetails(i)});
 function inlinePrev(e,i){e.stopPropagation();const pics=history[i].photos||[];if(!pics.length)return;const current=inlinePhotoIndex[i]||0;if(current<=0)return;inlinePhotoIndex[i]=current-1;renderHistoryGallery(i)}
@@ -851,67 +865,27 @@ async function checkServiceStatus(manual){
       return '';
     };
 
-    let accessToken=getStoredAccessToken();
-
-    /* Only use the Supabase client as a fallback for obtaining the token.
-       The actual search request never goes through supabase-js. */
-    if(!accessToken){
-      try{
-        const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
-        if(c&&c.auth){
-          const result=await Promise.race([
-            c.auth.getSession(),
-            new Promise((_,reject)=>setTimeout(()=>reject(new Error('Auth session timeout')),1500))
-          ]);
-          accessToken=result?.data?.session?.access_token||'';
-        }
-      }catch(e){console.warn('Search auth fallback failed',e)}
-    }
-
-    if(!accessToken){
-      history=[];renderHistory();
-      cloudStatus('Login session unavailable — please login again');
-      return false;
-    }
-
-    const params=new URLSearchParams();
-    params.set('select','id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at');
-    params.set('workspace_id','eq.'+wid);
-    params.set('code_normalized','like.'+key+'%');
-    params.set('order','created_at.desc');
-    params.set('limit','10');
-
-    const url=SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString();
     let rows=[];
     try{
-      const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),3000);
-      let response;
-      try{
-        response=await fetch(url,{
-          method:'GET',
-          cache:'no-store',
-          signal:controller.signal,
-          headers:{
-            apikey:SUPABASE_PUBLISHABLE_KEY,
-            Authorization:'Bearer '+accessToken,
-            Accept:'application/json'
-          }
-        });
-      }finally{clearTimeout(timer)}
-
-      const bodyText=await response.text();
-      let body=null;
-      try{body=bodyText?JSON.parse(bodyText):null}catch(e){}
-      if(!response.ok){
-        throw new Error(body?.message||body?.error_description||body?.error||('HTTP '+response.status));
-      }
-      rows=Array.isArray(body)?body:[];
+      const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+      if(!c)throw new Error('Cloud client is not ready');
+      const query=c.from('converter_entries')
+        .select('id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at')
+        .eq('workspace_id',wid)
+        .like('code_normalized',key+'%')
+        .order('created_at',{ascending:false})
+        .limit(10);
+      const result=await Promise.race([
+        query,
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timeout')),5000))
+      ]);
+      if(result.error)throw result.error;
+      rows=Array.isArray(result.data)?result.data:[];
       rows=rows.filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,10);
     }catch(e){
       console.error('Cloud history search failed',e);
       history=[];renderHistory();
-      cloudStatus(e?.name==='AbortError'?'Search timed out — please try again':'Search failed — '+String(e&&e.message||e).slice(0,90));
+      cloudStatus('Search failed — '+String(e&&e.message||e).slice(0,90));
       return false;
     }
 
