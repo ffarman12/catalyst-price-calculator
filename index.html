@@ -408,7 +408,7 @@ function historySearchInput(immediate){
       const searchPromise=window.CatalystCloudMaster?.searchHistory?.(q);
       const ok=await Promise.race([
         searchPromise,
-        new Promise(resolve=>setTimeout(()=>resolve(false),15000))
+        new Promise(resolve=>setTimeout(()=>resolve(false),10000))
       ]);
       if(seq!==historySearchSeq)return;
       if(!ok){
@@ -806,74 +806,40 @@ async function checkServiceStatus(manual){
     if(!c||!wid){history=[];renderHistory();cloudStatus('Cloud search unavailable');return false}
     const key=normalized.length>=4?normalized.slice(0,4):normalized;
     let rows=[];
-    const withTimeout=(promise,ms)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timed out')),ms))]);
     try{
-      const sessionResult=await withTimeout(c.auth.getSession(),8000);
+      /* One direct, authenticated indexed query only. Search results must not
+         wait on RPC retries, photo loading, or any other Cloud operation. */
+      const sessionResult=await Promise.race([
+        c.auth.getSession(),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Login session timeout')),5000))
+      ]);
       const session=sessionResult&&sessionResult.data&&sessionResult.data.session;
       if(!session||!session.access_token)throw new Error('Login session unavailable');
 
-      /* Use the authenticated REST RPC first so a Supabase client RPC cannot
-         leave the search spinner waiting indefinitely. */
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),7000);
       try{
-        const controller=new AbortController();
-        const timer=setTimeout(()=>controller.abort(),8000);
-        try{
-          const rpcResp=await fetch(SUPABASE_URL+'/rest/v1/rpc/search_converter_history',{
-            method:'POST',
-            headers:{
-              apikey:SUPABASE_PUBLISHABLE_KEY,
-              Authorization:'Bearer '+session.access_token,
-              'Content-Type':'application/json',
-              Accept:'application/json'
-            },
-            body:JSON.stringify({p_workspace_id:wid,p_prefix:key}),
-            cache:'no-store',
-            signal:controller.signal
-          });
-          const rpcBody=await rpcResp.text();
-          if(rpcResp.ok){
-            try{rows=JSON.parse(rpcBody)||[]}catch(e){rows=[]}
-          }else{
-            console.warn('Cloud search REST RPC failed',rpcResp.status,rpcBody);
-          }
-        }finally{clearTimeout(timer)}
-      }catch(e){console.warn('Cloud search REST RPC request failed',e)}
-
-      /* Client RPC is only a secondary path and is time-limited. */
-      if(!rows.length){
-        try{
-          const rpc=await withTimeout(c.rpc('search_converter_history',{p_workspace_id:wid,p_prefix:key}),8000);
-          if(!rpc.error)rows=Array.isArray(rpc.data)?rpc.data:[];
-        }catch(e){console.warn('Cloud search client RPC failed',e)}
-      }
-
-      /* Indexed REST fallback. */
-      if(!rows.length){
-        const controller=new AbortController();
-        const timer=setTimeout(()=>controller.abort(),8000);
-        try{
-          const params=new URLSearchParams({
-            select:'*',
-            workspace_id:'eq.'+wid,
-            code_normalized:'like.'+key+'%',
-            order:'created_at.desc',
-            limit:'50'
-          });
-          const resp=await fetch(SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString(),{
-            method:'GET',
-            headers:{
-              apikey:SUPABASE_PUBLISHABLE_KEY,
-              Authorization:'Bearer '+session.access_token,
-              Accept:'application/json'
-            },
-            cache:'no-store',
-            signal:controller.signal
-          });
-          const body=await resp.text();
-          if(!resp.ok)throw new Error('Cloud search HTTP '+resp.status);
-          try{rows=JSON.parse(body)||[]}catch(e){throw new Error('Invalid Cloud search response')}
-        }finally{clearTimeout(timer)}
-      }
+        const params=new URLSearchParams({
+          select:'*',
+          workspace_id:'eq.'+wid,
+          code_normalized:'like.'+key+'%',
+          order:'created_at.desc',
+          limit:'50'
+        });
+        const resp=await fetch(SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString(),{
+          method:'GET',
+          headers:{
+            apikey:SUPABASE_PUBLISHABLE_KEY,
+            Authorization:'Bearer '+session.access_token,
+            Accept:'application/json'
+          },
+          cache:'no-store',
+          signal:controller.signal
+        });
+        const body=await resp.text();
+        if(!resp.ok)throw new Error('Cloud search HTTP '+resp.status);
+        try{rows=JSON.parse(body)||[]}catch(e){throw new Error('Invalid Cloud search response')}
+      }finally{clearTimeout(timer)}
 
       rows=rows.filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,50);
     }catch(e){
@@ -892,8 +858,8 @@ async function checkServiceStatus(manual){
     renderHistory();
     cloudStatus(history.length?'Cloud search: '+history.length+' result'+(history.length===1?'':'s'):'No matching reference found');
 
-    /* Results are complete enough to show immediately. Photos are enhanced
-       asynchronously so photo loading can never hold the search spinner. */
+    /* Photos enhance the already-visible results and can never block the
+       search result or its spinner. */
     if(history.length){
       Promise.resolve().then(async()=>{
         try{
