@@ -815,40 +815,19 @@ async function checkServiceStatus(manual){
     const key=normalized.length>=4?normalized.slice(0,4):normalized;
     let rows=[];
     try{
-      /* One direct, authenticated indexed query only. Search results must not
-         wait on RPC retries, photo loading, or any other Cloud operation. */
-      const sessionResult=await Promise.race([
-        c.auth.getSession(),
-        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Login session timeout')),5000))
+      /* Cloud-only, indexed query. Supabase JS carries the existing logged-in
+         session automatically; no separate session/fetch chain is needed. */
+      const result=await Promise.race([
+        c.from('converter_entries')
+          .select('*')
+          .eq('workspace_id',wid)
+          .like('code_normalized',key+'%')
+          .order('created_at',{ascending:false})
+          .limit(10),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Cloud search timed out')),8000))
       ]);
-      const session=sessionResult&&sessionResult.data&&sessionResult.data.session;
-      if(!session||!session.access_token)throw new Error('Login session unavailable');
-
-      const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),7000);
-      try{
-        const params=new URLSearchParams({
-          select:'*',
-          workspace_id:'eq.'+wid,
-          code_normalized:'like.'+key+'%',
-          order:'created_at.desc',
-          limit:'10'
-        });
-        const resp=await fetch(SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString(),{
-          method:'GET',
-          headers:{
-            apikey:SUPABASE_PUBLISHABLE_KEY,
-            Authorization:'Bearer '+session.access_token,
-            Accept:'application/json'
-          },
-          cache:'no-store',
-          signal:controller.signal
-        });
-        const body=await resp.text();
-        if(!resp.ok)throw new Error('Cloud search HTTP '+resp.status);
-        try{rows=JSON.parse(body)||[]}catch(e){throw new Error('Invalid Cloud search response')}
-      }finally{clearTimeout(timer)}
-
+      if(result.error)throw result.error;
+      rows=Array.isArray(result.data)?result.data:[];
       rows=rows.filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,10);
     }catch(e){
       console.error('Cloud history search failed',e);
@@ -866,8 +845,7 @@ async function checkServiceStatus(manual){
     renderHistory();
     cloudStatus(history.length?'Cloud search: '+history.length+' result'+(history.length===1?'':'s'):'No matching reference found');
 
-    /* Photos enhance the already-visible results and can never block the
-       search result or its spinner. */
+    /* Photos are optional enhancement and never block the result. */
     if(history.length){
       Promise.resolve().then(async()=>{
         try{
