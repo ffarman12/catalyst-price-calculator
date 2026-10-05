@@ -407,30 +407,9 @@ function historySearchInput(immediate){
       setHistorySearchLoading(false);
       return;
     }
-    const normalized=normalizeHistoryCode(q);
-    const key=normalized.length>=4?normalized.slice(0,4):normalized;
-
-    /* Local-first: show any already-saved matching History immediately.
-       Cloud enhancement runs afterward and can never block the result UI. */
-    let localFound=false;
-    try{
-      const localRows=safeStoreGet('cat_history',[]);
-      if(Array.isArray(localRows)&&localRows.length){
-        const matches=localRows.filter(x=>normalizeHistoryCode(x&&x.code).startsWith(key)).slice(0,50);
-        if(matches.length){
-          history=matches;
-          renderHistory();
-          cloudStatus('History result: '+matches.length);
-          localFound=true;
-          setHistorySearchLoading(false);
-        }
-      }
-    }catch(e){console.warn('Local History search failed',e)}
-
     cloudStatus('Searching Cloud…');
-    if(!localFound)setHistorySearchLoading(true);
+    setHistorySearchLoading(true);
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-
     try{
       const searchPromise=window.CatalystCloudMaster?.searchHistory?.(q);
       const ok=await Promise.race([
@@ -439,18 +418,15 @@ function historySearchInput(immediate){
       ]);
       if(seq!==historySearchSeq)return;
       if(!ok){
-        /* Keep local results if they were found; otherwise show a clean timeout. */
-        if(!Array.isArray(history)||!history.length){
-          renderHistory();
-          cloudStatus('Search timed out — please try again');
-        }
+        history=[];
+        renderHistory();
+        cloudStatus('Search timed out — please try again');
       }
     }catch(e){
       console.error('History search trigger failed',e);
-      if(!Array.isArray(history)||!history.length){
-        renderHistory();
-        cloudStatus('Search failed — please try again');
-      }
+      history=[];
+      renderHistory();
+      cloudStatus('Search failed — please try again');
     }finally{
       if(seq===historySearchSeq)setHistorySearchLoading(false);
     }
@@ -856,7 +832,7 @@ async function checkServiceStatus(manual){
           workspace_id:'eq.'+wid,
           code_normalized:'like.'+key+'%',
           order:'created_at.desc',
-          limit:'50'
+          limit:'10'
         });
         const resp=await fetch(SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString(),{
           method:'GET',
@@ -873,7 +849,7 @@ async function checkServiceStatus(manual){
         try{rows=JSON.parse(body)||[]}catch(e){throw new Error('Invalid Cloud search response')}
       }finally{clearTimeout(timer)}
 
-      rows=rows.filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,50);
+      rows=rows.filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,10);
     }catch(e){
       console.error('Cloud history search failed',e);
       history=[];
