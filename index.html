@@ -825,39 +825,98 @@ async function checkServiceStatus(manual){
     const c=client(),wid=await workspaceId();
     if(!c||!wid){history=[];renderHistory();cloudStatus('Cloud search unavailable');return false}
     const key=normalized.length>=4?normalized.slice(0,4):normalized;
+
+    /*
+      IMPORTANT: History search is Cloud-only. Do not use the Supabase query
+      builder here. A hanging supabase-js request can leave the UI waiting
+      even when Promise.race is used. We use the browser Fetch API directly
+      with the persisted Supabase access token and a real AbortController.
+    */
+    const getStoredAccessToken=()=>{
+      try{
+        const exact='sb-'+new URL(SUPABASE_URL).hostname.split('.')[0]+'-auth-token';
+        const candidates=[exact];
+        for(let i=0;i<localStorage.length;i++){
+          const k=localStorage.key(i)||'';
+          if(k.includes('auth-token')&&!candidates.includes(k))candidates.push(k);
+        }
+        for(const k of candidates){
+          const rawToken=localStorage.getItem(k);
+          if(!rawToken)continue;
+          const parsed=JSON.parse(rawToken);
+          const token=parsed?.access_token||parsed?.currentSession?.access_token||parsed?.session?.access_token;
+          if(token)return token;
+        }
+      }catch(e){}
+      return '';
+    };
+
+    let accessToken=getStoredAccessToken();
+    if(!accessToken){
+      try{
+        const sessionResult=await Promise.race([
+          c.auth.getSession(),
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Auth session timeout')),2000))
+        ]);
+        accessToken=sessionResult?.data?.session?.access_token||'';
+      }catch(e){}
+    }
+    if(!accessToken){
+      history=[];
+      renderHistory();
+      cloudStatus('Login session unavailable — please login again');
+      return false;
+    }
+
+    const params=new URLSearchParams({
+      select:'id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at',
+      workspace_id:'eq.'+wid,
+      code_normalized:'like.'+key+'%',
+      order:'created_at.desc',
+      limit:'10'
+    });
+    const url=SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString();
     let rows=[];
     try{
-      /* Cloud-only, indexed query. Supabase JS carries the existing logged-in
-         session automatically; no separate session/fetch chain is needed. */
-      const result=await Promise.race([
-        c.from('converter_entries')
-          .select('id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at')
-          .eq('workspace_id',wid)
-          .like('code_normalized',key+'%')
-          .order('created_at',{ascending:false})
-          .limit(10),
-        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Cloud search timed out')),3500))
-      ]);
-      if(result.error)throw result.error;
-      rows=Array.isArray(result.data)?result.data:[];
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),3000);
+      let response;
+      try{
+        response=await fetch(url,{
+          method:'GET',
+          cache:'no-store',
+          signal:controller.signal,
+          headers:{
+            apikey:SUPABASE_PUBLISHABLE_KEY,
+            Authorization:'Bearer '+accessToken,
+            Accept:'application/json'
+          }
+        });
+      }finally{clearTimeout(timer)}
+      const text=await response.text();
+      let body=null;
+      try{body=text?JSON.parse(text):null}catch(e){}
+      if(!response.ok){
+        const msg=body?.message||body?.error_description||body?.error||('HTTP '+response.status);
+        throw new Error(msg);
+      }
+      rows=Array.isArray(body)?body:[];
       rows=rows.filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,10);
     }catch(e){
       console.error('Cloud history search failed',e);
       history=[];
       renderHistory();
-      cloudStatus('Search failed — '+String(e&&e.message||e).slice(0,90));
+      cloudStatus(e?.name==='AbortError'?'Search timed out — please try again':'Search failed — '+String(e&&e.message||e).slice(0,90));
       return false;
     }
 
     history=rows.map(e=>{
       const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
-      return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt??0,pd:e.pd_ppm??legacy.pd??0,rh:e.rh_ppm??legacy.rh??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
+      return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt_ppm??0,pd:e.pd_ppm??legacy.pd_ppm??0,rh:e.rh_ppm??legacy.rh_ppm??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
     });
     window.__catalystCloudHistoryLoaded=true;
     renderHistory();
     cloudStatus(history.length?'Cloud search: '+history.length+' result'+(history.length===1?'':'s'):'No matching reference found');
-
-    /* Photos are optional enhancement and never block the result. */
     if(history.length){
       Promise.resolve().then(async()=>{
         try{
@@ -871,87 +930,6 @@ async function checkServiceStatus(manual){
     }
     return true;
   }
-  async function loadCloudHistory(){
-    /* History is intentionally NOT bulk-loaded. It is fetched only after a code search. */
-    history=[];
-    if(typeof renderHistory==='function')renderHistory();
-    return false;
-  }
-  async function cloudBootstrap(){
-    if(cloudBusy||window.__catalystCalcBusy)return false; const c=client(); if(!c)return false;
-    try{
-      let {data}=await c.auth.getSession();
-      if(!data||!data.session){
-        try{const refreshed=await c.auth.refreshSession();if(refreshed&&refreshed.data&&refreshed.data.session)data=refreshed.data;}catch(e){console.warn('Cloud session refresh failed',e)}
-      }
-      if(!data||!data.session){cloudStatus('Cloud login session unavailable');return false;}
-      cloudBusy=true;
-      /* Cloud is authoritative for existing History. Load it first so local/IndexedDB
-         data can never hide existing Cloud entries. Only migrate local data when Cloud is empty. */
-      const loaded=await loadCloudHistory();
-      if(loaded){cloudStatus('Cloud Master synced');return true;}
-      const migrated=await migrateLocalHistory();
-      if(migrated){const loadedAfterMigration=await loadCloudHistory();if(loadedAfterMigration){cloudStatus('Cloud Master synced');return true;}}
-      return false;
-    }catch(e){console.error('Cloud Master bootstrap failed',e);cloudStatus('Cloud sync unavailable — local data kept');return false;}
-    finally{cloudBusy=false;}
-  }
-  async function cloudSaveLatest(index){
-    try{
-      if(!Array.isArray(history)||!history[index])return;
-      cloudStatus('Cloud save: connecting…');
-      const saved=await pushEntry(history[index]);
-      saved._cloud_sync_pending=false;
-      history[index]=saved;
-      saveHistoryStorage();
-      const verify=await client().from('converter_entries').select('id',{count:'exact',head:true}).eq('id',saved._cloud_id);
-      if(verify.error)throw verify.error;
-      if((verify.count||0)<1)throw new Error('Cloud save could not be verified');
-      cloudStatus('Saved to Cloud');
-    }catch(e){
-      console.error('Cloud save failed',e);
-      if(Array.isArray(history)&&history[index]){
-        history[index]._cloud_sync_pending=true;
-        saveHistoryStorage();
-      }
-      const msg=String(e&&e.message||e||'Unknown cloud error');
-      cloudStatus('Cloud save error: '+msg.slice(0,140));
-      setTimeout(()=>cloudRetryPending(),3000);
-    }
-  }
-  async function cloudRetryPending(){
-    if(cloudBusy||!Array.isArray(history))return;
-    const c=client();if(!c)return;
-    try{const {data}=await c.auth.getSession();if(!data||!data.session)return;}catch(e){return}
-    for(let i=0;i<history.length;i++){
-      if(!history[i]||!history[i]._cloud_sync_pending)continue;
-      try{const saved=await pushEntry(history[i]);saved._cloud_sync_pending=false;history[i]=saved;saveHistoryStorage()}catch(e){console.error('Pending cloud sync failed',e)}
-    }
-    try{renderHistory()}catch(e){}
-  }
-  async function cloudDelete(id){try{const c=client();if(!c||!id)return;const {data:rows}=await c.from('converter_photos').select('storage_path').eq('entry_id',id);if(rows&&rows.length)await c.storage.from(CLOUD_BUCKET).remove(rows.map(x=>x.storage_path).filter(Boolean));await c.from('converter_photos').delete().eq('entry_id',id);await c.from('converter_entries').delete().eq('id',id);}catch(e){console.error('Cloud delete failed',e);}}
-  function installWrappers(){
-    if(typeof calculate==='function'&&!calculate.__cloudWrapped){const prev=calculate;const wrapped=async function(){const idx=editingIndex;const before=history[idx];await prev();let target=idx!==null&&idx!==undefined?idx:0;if(idx!==null&&idx!==undefined&&history[idx]!==before)target=idx;setTimeout(()=>cloudSaveLatest(target),0);};wrapped.__cloudWrapped=true;calculate=wrapped;}
-    if(typeof runHistoryAction==='function'&&!runHistoryAction.__cloudWrapped){const prev=runHistoryAction;const wrapped=function(action,i){const id=history&&history[i]&&history[i]._cloud_id;const r=prev.apply(this,arguments);if(action==='delete'&&id)cloudDelete(id);return r};wrapped.__cloudWrapped=true;runHistoryAction=wrapped;}
-    if(typeof deleteSelected==='function'&&!deleteSelected.__cloudWrapped){const prev=deleteSelected;const wrapped=function(){const i=(typeof pendingIndex==='number')?pendingIndex:deleteTargetIndex;const id=history&&history[i]&&history[i]._cloud_id;const r=prev.apply(this,arguments);if(id)cloudDelete(id);return r};wrapped.__cloudWrapped=true;deleteSelected=wrapped;}
-  }
-  const boot=()=>{
-    installWrappers();
-    /* Auth session can be restored after the first 1.2s timer. Retry Cloud Master
-       bootstrap itself (not just pending saves) so existing Cloud History is loaded. */
-    [1200].forEach(ms=>setTimeout(()=>{installWrappers();cloudBootstrap()},ms));
-    try{
-      const c=client();
-      if(c&&c.auth&&c.auth.onAuthStateChange)c.auth.onAuthStateChange((event,session)=>{
-        if(session&&(event==='SIGNED_IN'||event==='INITIAL_SESSION')){
-          setTimeout(()=>{cloudBootstrap();cloudRetryPending()},300);
-        }
-      });
-    }catch(e){}
-    [5000].forEach(ms=>setTimeout(()=>cloudRetryPending(),ms));
-  };
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  async function cloudSyncReliable(){for(let attempt=0;attempt<8;attempt++){try{await cloudBootstrap();}catch(e){console.error('Cloud sync attempt failed',e)}if(!cloudBusy){try{if(window.__catalystCloudHistoryLoaded)return true}catch(e){} }await sleep(400)}return !!window.__catalystCloudHistoryLoaded}
   window.CatalystCloudMaster={sync:cloudSyncReliable,saveLatest:cloudSaveLatest,searchHistory:cloudSearchHistory};
 })();
 
