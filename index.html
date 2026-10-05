@@ -1363,6 +1363,7 @@ async function showCloudData(){
     try{$('status').textContent=anyLocked?'Section locks ON':'Section locks OFF'}catch(ignore){}
     try{$('sectionLockModal').style.display='none'}catch(ignore){}
     try{resetTopMenu()}catch(ignore){}
+    try{if(window.__persistSettingsToCloud)window.__persistSettingsToCloud()}catch(ignore){}
     return false;
   }
   window.__sectionLockError=showSectionLockError;
@@ -2273,6 +2274,80 @@ async function showCloudData(){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureVisibleView);
   else ensureVisibleView();
   setTimeout(ensureVisibleView,800);
+})();
+</script>
+<script>
+/* PERSISTENT SETTINGS v1 — user-saved Section Lock / Viewer PPM / Less History / Excel Mode live in Supabase app_settings.
+   Rule: once initialized, Cloud is authoritative; settings change only when the user explicitly saves them. */
+(function(){
+  const PERSIST_KEY='_catalyst_persistent_settings_v1';
+  const WORKSPACE_ID='0287285c-044b-4a08-9ed5-314b40fde0e8';
+  let syncing=false;
+  function localState(){
+    let locks={},less={};
+    try{locks=JSON.parse(localStorage.getItem('cat_section_locks')||'{}')||{}}catch(e){}
+    try{less=JSON.parse(localStorage.getItem('cat_less_settings')||'{}')||{}}catch(e){}
+    const viewer=typeof viewerPpmEnabled!=='undefined'?!!viewerPpmEnabled:!!safeStoreGet('cat_viewer_ppm_enabled',true);
+    const excel=typeof lessSettings!=='undefined'?!!lessSettings.enabled:!!less.enabled;
+    return {sectionLocks:locks,viewerPpmEnabled:viewer,excelModeEnabled:excel,lessHistory:{pt:Number(less.pt),pd:Number(less.pd),rh:Number(less.rh),enabled:excel}};
+  }
+  function validLess(x){return x&&Number.isFinite(Number(x.pt))&&Number.isFinite(Number(x.pd))&&Number.isFinite(Number(x.rh))}
+  async function getClient(){try{return typeof getEditorSupabase==='function'?getEditorSupabase():null}catch(e){return null}}
+  async function readCloud(){
+    const c=await getClient();if(!c)return null;
+    try{
+      const session=await c.auth.getSession();if(!session||!session.data||!session.data.session)return null;
+      const q=await c.from('app_settings').select('workspace_id,viewer_ppm_enabled,excel_mode_enabled,settings,updated_at').eq('workspace_id',WORKSPACE_ID).maybeSingle();
+      if(q.error){console.warn('Persistent settings read failed',q.error);return null}return q.data||null;
+    }catch(e){console.warn('Persistent settings read failed',e);return null}
+  }
+  async function writeCloud(state){
+    const c=await getClient();if(!c)return false;
+    try{
+      const payload={workspace_id:WORKSPACE_ID,viewer_ppm_enabled:!!state.viewerPpmEnabled,excel_mode_enabled:!!state.excelModeEnabled,
+        settings:{[PERSIST_KEY]:true,sectionLocks:state.sectionLocks||{},lessHistory:state.lessHistory||{},savedAt:new Date().toISOString()}};
+      const q=await c.from('app_settings').upsert(payload,{onConflict:'workspace_id'});
+      if(q.error){console.warn('Persistent settings save failed',q.error);return false}return true;
+    }catch(e){console.warn('Persistent settings save failed',e);return false}
+  }
+  function applyState(state){
+    if(!state)return;
+    try{if(state.sectionLocks&&typeof state.sectionLocks==='object'){sectionLocks=Object.assign({cloudData:false},state.sectionLocks);localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks))}}catch(e){}
+    try{
+      const less=state.lessHistory||{};
+      if(validLess(less)){lessSettings={pt:Number(less.pt),pd:Number(less.pd),rh:Number(less.rh),enabled:!!state.excelModeEnabled};localStorage.setItem('cat_less_settings',JSON.stringify(lessSettings))}
+      else if(typeof lessSettings!=='undefined'){lessSettings.enabled=!!state.excelModeEnabled;localStorage.setItem('cat_less_settings',JSON.stringify(lessSettings))}
+      if(typeof getActiveLess==='function')getActiveLess();
+    }catch(e){}
+    try{viewerPpmEnabled=!!state.viewerPpmEnabled;localStorage.setItem('cat_viewer_ppm_enabled',JSON.stringify(viewerPpmEnabled));if(typeof applyViewerPpmUI==='function')applyViewerPpmUI()}catch(e){}
+    try{if($('lessMode'))$('lessMode').checked=!!state.excelModeEnabled;if(typeof repairSavedPrices==='function')repairSavedPrices();if(typeof renderHistory==='function')renderHistory();if(typeof refineCalc==='function')refineCalc()}catch(e){}
+  }
+  async function syncFromCloud(){
+    if(syncing)return false;syncing=true;
+    try{
+      const cloud=await readCloud();if(!cloud)return false;
+      const settings=cloud.settings||{};
+      if(settings[PERSIST_KEY]===true){
+        applyState({sectionLocks:settings.sectionLocks||{},viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||{}});
+        return true;
+      }
+      const ok=await writeCloud(localState());
+      return ok;
+    }finally{syncing=false}
+  }
+  async function persistNow(){return writeCloud(localState())}
+  window.__persistSettingsToCloud=persistNow;
+  window.__syncPersistentSettings=syncFromCloud;
+  function hookAuth(){try{const c=getEditorSupabase();if(!c)return false;c.auth.onAuthStateChange((event,session)=>{if(session&&(event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='TOKEN_REFRESHED'))setTimeout(syncFromCloud,250)});return true}catch(e){return false}}
+  function boot(){hookAuth();let tries=0;const timer=setInterval(async()=>{tries++;const ok=await syncFromCloud();if(ok||tries>=12)clearInterval(timer)},1500);setTimeout(syncFromCloud,400)}
+  setTimeout(()=>{
+    try{
+      if(typeof saveLessSettings==='function'&&!saveLessSettings.__persistentWrapped){const prev=saveLessSettings;const wrapped=function(){const out=prev.apply(this,arguments);setTimeout(persistNow,0);return out};wrapped.__persistentWrapped=true;saveLessSettings=wrapped;window.saveLessSettings=wrapped}
+      if(typeof saveEntryPercentLess==='function'&&!saveEntryPercentLess.__persistentWrapped){const prev=saveEntryPercentLess;const wrapped=function(){const out=prev.apply(this,arguments);setTimeout(persistNow,0);return out};wrapped.__persistentWrapped=true;saveEntryPercentLess=wrapped;window.saveEntryPercentLess=wrapped}
+      if(typeof saveViewerPpmSettings==='function'&&!saveViewerPpmSettings.__persistentWrapped){const prev=saveViewerPpmSettings;const wrapped=function(){const out=prev.apply(this,arguments);setTimeout(persistNow,0);return out};wrapped.__persistentWrapped=true;saveViewerPpmSettings=wrapped;window.saveViewerPpmSettings=wrapped}
+    }catch(e){}
+  },0);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
 </script>
 </body></html>
