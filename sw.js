@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v50-section-lock';
+const CACHE='catalyst-calculator-v51-section-lock-save';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
