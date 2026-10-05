@@ -2156,4 +2156,24 @@ async function showCloudData(){
 })();
 
 </script>
+<script>
+/* Final UI safety net: never leave the app with every view hidden. */
+(function(){
+  function ensureVisibleView(){
+    try{
+      const views=document.querySelectorAll('.view');
+      const active=Array.from(views).some(v=>v.classList.contains('active'));
+      if(active)return;
+      const market=document.getElementById('market');
+      if(!market)return;
+      views.forEach(v=>v.classList.remove('active'));
+      market.classList.add('active');
+      document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='market'));
+    }catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureVisibleView);
+  else ensureVisibleView();
+  setTimeout(ensureVisibleView,800);
+})();
+</script>
 </body></html>
