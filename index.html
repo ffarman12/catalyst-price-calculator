@@ -412,6 +412,7 @@ function historySearchInput(immediate){
 
     /* Local-first: show any already-saved matching History immediately.
        Cloud enhancement runs afterward and can never block the result UI. */
+    let localFound=false;
     try{
       const localRows=safeStoreGet('cat_history',[]);
       if(Array.isArray(localRows)&&localRows.length){
@@ -420,13 +421,14 @@ function historySearchInput(immediate){
           history=matches;
           renderHistory();
           cloudStatus('History result: '+matches.length);
+          localFound=true;
           setHistorySearchLoading(false);
         }
       }
     }catch(e){console.warn('Local History search failed',e)}
 
     cloudStatus('Searching Cloud…');
-    setHistorySearchLoading(true);
+    if(!localFound)setHistorySearchLoading(true);
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
 
     try{
