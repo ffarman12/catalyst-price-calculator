@@ -398,31 +398,44 @@ function setHistorySearchLoading(show){const el=$('historySearchLoading');if(el)
 function historySearchInput(immediate){
   const q=String($('search')?.value||'').trim();
   clearTimeout(historySearchTimer);
-  const run=async()=>{
-    const seq=++historySearchSeq;
+  if(!immediate){
+    /* EcoCat-style: typing never starts a Cloud search. Search starts only
+       when the user explicitly taps the search button or presses Enter. */
     if(!q){
+      historySearchSeq++;
       history=[];
       renderHistory();
       cloudStatus('History ready — enter reference code to search');
       setHistorySearchLoading(false);
-      return;
     }
+    return;
+  }
+  const seq=++historySearchSeq;
+  if(!q){
+    history=[];
+    renderHistory();
+    cloudStatus('History ready — enter reference code to search');
+    setHistorySearchLoading(false);
+    return;
+  }
+  (async()=>{
     cloudStatus('Searching Cloud…');
     setHistorySearchLoading(true);
-    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     try{
       const searchPromise=window.CatalystCloudMaster?.searchHistory?.(q);
+      if(!searchPromise)throw new Error('Cloud search is not ready');
       const ok=await Promise.race([
         searchPromise,
-        new Promise(resolve=>setTimeout(()=>resolve(false),10000))
+        new Promise(resolve=>setTimeout(()=>resolve(false),4000))
       ]);
       if(seq!==historySearchSeq)return;
       if(!ok){
         history=[];
         renderHistory();
-        cloudStatus('Search timed out — please try again');
+        cloudStatus('Search failed — please try again');
       }
     }catch(e){
+      if(seq!==historySearchSeq)return;
       console.error('History search trigger failed',e);
       history=[];
       renderHistory();
@@ -430,8 +443,7 @@ function historySearchInput(immediate){
     }finally{
       if(seq===historySearchSeq)setHistorySearchLoading(false);
     }
-  };
-  if(immediate)run();else historySearchTimer=setTimeout(run,250);
+  })();
 }
 const inlinePhotoIndex={};const inlineZoomed={};
 document.getElementById('historyList').addEventListener('click',e=>{const item=e.target.closest&&e.target.closest('.historyItem');if(!item||e.target.closest('button'))return;const i=Number(item.dataset.historyIndex);if(Number.isInteger(i))openHistoryDetails(i)});
@@ -819,12 +831,12 @@ async function checkServiceStatus(manual){
          session automatically; no separate session/fetch chain is needed. */
       const result=await Promise.race([
         c.from('converter_entries')
-          .select('*')
+          .select('id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at')
           .eq('workspace_id',wid)
           .like('code_normalized',key+'%')
           .order('created_at',{ascending:false})
           .limit(10),
-        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Cloud search timed out')),8000))
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Cloud search timed out')),3500))
       ]);
       if(result.error)throw result.error;
       rows=Array.isArray(result.data)?result.data:[];
