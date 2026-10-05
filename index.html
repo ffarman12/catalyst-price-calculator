@@ -198,7 +198,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     <div class="card"><div class="sectionTitle">Quick Info</div><div class="note">Live market rates are designed to take priority. Manual fallback rates are used only when a live rate is unavailable. USD used = live USD/INR − 2.09.</div></div>
   </section>
 
-<section id="refine" class="view"><div class="card"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start"><div style="display:grid;gap:8px"><div class="field"><label>Pt ppm</label><input id="rptppm" type="number" inputmode="decimal" value="0" oninput="refineCalc()"></div><div class="field"><label>Pd ppm</label><input id="rdppm" type="number" inputmode="decimal" value="0" oninput="refineCalc()"></div><div class="field"><label>Rh ppm</label><input id="rhppm" type="number" inputmode="decimal" value="0" oninput="refineCalc()"></div></div><div style="display:grid;gap:8px"><div id="refineResult" style="display:none;text-align:center;margin-top:0"><div class="price" id="refinePrice">₹0</div></div><div class="field"><label>Weight (g)</label><input id="rw" type="number" inputmode="decimal" value="0" oninput="refineCalc()"></div><button type="button" class="btn refineClear" onclick="document.getElementById('rw').value='0';document.getElementById('rptppm').value='0';document.getElementById('rdppm').value='0';document.getElementById('rhppm').value='0';document.getElementById('refineResult').style.display='none'">Clear</button></div></div></div></section>
+
 
   <section id="market" class="view">
     <div class="card"><div class="sectionTitle">Market Rates</div><div class="market"><div class="head">Metal / FX</div><div class="head">Live</div><div class="head">+ / −</div><div class="head">Manual</div><div class="head">Used</div>
@@ -209,7 +209,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     </div><div class="row" style="margin-top:12px"><button class="btn primary" onclick="demoLive()">Update Live</button><button class="btn secondary" onclick="saveMarket()">Save Manual</button><button class="btn secondary" type="button" onclick="(async()=>{const box=$('apiDiagnostic');box.style.display='block';box.textContent='Checking secure market service...';try{const res=await fetch('/api/market',{cache:'no-store'});const raw=await res.text();let msg=raw;try{const j=JSON.parse(raw);msg=JSON.stringify(j,null,2)}catch(e){}box.textContent='HTTP '+res.status+'\n'+msg}catch(err){box.textContent='API ERROR\n'+String(err&&err.message||err)}})()">API Diagnostic</button></div><div id="apiDiagnostic" style="display:none;margin-top:8px;padding:10px;border-radius:10px;background:light-dark(#edf1f7,#202731);font-size:11px;line-height:1.4;white-space:pre-wrap;overflow:auto;max-height:180px"></div><div class="note">Live market uses the secure server-side market service. Manual values are fallback only when the secure service is unavailable.</div></div>
   </section>
 
-  <section id="history" class="view"><div class="card"><div class="sectionTitle" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Search / History</span><button id="viewCloudDataBtn" type="button" class="btn secondary" style="padding:7px 9px;font-size:10px;white-space:nowrap" onclick="event.preventDefault();event.stopPropagation();var l={};try{l=JSON.parse(localStorage.getItem('cat_section_locks')||'{}')}catch(e){}var locked=l.cloudData===true||localStorage.getItem('cat_cloud_data_lock')==='1';if(locked){var p=window.prompt('Cloud Data PIN (4 digit)');if(p===null)return false;var sp=String(l.pin||localStorage.getItem('cat_pin')||'1234');if(String(p).trim()!==sp){window.alert('Wrong Section Lock PIN');return false}}if(typeof toggleCloudDataView==='function'){var oldLock=l.cloudData;try{if(locked){l.cloudData=false;localStorage.setItem('cat_section_locks',JSON.stringify(l));localStorage.setItem('cat_cloud_data_lock','0')}toggleCloudDataView()}finally{if(locked){l.cloudData=oldLock;localStorage.setItem('cat_section_locks',JSON.stringify(l));localStorage.setItem('cat_cloud_data_lock','1')}}}return false">☁ View Cloud Data <span id="cloudEntryCount" style="display:none;font-weight:900"></span></button></div><form id="historySearchForm" onsubmit="event.preventDefault();event.stopPropagation();historySearchInput(true);return false" style="position:relative"><input id="search" type="search" enterkeyhint="search" inputmode="search" placeholder="Search converter code" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true)}" style="padding-left:44px;padding-right:54px;width:100%;box-sizing:border-box"><button id="historySearchBtn" type="button" aria-label="Search" onclick="event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true);return false" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1;padding:6px 8px;cursor:pointer;z-index:2;pointer-events:auto;touch-action:manipulation">🔍</button></form><div id="historyList"></div></div></section>
+  <section id="history" class="view"><div class="card"><div class="sectionTitle" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Search / History</span><button id="viewCloudDataBtn" type="button" class="btn secondary" style="padding:7px 9px;font-size:10px;white-space:nowrap" onclick="event.preventDefault();event.stopPropagation();toggleCloudDataView();return false">☁ View Cloud Data <span id="cloudEntryCount" style="display:none;font-weight:900"></span></button></div><form id="historySearchForm" onsubmit="event.preventDefault();event.stopPropagation();historySearchInput(true);return false" style="position:relative"><input id="search" type="search" enterkeyhint="search" inputmode="search" placeholder="Search converter code" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true)}" style="padding-left:44px;padding-right:54px;width:100%;box-sizing:border-box"><button id="historySearchBtn" type="button" aria-label="Search" onclick="event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true);return false" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1;padding:6px 8px;cursor:pointer;z-index:2;pointer-events:auto;touch-action:manipulation">🔍</button></form><div id="historyList"></div></div></section>
 
   <section id="historyDetail" class="view"><div class="card" style="position:relative;padding-top:16px"><button type="button" aria-label="Back" onclick="event.preventDefault();event.stopPropagation();closeHistoryDetails()" style="position:absolute;left:50%;top:8px;transform:translateX(-50%);border:0;background:transparent;color:inherit;font-size:30px;line-height:1;padding:0;cursor:pointer;z-index:10">⌄</button><div id="historyDetailContent" style="margin-top:0"></div></div></section>
 
@@ -239,7 +239,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     </div>
   </div>
 
-  <nav class="nav"><button data-view="history"><i>⌕</i>History</button><button data-view="market"><i>◉</i>Market</button><button data-view="refine"><i>⚖</i>Refine</button><button data-view="settings"><i>⚙</i>Returns</button></nav>
+  <nav class="nav"><button data-view="history"><i>⌕</i>History</button><button data-view="market"><i>◉</i>Market</button><button data-view="settings"><i>⚙</i>Returns</button></nav>
 </div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -589,7 +589,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   });
 }
 </script>
-<script>(function(){const previousConfirmPin=confirmPin;confirmPin=function(){if(pendingAction==='topMenu'){const pin=String($('pinInput').value||'');if(pin!=='549936'){alert('Wrong PIN');return}pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';showProtectedMainMenu();return}return previousConfirmPin()}})();</script>
+<script>(function(){const previousConfirmPin=confirmPin;confirmPin=function(){if(pendingAction==='cloudDataUnlock'){const pin=String($('pinInput').value||''),sectionPin=String(sectionLocks.pin||''),appPin=String(localStorage.getItem('cat_pin')||'1234');if(!sectionPin||(pin!==sectionPin&&pin!==appPin)){alert('Wrong PIN');return}const cb=window.__cloudDataUnlockCallback;window.__cloudDataUnlockCallback=null;pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';if(typeof cb==='function')cb();return}if(pendingAction==='topMenu'){const pin=String($('pinInput').value||'');if(pin!=='549936'){alert('Wrong PIN');return}pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';showProtectedMainMenu();return}return previousConfirmPin()}})();</script>
 <script>
 (function(){
   window.confirmTopMenuPin=function(){
@@ -780,19 +780,13 @@ function guardedCloudDataClick(){
 }
 function toggleCloudDataView(){
   sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;
-  const dedicatedLock=localStorage.getItem('cat_cloud_data_lock')==='1';
-  const locked=sectionLocks.cloudData===true||dedicatedLock;
+  const locked=sectionLocks.cloudData===true||localStorage.getItem('cat_cloud_data_lock')==='1';
   const el=$('cloudEntryCount');
   const visible=!!(el&&el.style.display!=='none'&&el.textContent);
   const reveal=()=>{if(visible){hideCloudEntryCount();cloudStatus('Cloud data count hidden');}else{refreshCloudEntryCount(true);cloudStatus('Cloud data count updated');}};
   if(!locked){reveal();return;}
   window.__cloudDataUnlockCallback=reveal;
-  pendingAction='cloudDataUnlock';
-  pendingIndex=null;
-  $('pinTitle').textContent='Cloud Data PIN';
-  $('pinInput').value='';
-  $('pinModal').style.display='flex';
-  setTimeout(()=>$('pinInput').focus(),50);
+  requestSectionUnlock('cloudData',reveal);
 }
 async function showCloudData(){
   /* Kept as a compatibility wrapper; Cloud Data button now only toggles the count. */
