@@ -821,60 +821,66 @@ async function checkServiceStatus(manual){
   async function cloudSearchHistory(searchTerm){
     const raw=String(searchTerm||'').trim();
     const normalized=normalizeHistoryCode(raw);
-    if(!normalized){history=[];renderHistory();cloudStatus('History ready — enter reference code to search');return true}
-    const c=client(),wid=await workspaceId();
-    if(!c||!wid){history=[];renderHistory();cloudStatus('Cloud search unavailable');return false}
-    const key=normalized.length>=4?normalized.slice(0,4):normalized;
+    if(!normalized){
+      history=[];renderHistory();
+      cloudStatus('History ready — enter reference code to search');
+      return true;
+    }
 
-    /*
-      IMPORTANT: History search is Cloud-only. Do not use the Supabase query
-      builder here. A hanging supabase-js request can leave the UI waiting
-      even when Promise.race is used. We use the browser Fetch API directly
-      with the persisted Supabase access token and a real AbortController.
-    */
+    /* Search is completely independent of the Supabase JS query layer.
+       The workspace is fixed and the browser fetches PostgREST directly. */
+    const key=normalized.length>=4?normalized.slice(0,4):normalized;
+    const wid='0287285c-044b-4a08-9ed5-314b40fde0e8';
+
     const getStoredAccessToken=()=>{
       try{
-        const exact='sb-'+new URL(SUPABASE_URL).hostname.split('.')[0]+'-auth-token';
-        const candidates=[exact];
+        const host=new URL(SUPABASE_URL).hostname.split('.')[0];
+        const keys=['sb-'+host+'-auth-token'];
         for(let i=0;i<localStorage.length;i++){
           const k=localStorage.key(i)||'';
-          if(k.includes('auth-token')&&!candidates.includes(k))candidates.push(k);
+          if(k.includes('auth-token')&&!keys.includes(k))keys.push(k);
         }
-        for(const k of candidates){
+        for(const k of keys){
           const rawToken=localStorage.getItem(k);
           if(!rawToken)continue;
           const parsed=JSON.parse(rawToken);
           const token=parsed?.access_token||parsed?.currentSession?.access_token||parsed?.session?.access_token;
           if(token)return token;
         }
-      }catch(e){}
+      }catch(e){console.warn('Search token read failed',e)}
       return '';
     };
 
     let accessToken=getStoredAccessToken();
+
+    /* Only use the Supabase client as a fallback for obtaining the token.
+       The actual search request never goes through supabase-js. */
     if(!accessToken){
       try{
-        const sessionResult=await Promise.race([
-          c.auth.getSession(),
-          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Auth session timeout')),2000))
-        ]);
-        accessToken=sessionResult?.data?.session?.access_token||'';
-      }catch(e){}
+        const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+        if(c&&c.auth){
+          const result=await Promise.race([
+            c.auth.getSession(),
+            new Promise((_,reject)=>setTimeout(()=>reject(new Error('Auth session timeout')),1500))
+          ]);
+          accessToken=result?.data?.session?.access_token||'';
+        }
+      }catch(e){console.warn('Search auth fallback failed',e)}
     }
+
     if(!accessToken){
-      history=[];
-      renderHistory();
+      history=[];renderHistory();
       cloudStatus('Login session unavailable — please login again');
       return false;
     }
 
-    const params=new URLSearchParams({
-      select:'id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at',
-      workspace_id:'eq.'+wid,
-      code_normalized:'like.'+key+'%',
-      order:'created_at.desc',
-      limit:'10'
-    });
+    const params=new URLSearchParams();
+    params.set('select','id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at');
+    params.set('workspace_id','eq.'+wid);
+    params.set('code_normalized','like.'+key+'%');
+    params.set('order','created_at.desc');
+    params.set('limit','10');
+
     const url=SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString();
     let rows=[];
     try{
@@ -893,19 +899,18 @@ async function checkServiceStatus(manual){
           }
         });
       }finally{clearTimeout(timer)}
-      const text=await response.text();
+
+      const bodyText=await response.text();
       let body=null;
-      try{body=text?JSON.parse(text):null}catch(e){}
+      try{body=bodyText?JSON.parse(bodyText):null}catch(e){}
       if(!response.ok){
-        const msg=body?.message||body?.error_description||body?.error||('HTTP '+response.status);
-        throw new Error(msg);
+        throw new Error(body?.message||body?.error_description||body?.error||('HTTP '+response.status));
       }
       rows=Array.isArray(body)?body:[];
       rows=rows.filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,10);
     }catch(e){
       console.error('Cloud history search failed',e);
-      history=[];
-      renderHistory();
+      history=[];renderHistory();
       cloudStatus(e?.name==='AbortError'?'Search timed out — please try again':'Search failed — '+String(e&&e.message||e).slice(0,90));
       return false;
     }
@@ -914,13 +919,17 @@ async function checkServiceStatus(manual){
       const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
       return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt_ppm??0,pd:e.pd_ppm??legacy.pd_ppm??0,rh:e.rh_ppm??legacy.rh_ppm??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
     });
+
     window.__catalystCloudHistoryLoaded=true;
     renderHistory();
     cloudStatus(history.length?'Cloud search: '+history.length+' result'+(history.length===1?'':'s'):'No matching reference found');
+
     if(history.length){
       Promise.resolve().then(async()=>{
         try{
-          const withPhotos=await mapCloudHistoryEntries(rows,c);
+          const photoClient=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+          if(!photoClient)return;
+          const withPhotos=await mapCloudHistoryEntries(rows,photoClient);
           const byId={};
           withPhotos.forEach(x=>{if(x._cloud_id)byId[x._cloud_id]=x});
           history=history.map(x=>byId[x._cloud_id]?{...x,photos:byId[x._cloud_id].photos||[]}:x);
