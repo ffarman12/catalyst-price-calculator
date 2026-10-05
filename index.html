@@ -400,19 +400,28 @@ function historySearchInput(immediate){
   clearTimeout(historySearchTimer);
   const run=async()=>{
     const seq=++historySearchSeq;
-    if(!q){history=[];renderHistory();cloudStatus('History ready — enter reference code to search');return}
+    if(!q){history=[];renderHistory();cloudStatus('History ready — enter reference code to search');setHistorySearchLoading(false);return}
     cloudStatus('Searching Cloud…');
     setHistorySearchLoading(true);
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     try{
-      const ok=await window.CatalystCloudMaster?.searchHistory?.(q);
+      const searchPromise=window.CatalystCloudMaster?.searchHistory?.(q);
+      const ok=await Promise.race([
+        searchPromise,
+        new Promise(resolve=>setTimeout(()=>resolve(false),15000))
+      ]);
       if(seq!==historySearchSeq)return;
-      if(!ok)renderHistory();
+      if(!ok){
+        renderHistory();
+        cloudStatus('Search timed out — please try again');
+      }
     }catch(e){
       console.error('History search trigger failed',e);
       renderHistory();
       cloudStatus('Search failed — please try again');
-    }finally{if(seq===historySearchSeq)setHistorySearchLoading(false)}
+    }finally{
+      if(seq===historySearchSeq)setHistorySearchLoading(false);
+    }
   };
   if(immediate)run();else historySearchTimer=setTimeout(run,250);
 }
@@ -662,25 +671,11 @@ async function checkServiceStatus(manual){
   }
   async function workspaceId(){
     if(cloudWorkspaceId)return cloudWorkspaceId;
-    const c=client(); if(!c)return null;
-    /* This Editor app has one established Cloud Master workspace. Prefer it first.
-       The owner-workspace lookup can return a different/empty workspace when the
-       browser is logged into another Supabase account, which previously made
-       History show 0 even though the project's Cloud Master contained entries. */
+    /* The verified Cloud Master workspace is fixed for this app. Do not make
+       History search wait on an extra workspace lookup request. */
     const fallback='0287285c-044b-4a08-9ed5-314b40fde0e8';
-    try{
-      const {data,error}=await c.from('workspaces').select('id').eq('id',fallback).limit(1);
-      if(!error&&data&&data[0]&&data[0].id){cloudWorkspaceId=data[0].id;return cloudWorkspaceId;}
-    }catch(e){console.error('Workspace Master lookup failed',e)}
-    try{
-      const {data:userData}=await c.auth.getUser();
-      const u=userData&&userData.user;
-      if(u){
-        const {data,error}=await c.from('workspaces').select('id').eq('owner_id',u.id).limit(1);
-        if(!error&&data&&data[0]&&data[0].id){cloudWorkspaceId=data[0].id;return cloudWorkspaceId;}
-      }
-    }catch(e){console.error('Workspace owner lookup failed',e)}
-    return null;
+    cloudWorkspaceId=fallback;
+    return cloudWorkspaceId;
   }
   function dataUrlToBlob(dataUrl){
     const m=String(dataUrl||'').match(/^data:([^;,]+)?(;base64)?,(.*)$/s); if(!m)return null;
