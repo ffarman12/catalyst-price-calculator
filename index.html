@@ -209,7 +209,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     </div><div class="row" style="margin-top:12px"><button class="btn primary" onclick="demoLive()">Update Live</button><button class="btn secondary" onclick="saveMarket()">Save Manual</button><button class="btn secondary" type="button" onclick="(async()=>{const box=$('apiDiagnostic');box.style.display='block';box.textContent='Checking secure market service...';try{const res=await fetch('/api/market',{cache:'no-store'});const raw=await res.text();let msg=raw;try{const j=JSON.parse(raw);msg=JSON.stringify(j,null,2)}catch(e){}box.textContent='HTTP '+res.status+'\n'+msg}catch(err){box.textContent='API ERROR\n'+String(err&&err.message||err)}})()">API Diagnostic</button></div><div id="apiDiagnostic" style="display:none;margin-top:8px;padding:10px;border-radius:10px;background:light-dark(#edf1f7,#202731);font-size:11px;line-height:1.4;white-space:pre-wrap;overflow:auto;max-height:180px"></div><div class="note">Live market uses the secure server-side market service. Manual values are fallback only when the secure service is unavailable.</div></div>
   </section>
 
-  <section id="history" class="view"><div class="card"><div class="sectionTitle" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Search / History</span><button id="viewCloudDataBtn" type="button" class="btn secondary" style="padding:7px 9px;font-size:10px;white-space:nowrap" onclick="event.preventDefault();event.stopPropagation();toggleCloudDataView();return false">☁ View Cloud Data <span id="cloudEntryCount" style="display:none;font-weight:900"></span></button></div><form id="historySearchForm" onsubmit="event.preventDefault();event.stopPropagation();historySearchInput(true);return false" style="position:relative"><input id="search" type="search" enterkeyhint="search" inputmode="search" placeholder="Search converter code" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true)}" style="padding-left:44px;padding-right:54px;width:100%;box-sizing:border-box"><button id="historySearchBtn" type="button" aria-label="Search" onclick="event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true);return false" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1;padding:6px 8px;cursor:pointer;z-index:2;pointer-events:auto;touch-action:manipulation">🔍</button></form><div id="historyList"></div></div></section>
+  <section id="history" class="view"><div class="card"><div class="sectionTitle" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Search / History</span><button id="viewCloudDataBtn" type="button" class="btn secondary" style="padding:7px 9px;font-size:10px;white-space:nowrap" onclick="event.preventDefault();event.stopPropagation();guardedCloudDataClick();return false">☁ View Cloud Data <span id="cloudEntryCount" style="display:none;font-weight:900"></span></button></div><form id="historySearchForm" onsubmit="event.preventDefault();event.stopPropagation();historySearchInput(true);return false" style="position:relative"><input id="search" type="search" enterkeyhint="search" inputmode="search" placeholder="Search converter code" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true)}" style="padding-left:44px;padding-right:54px;width:100%;box-sizing:border-box"><button id="historySearchBtn" type="button" aria-label="Search" onclick="event.preventDefault();event.stopPropagation();if(window.historySearchInput)window.historySearchInput(true);return false" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;background:transparent;color:inherit;font-size:22px;line-height:1;padding:6px 8px;cursor:pointer;z-index:2;pointer-events:auto;touch-action:manipulation">🔍</button></form><div id="historyList"></div></div></section>
 
   <section id="historyDetail" class="view"><div class="card" style="position:relative;padding-top:16px"><button type="button" aria-label="Back" onclick="event.preventDefault();event.stopPropagation();closeHistoryDetails()" style="position:absolute;left:50%;top:8px;transform:translateX(-50%);border:0;background:transparent;color:inherit;font-size:30px;line-height:1;padding:0;cursor:pointer;z-index:10">⌄</button><div id="historyDetailContent" style="margin-top:0"></div></div></section>
 
@@ -762,6 +762,21 @@ async function refreshCloudEntryCount(reveal){
 function hideCloudEntryCount(){
   const el=$('cloudEntryCount');
   if(el){el.textContent='';el.style.display='none';}
+}
+function guardedCloudDataClick(){
+  try{
+    sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;
+    const locked=sectionLocks.cloudData===true||localStorage.getItem('cat_cloud_data_lock')==='1';
+    if(!locked){toggleCloudDataView();return}
+    const savedPin=String(sectionLocks.pin||localStorage.getItem('cat_pin')||'1234');
+    const entered=window.prompt('Cloud Data PIN (4 digit)');
+    if(entered===null)return;
+    if(String(entered).trim()!==savedPin){alert('Wrong Section Lock PIN');return}
+    const el=$('cloudEntryCount');
+    const visible=!!(el&&el.style.display!=='none'&&el.textContent);
+    if(visible){hideCloudEntryCount();cloudStatus('Cloud data count hidden')}
+    else{refreshCloudEntryCount(true);cloudStatus('Cloud data count updated')}
+  }catch(e){console.error('Cloud Data lock error',e)}
 }
 function toggleCloudDataView(){
   sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;
