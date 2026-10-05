@@ -545,6 +545,11 @@ function openMenu(e,i){e.preventDefault();e.stopPropagation();const run=()=>{pen
 let historyMenuUnlocked=false;
 const baseHistoryConfirmPin=confirmPin;
 async function runHistoryAction(action,i){const x=history[i];if(!x)return;if(action==='ppm'){const el=$('ppm-'+i);if(el)el.style.display=el.style.display==='none'?'block':'none';return}if(action==='detailPpm'){const el=$('detailPpm-'+i);if(el)el.style.display=el.style.display==='none'?'block':'none';return}if(action==='delete'){
+  /* Invalidate any in-flight Cloud search/photo load before deleting. */
+  try{if(typeof cloudHistorySearchVersion==='number')cloudHistorySearchVersion++;}catch(_){ }
+  historySearchSeq++;
+  clearTimeout(historySearchTimer);
+  clearTimeout(window.__historySearchInlineTimer);
   const cloudId=x._cloud_id;
   if(cloudId){
     $('status').textContent='Deleting from Cloud…';
@@ -564,7 +569,13 @@ async function runHistoryAction(action,i){const x=history[i];if(!x)return;if(act
   history.splice(i,1);
   localStorage.setItem('cat_history',JSON.stringify(history));
   renderHistory();
-  $('status').textContent='Deleted from Cloud';
+  const q=String($('search')?.value||'').trim();
+  if(q&&window.CatalystCloudMaster&&typeof window.CatalystCloudMaster.searchHistory==='function'){
+    $('status').textContent='Refreshing Cloud history…';
+    await window.CatalystCloudMaster.searchHistory(q);
+  }else{
+    $('status').textContent='Deleted from Cloud';
+  }
   return;
 }if(action==='edit'){closeMenu();editingIndex=i;$('company').value=String(x.company||'');$('vehicle').value=String(x.vehicle||'');$('code').value=String(x.code||'');$('weight').value=x.weight??'';$('pt').value=x.pt??'';$('pd').value=x.pd??'';$('rh').value=x.rh??'';$('dpfWeight').value=x.dpfWeight??'';$('dpfPt').value=x.dpfPt??'';$('dpfPd').value=x.dpfPd??'';$('dpfRh').value=x.dpfRh??'';$('notes').value=String(x.note||'');updateCompanyLogo();const hasDpf=Number(x.dpfWeight)>0;$('dpfFields').style.display=hasDpf?'grid':'none';$('dpfToggle').textContent=hasDpf?'− DPF Details':'+ DPF Details';const pics=(x.photos||[]).map(p=>typeof p==='string'?{name:p,url:p}:p).filter(p=>p&&p.url);$('photos').value='';$('selectedPhotoPreview').innerHTML=pics.length?pics.map((p,n)=>'<img src="'+p.url+'" alt="'+(p.name||('Photo '+(n+1)))+'" style="width:70px;height:70px;object-fit:cover;border-radius:10px;border:1px solid #aaa">').join(''):'<span class="muted">Saved photos nahi hain.';$('resultBox').style.display='none';$('home').querySelector('.sectionTitle').textContent='Edit Converter';$('calculateBtn').textContent='Update Converter';document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('home').classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='home'));window.scrollTo({top:0,behavior:'smooth'})}}
 function requestHistoryAction(action,i){if(!requireLogin())return;sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;if(action==='ppm'&&!isSectionLocked('view')){runHistoryAction(action,i);return}pendingAction='historyAction';pendingIndex=i;pendingHistoryAction=action;$('pinTitle').textContent='Enter PIN';$('pinInput').value='';$('pinModal').style.display='flex';setTimeout(()=>$('pinInput').focus(),50)}
@@ -879,7 +890,9 @@ async function checkServiceStatus(manual){
   function normalizeHistoryCode(v){
     return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   }
+  let cloudHistorySearchVersion=0;
   async function cloudSearchHistory(searchTerm){
+    const searchVersion=++cloudHistorySearchVersion;
     const raw=String(searchTerm||'').trim();
     const normalized=normalizeHistoryCode(raw);
     if(!normalized){
@@ -958,8 +971,9 @@ async function checkServiceStatus(manual){
       Promise.resolve().then(async()=>{
         try{
           const photoClient=typeof getEditorSupabase==='function'?getEditorSupabase():null;
-          if(!photoClient)return;
+          if(!photoClient||searchVersion!==cloudHistorySearchVersion)return;
           const withPhotos=await mapCloudHistoryEntries(rows,photoClient);
+          if(searchVersion!==cloudHistorySearchVersion)return;
           const byId={};
           withPhotos.forEach(x=>{if(x._cloud_id)byId[x._cloud_id]=x});
           history=history.map(x=>byId[x._cloud_id]?{...x,photos:byId[x._cloud_id].photos||[]}:x);
