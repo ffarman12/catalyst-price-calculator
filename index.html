@@ -1049,6 +1049,13 @@ async function showCloudData(){
   }
   let cloudHistorySearchVersion=0;
   async function cloudSearchHistory(searchTerm){
+    /* Saved Less History must be restored before a Cloud result is priced.
+       This prevents refresh-time races between persistent-settings sync and search. */
+    try{
+      const ensure=window.__ensurePersistentSettings;
+      if(typeof ensure==='function')await ensure();
+      if(typeof getActiveLess==='function')getActiveLess();
+    }catch(e){console.warn('Persistent Less restore before search failed',e)}
     const searchVersion=++cloudHistorySearchVersion;
     const raw=String(searchTerm||'').trim();
     const normalized=normalizeHistoryCode(raw);
@@ -2366,8 +2373,21 @@ async function showCloudData(){
     if(ok){try{localStorage.removeItem('cat_persistent_settings_pending')}catch(e){}}
     return ok;
   }
+  async function ensurePersistentSettings(){
+    for(let i=0;i<20;i++){
+      if(!syncing){
+        try{
+          const ok=await syncFromCloud();
+          if(ok)return true;
+        }catch(e){console.warn('Persistent settings ensure failed',e)}
+      }
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }
+    return false;
+  }
   window.__persistSettingsToCloud=persistNow;
   window.__syncPersistentSettings=syncFromCloud;
+  window.__ensurePersistentSettings=ensurePersistentSettings;
   function hookAuth(){try{const c=getEditorSupabase();if(!c)return false;c.auth.onAuthStateChange((event,session)=>{if(session&&(event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='TOKEN_REFRESHED'))setTimeout(syncFromCloud,250)});return true}catch(e){return false}}
   function boot(){hookAuth();let tries=0;const timer=setInterval(async()=>{tries++;const ok=await syncFromCloud();if(ok||tries>=12)clearInterval(timer)},1500);setTimeout(syncFromCloud,400)}
   setTimeout(()=>{
