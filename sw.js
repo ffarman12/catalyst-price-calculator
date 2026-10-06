@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v89-history-no-pin';
+const CACHE='catalyst-calculator-v91-history-search-fix';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
