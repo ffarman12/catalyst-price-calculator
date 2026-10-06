@@ -709,20 +709,14 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 <script>
 (function(){
   window.confirmTopMenuPin=function(){
-    const pin=String(($('pinInput')&&$('pinInput').value)||'');
     if(typeof pendingAction!=='undefined' && pendingAction==='topMenu'){
+      const pin=String(($('pinInput')&&$('pinInput').value)||'');
       if(pin!=='549936'){alert('Wrong PIN');return false}
-      pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';showProtectedMainMenu();return false;
-    }
-    if(typeof pendingAction!=='undefined' && pendingAction==='sectionUnlock'){
-      const sectionPin=String(sectionLocks&&sectionLocks.pin||'');
-      const appPin=String(localStorage.getItem('cat_pin')||'1234');
-      if(!(sectionPin&&(pin===sectionPin||pin===appPin))){alert('Wrong Section Lock PIN');return false}
-      const cb=sectionUnlockCallback;
-      sectionUnlockCallback=null;pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';
-      if(typeof cb==='function'){
-        try{cb()}catch(err){console.error('Section unlock callback failed',err);$('status').textContent='Section open failed: '+String(err&&err.message||err)}
-      }
+      if(isLoggedIn())menuUnlocked=true;else menuAccessPendingLogin=true;
+      pendingAction=null;
+      pendingIndex=null;
+      $('pinModal').style.display='none';
+      showProtectedMainMenu();
       return false;
     }
     if(typeof confirmPin==='function') return confirmPin();
@@ -1396,29 +1390,13 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 <script>
 (function(){
   window.confirmTopMenuPin=function(){
-    if(typeof pendingAction!=='undefined' && (pendingAction==='topMenu'||pendingAction==='historyAccess')){
+    if(typeof pendingAction!=='undefined' && pendingAction==='topMenu'){
       const pin=String(($('pinInput')&&$('pinInput').value)||'');
       if(pin!=='549936'){alert('Wrong PIN');return false}
-      const historyAccess=(pendingAction==='historyAccess');
-      if(!historyAccess){if(isLoggedIn())menuUnlocked=true;else menuAccessPendingLogin=true;}
-      else if(!isLoggedIn())menuAccessPendingLogin=true;
+      if(isLoggedIn())menuUnlocked=true;else menuAccessPendingLogin=true;
       pendingAction=null;
       pendingIndex=null;
       $('pinModal').style.display='none';
-      if(historyAccess){
-        if(!requireLogin())return false;
-        requestSectionUnlock('history',()=>{
-          document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-          $('history').classList.add('active');
-          document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='history'));
-          history=[];
-          const input=$('search');if(input)input.value='';
-          renderHistory();
-          cloudStatus('History ready — enter reference code to search');
-          setTimeout(()=>refreshCloudEntryCount(false),0);
-        });
-        return false;
-      }
       showProtectedMainMenu();
       return false;
     }
