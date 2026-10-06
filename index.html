@@ -1359,67 +1359,7 @@ async function showCloudData(){
 })();
 </script>
 
-<script>
-/* FINAL SECTION LOCK SAVE v52 — one handler, no browser popup, compatible with every old Section Lock binding. */
-(function(){
-  function showSectionLockError(msg){
-    try{
-      let box=$('sectionLockError');
-      if(!box){
-        const input=$('sectionLockPin');
-        box=document.createElement('div');
-        box.id='sectionLockError';
-        box.style.cssText='margin-top:6px;color:#d32f2f;font-size:11px;font-weight:800;';
-        if(input&&input.parentNode)input.parentNode.appendChild(box);
-      }
-      box.textContent=msg||'';
-      box.style.display=msg?'block':'none';
-    }catch(ignore){}
-  }
-  function clearSectionLockError(){showSectionLockError('')}
-  function finalSave(e){
-    try{if(e){e.preventDefault();e.stopPropagation()}}catch(ignore){}
-    const pin=String(($('sectionLockPin')&&$('sectionLockPin').value)||'').trim();
-    const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','historyActions'];
-    const next={};
-    keys.forEach(function(k){
-      const el=$('lock'+k.charAt(0).toUpperCase()+k.slice(1));
-      next[k]=!!(el&&el.checked);
-    });
-    const anyLocked=Object.values(next).some(Boolean);
-    clearSectionLockError();
-    if(anyLocked&&!/^\d{4}$/.test(pin)){
-      showSectionLockError('4 digit PIN enter karein.');
-      try{$('sectionLockPin').focus()}catch(ignore){}
-      return false;
-    }
-    if(!anyLocked&&pin&&!/^\d{4}$/.test(pin)){
-      showSectionLockError('PIN 4 digits ka hona chahiye.');
-      try{$('sectionLockPin').focus()}catch(ignore){}
-      return false;
-    }
-    const saved=Object.assign({},next,{pin:anyLocked?pin:''});
-    try{
-      localStorage.setItem('cat_section_locks',JSON.stringify(saved));
-      localStorage.setItem('cat_cloud_data_lock',saved.cloudData?'1':'0');
-      sectionLocks=saved;
-    }catch(err){
-      console.error('Section Lock save error',err);
-      showSectionLockError('Section Lock save nahi ho saka.');
-      return false;
-    }
-    try{$('status').textContent=anyLocked?'Section locks ON':'Section locks OFF'}catch(ignore){}
-    try{$('sectionLockModal').style.display='none'}catch(ignore){}
-    try{resetTopMenu()}catch(ignore){}
-    try{if(window.__persistSettingsToCloud)window.__persistSettingsToCloud()}catch(ignore){}
-    return false;
-  }
-  window.__sectionLockError=showSectionLockError;
-  window.__finalSectionLockSave=finalSave;
-  /* Any historical inline onclick/function call now reaches the same safe handler. */
-  window.saveSectionLock=finalSave;
-})();
-</script>
+
 
 </body></html>
 +Number(price).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});const rr=$('refineResult');if(rr)rr.style.display='block'}
