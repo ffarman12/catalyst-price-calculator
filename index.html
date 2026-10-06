@@ -1811,64 +1811,43 @@ async function showCloudData(){
       return true;
     }
 
-    /* HISTORY SEARCH ONLY. */
+    /* HISTORY SEARCH ONLY — do not change any other app setting or calculation. */
     const key=normalized.length>=4?normalized.slice(0,4):normalized;
     const wid='0287285c-044b-4a08-9ed5-314b40fde0e8';
     const selectCols='id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at';
-    let rows=[];
-    let lastError=null;
 
+    let rows=[];
+    let errors=[];
     try{
       const c=typeof client==='function'?client():(typeof getEditorSupabase==='function'?getEditorSupabase():null);
       if(!c)throw new Error('Cloud client is not ready');
 
-      try{
-        const result=await Promise.race([
-          c.from('converter_entries').select(selectCols).eq('workspace_id',wid)
-            .like('code_normalized',key+'%').order('created_at',{ascending:false}).limit(10),
-          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timeout')),5000))
-        ]);
-        if(result.error)throw result.error;
-        rows=Array.isArray(result.data)?result.data:[];
-      }catch(primaryError){
-        lastError=primaryError;
-        try{
-          let token='';
-          try{const sr=await c.auth.getSession();token=sr?.data?.session?.access_token||''}catch(_){}
-          const base=SUPABASE_URL+'/rest/v1/converter_entries';
-          const headers={apikey:SUPABASE_PUBLISHABLE_KEY};
-          if(token)headers.Authorization='Bearer '+token;
-          const qs='select='+encodeURIComponent(selectCols)+'&workspace_id=eq.'+encodeURIComponent(wid)+'&code_normalized=like.'+encodeURIComponent(key+'%')+'&order=created_at.desc&limit=10';
-          const res=await fetch(base+'?'+qs,{headers,cache:'no-store'});
-          if(!res.ok)throw new Error('Cloud search HTTP '+res.status);
-          const data=await res.json();
-          rows=Array.isArray(data)?data:[];
-        }catch(restError){lastError=restError}
+      /* Use the real code column for ordinary prefix searches (e.g. 79).
+         Also query code_normalized so hyphen/case-insensitive matching remains supported. */
+      const results=await Promise.all([
+        c.from('converter_entries').select(selectCols)
+          .eq('workspace_id',wid).ilike('code',raw+'%')
+          .order('created_at',{ascending:false}).limit(10),
+        c.from('converter_entries').select(selectCols)
+          .eq('workspace_id',wid).like('code_normalized',key+'%')
+          .order('created_at',{ascending:false}).limit(10)
+      ]);
+
+      const merged=new Map();
+      for(const result of results){
+        if(result.error){errors.push(result.error);continue}
+        for(const row of (Array.isArray(result.data)?result.data:[])){
+          if(row&&row.id)merged.set(row.id,row);
+        }
       }
+      rows=Array.from(merged.values()).sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))).filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,10);
 
       if(searchVersion!==cloudHistorySearchVersion)return true;
-
-      const seenIds=new Set();
-      rows=rows.filter(e=>{
-        const actual=normalizeHistoryCode(e.code);
-        if(!actual.startsWith(key))return false;
-        if(!e.id||seenIds.has(e.id))return false;
-        seenIds.add(e.id);return true;
-      }).slice(0,10);
-
-      if(!rows.length&&lastError){
-        try{
-          const prefix=normalized.slice(0,Math.min(2,normalized.length));
-          const fallback=await c.from('converter_entries').select(selectCols).eq('workspace_id',wid)
-            .ilike('code',prefix+'%').order('created_at',{ascending:false}).limit(50);
-          if(!fallback.error)rows=(Array.isArray(fallback.data)?fallback.data:[])
-            .filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,10);
-        }catch(_){}
-      }
+      if(!rows.length&&errors.length===2)throw errors[0];
     }catch(e){
       console.error('Cloud history search failed',e);
       history=[];renderHistory();
-      cloudStatus('Search failed — '+String((lastError||e)?.message||lastError||e).slice(0,90));
+      cloudStatus('Search failed — '+String(e?.message||e).slice(0,120));
       return false;
     }
 
