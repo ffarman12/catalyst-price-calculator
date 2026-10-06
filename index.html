@@ -1811,64 +1811,67 @@ async function showCloudData(){
       return true;
     }
 
-    /* Search is completely independent of the Supabase JS query layer.
-       The workspace is fixed and the browser fetches PostgREST directly. */
+    /* HISTORY SEARCH ONLY. */
     const key=normalized.length>=4?normalized.slice(0,4):normalized;
     const wid='0287285c-044b-4a08-9ed5-314b40fde0e8';
-
-    const getStoredAccessToken=()=>{
-      try{
-        const host=new URL(SUPABASE_URL).hostname.split('.')[0];
-        const keys=['sb-'+host+'-auth-token'];
-        for(let i=0;i<localStorage.length;i++){
-          const k=localStorage.key(i)||'';
-          if(k.includes('auth-token')&&!keys.includes(k))keys.push(k);
-        }
-        for(const k of keys){
-          const rawToken=localStorage.getItem(k);
-          if(!rawToken)continue;
-          const parsed=JSON.parse(rawToken);
-          const token=parsed?.access_token||parsed?.currentSession?.access_token||parsed?.session?.access_token;
-          if(token)return token;
-        }
-      }catch(e){console.warn('Search token read failed',e)}
-      return '';
-    };
-
+    const selectCols='id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at';
     let rows=[];
+    let lastError=null;
+
     try{
-      const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+      const c=typeof client==='function'?client():(typeof getEditorSupabase==='function'?getEditorSupabase():null);
       if(!c)throw new Error('Cloud client is not ready');
-      const query=c.from('converter_entries')
-        .select('id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at')
-        .eq('workspace_id',wid)
-        .like('code_normalized',key+'%')
-        .order('created_at',{ascending:false})
-        .limit(10);
-      const result=await Promise.race([
-        query,
-        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timeout')),5000))
-      ]);
-      if(result.error)throw result.error;
+
+      try{
+        const result=await Promise.race([
+          c.from('converter_entries').select(selectCols).eq('workspace_id',wid)
+            .like('code_normalized',key+'%').order('created_at',{ascending:false}).limit(10),
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timeout')),5000))
+        ]);
+        if(result.error)throw result.error;
+        rows=Array.isArray(result.data)?result.data:[];
+      }catch(primaryError){
+        lastError=primaryError;
+        try{
+          let token='';
+          try{const sr=await c.auth.getSession();token=sr?.data?.session?.access_token||''}catch(_){}
+          const base=SUPABASE_URL+'/rest/v1/converter_entries';
+          const headers={apikey:SUPABASE_PUBLISHABLE_KEY};
+          if(token)headers.Authorization='Bearer '+token;
+          const qs='select='+encodeURIComponent(selectCols)+'&workspace_id=eq.'+encodeURIComponent(wid)+'&code_normalized=like.'+encodeURIComponent(key+'%')+'&order=created_at.desc&limit=10';
+          const res=await fetch(base+'?'+qs,{headers,cache:'no-store'});
+          if(!res.ok)throw new Error('Cloud search HTTP '+res.status);
+          const data=await res.json();
+          rows=Array.isArray(data)?data:[];
+        }catch(restError){lastError=restError}
+      }
+
       if(searchVersion!==cloudHistorySearchVersion)return true;
-      rows=Array.isArray(result.data)?result.data:[];
-      /* Cloud is authoritative: use only rows returned by this exact search request. */
+
       const seenIds=new Set();
       rows=rows.filter(e=>{
         const actual=normalizeHistoryCode(e.code);
-        /* For 2–3 characters match all available characters; for 4+ use first 4. */
         if(!actual.startsWith(key))return false;
         if(!e.id||seenIds.has(e.id))return false;
         seenIds.add(e.id);return true;
       }).slice(0,10);
+
+      if(!rows.length&&lastError){
+        try{
+          const prefix=normalized.slice(0,Math.min(2,normalized.length));
+          const fallback=await c.from('converter_entries').select(selectCols).eq('workspace_id',wid)
+            .ilike('code',prefix+'%').order('created_at',{ascending:false}).limit(50);
+          if(!fallback.error)rows=(Array.isArray(fallback.data)?fallback.data:[])
+            .filter(e=>normalizeHistoryCode(e.code).startsWith(key)).slice(0,10);
+        }catch(_){}
+      }
     }catch(e){
       console.error('Cloud history search failed',e);
       history=[];renderHistory();
-      cloudStatus('Search failed — '+String(e&&e.message||e).slice(0,90));
+      cloudStatus('Search failed — '+String((lastError||e)?.message||lastError||e).slice(0,90));
       return false;
     }
 
-    /* Replace the visible list atomically from this Cloud response. */
     history=[];
     renderHistory();
     const authoritativeRows=rows.slice(0,10);
@@ -1876,7 +1879,6 @@ async function showCloudData(){
       const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
       return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt_ppm??0,pd:e.pd_ppm??legacy.pd_ppm??0,rh:e.rh_ppm??legacy.rh_ppm??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
     });
-
     window.__catalystCloudHistoryLoaded=true;
     renderHistory();
     cloudStatus(history.length?'Cloud search: '+history.length+' result'+(history.length===1?'':'s'):'No matching reference found');
@@ -1884,7 +1886,7 @@ async function showCloudData(){
     if(history.length){
       Promise.resolve().then(async()=>{
         try{
-          const photoClient=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+          const photoClient=typeof client==='function'?client():(typeof getEditorSupabase==='function'?getEditorSupabase():null);
           if(!photoClient||searchVersion!==cloudHistorySearchVersion)return;
           const withPhotos=await mapCloudHistoryEntries(authoritativeRows,photoClient);
           if(searchVersion!==cloudHistorySearchVersion)return;
