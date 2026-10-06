@@ -665,7 +665,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=62-history-pin-first',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=63-final-history-gate',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
@@ -2164,4 +2164,26 @@ async function showCloudData(){
   },0);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();</script>
+<script>
+/* FINAL HISTORY ACCESS GATE: History must always request Menu PIN before any login UI. */
+(function(){
+  function bindHistoryGate(){
+    if(window.__historyPinGateBound)return;
+    window.__historyPinGateBound=true;
+    document.addEventListener('click',function(e){
+      const btn=e.target&&e.target.closest?e.target.closest('.nav button[data-view="history"]'):null;
+      if(!btn)return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      pendingAction='historyAccess';
+      pendingIndex=null;
+      $('pinTitle').textContent='Menu PIN';
+      $('pinInput').value='';
+      $('pinModal').style.display='flex';
+      setTimeout(()=>$('pinInput').focus(),50);
+    },true);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindHistoryGate);else bindHistoryGate();
+})();
+</script>
 </body></html>
