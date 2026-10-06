@@ -661,13 +661,13 @@ document.querySelectorAll('.nav button[data-view="home"],#bottomNewBtn').forEach
 <script>
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', function(){
-    const SW_UPDATE_KEY='cata_sw_v26_reloaded'; let reloaded=false;
+    const SW_UPDATE_KEY='cata_sw_v27_history_search'; let reloaded=false;
     navigator.serviceWorker.addEventListener('controllerchange', function(){
       if(reloaded)return; reloaded=true;
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=73-history-search-active-fix',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=74-history-search-force-refresh',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
