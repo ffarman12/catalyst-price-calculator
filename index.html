@@ -2357,8 +2357,8 @@ async function showCloudData(){
   async function syncFromCloud(){
     if(syncing)return false;syncing=true;
     try{
-      const pending=localStorage.getItem('cat_persistent_settings_pending')==='1';
-      if(pending){const pushed=await writeCloud(localState());if(pushed){localStorage.removeItem('cat_persistent_settings_pending');return true}}
+      /* Cloud is authoritative on startup. Never push a stale browser pending
+         value over an existing persistent Cloud configuration. */
       const cloud=await readCloud();if(!cloud)return false;
       const settings=cloud.settings||{};
       if(settings[PERSIST_KEY]===true){
@@ -2371,9 +2371,12 @@ async function showCloudData(){
           if(pushed){localStorage.removeItem('cat_persistent_settings_pending');return true}
         }
         applyState({sectionLocks:cloudLocks,viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||{}});
+        try{localStorage.removeItem('cat_persistent_settings_pending')}catch(e){}
         return true;
       }
+      /* No persistent Cloud configuration exists yet, so this browser may seed it. */
       const ok=await writeCloud(localState());
+      if(ok){try{localStorage.removeItem('cat_persistent_settings_pending')}catch(e){}}
       return ok;
     }finally{syncing=false}
   }
