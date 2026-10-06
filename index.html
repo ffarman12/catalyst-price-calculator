@@ -1206,9 +1206,8 @@ async function showCloudData(){
     return Number(result.count||0);
   }
   async function loadCloudHistory(){
-    /* History is intentionally NOT bulk-loaded. It is fetched only after a code search. */
-    history=[];
-    if(typeof renderHistory==='function')renderHistory();
+    /* History is intentionally NOT bulk-loaded. A background bootstrap must never
+       clear an active search result; the History screen clears itself when opened. */
     return false;
   }
   async function cloudBootstrap(){
