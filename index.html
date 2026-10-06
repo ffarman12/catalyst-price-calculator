@@ -1192,12 +1192,6 @@ async function showCloudData(){
       return false;
     }
 
-    }catch(e){
-      console.error('Cloud history search failed',e);
-      history=[];renderHistory();
-      cloudStatus('Search failed — '+String(e&&e.message||e).slice(0,90));
-      return false;
-    }
 
     /* Replace the visible list atomically from this Cloud response. */
     history=[];
