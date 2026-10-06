@@ -723,7 +723,9 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   if(!client)return;
   client.auth.getSession().then(({data})=>{
     const session=data&&data.session;
-    localStorage.setItem('cat_logged_in',session?'1':'0');
+    if(session){
+      localStorage.setItem('cat_logged_in','1');
+    }
     if(session&&session.user){localStorage.setItem('cat_login_user',session.user.email||'');if(session.user.user_metadata?.full_name&&!localStorage.getItem('cat_profile_name'))localStorage.setItem('cat_profile_name',String(session.user.user_metadata.full_name));}
     if(typeof applyAccessUI==='function')applyAccessUI();
   }).catch(()=>{});
@@ -1740,7 +1742,9 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   if(!client)return;
   client.auth.getSession().then(({data})=>{
     const session=data&&data.session;
-    localStorage.setItem('cat_logged_in',session?'1':'0');
+    if(session){
+      localStorage.setItem('cat_logged_in','1');
+    }
     if(session&&session.user){localStorage.setItem('cat_login_user',session.user.email||'');if(session.user.user_metadata?.full_name&&!localStorage.getItem('cat_profile_name'))localStorage.setItem('cat_profile_name',String(session.user.user_metadata.full_name));}
     if(typeof applyAccessUI==='function')applyAccessUI();
   }).catch(()=>{});
