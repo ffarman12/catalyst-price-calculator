@@ -520,11 +520,7 @@ function historySearchInput(immediate){
          incorrectly reported as failed while the Cloud query is still running. */
       const result=await fn(q);
       if(seq!==historySearchSeq)return;
-      if(result===false){
-        history=[];
-        renderHistory();
-        cloudStatus('Search failed — please try again');
-      }
+      if(result===false) console.error('History search returned false');
     }catch(e){
       if(seq!==historySearchSeq)return;
       console.error('History search trigger failed',e);
