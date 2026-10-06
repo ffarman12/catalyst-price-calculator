@@ -1420,29 +1420,7 @@ async function showCloudData(){
   window.saveSectionLock=finalSave;
 })();
 </script>
-<script>
-(function(){
-  // Stable Section-Lock handler: ensure Less History PIN always opens its page.
-  window.confirmTopMenuPin=function(){
-    const pin=String(($('pinInput')&&$('pinInput').value)||'');
-    const sectionPin=String(sectionLocks&&sectionLocks.pin||'');
-    const appPin=String(localStorage.getItem('cat_pin')||'1234');
-    if(typeof pendingAction!=='undefined'&&pendingAction==='sectionUnlock'){
-      if(!(sectionPin&&(pin===sectionPin||pin===appPin))){alert('Wrong Section Lock PIN');return false}
-      const cb=sectionUnlockCallback;
-      sectionUnlockCallback=null;pendingAction=null;pendingIndex=null;
-      $('pinModal').style.display='none';
-      if(typeof cb==='function'){try{cb()}catch(e){console.error('Section unlock callback failed',e)}}
-      return false;
-    }
-    if(typeof pendingAction!=='undefined'&&pendingAction==='sectionLockSettings'){
-      if(!(sectionPin&&(pin===sectionPin||pin===appPin))){alert('Wrong Section Lock PIN');return false}
-    }
-    if(typeof confirmPin==='function')return confirmPin();
-    return false;
-  };
-})();
-</script>
+
 </body></html>
 +Number(price).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});const rr=$('refineResult');if(rr)rr.style.display='block'}
 function renderLiveDeltas(current,previous){['pt','pd','rh','usd'].forEach(k=>{const el=$('m'+k+'delta');if(!el)return;const prev=Number(previous?.[k]),now=Number(current?.[k]);el.className='liveDelta';if(!Number.isFinite(prev)||!Number.isFinite(now)){el.textContent='—';return}const diff=now-prev;el.textContent=(diff>0?'+':diff<0?'-':'')+Math.abs(diff).toFixed(2);el.classList.add(diff<0?'down':diff>0?'up':'');if(diff===0)el.textContent='0.00'})}
