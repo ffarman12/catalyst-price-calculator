@@ -672,13 +672,13 @@ document.querySelectorAll('.nav button[data-view="home"],#bottomNewBtn').forEach
 <script>
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', function(){
-    const SW_UPDATE_KEY='cata_sw_v28_history_search'; let reloaded=false;
+    const SW_UPDATE_KEY='cata_sw_v104_history_search_controller'; let reloaded=false;
     navigator.serviceWorker.addEventListener('controllerchange', function(){
       if(reloaded)return; reloaded=true;
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=74-history-search-force-refresh',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=104-history-search-controller',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
@@ -1364,17 +1364,63 @@ async function showCloudData(){
 
 
 
+<script>
+/* HISTORY SEARCH FINAL CONTROLLER — only owns the Search button/Enter action.
+   It bypasses the older inline/controller chain so a mobile event cannot stop
+   the Cloud search before Supabase is reached. No settings, formulas or UI are changed. */
+(function(){
+  function bindFinalHistorySearch(){
+    const input=document.getElementById('search');
+    const btn=document.getElementById('historySearchBtn');
+    const form=document.getElementById('historySearchForm');
+    if(!input||!btn||!form)return false;
+    const run=async function(e){
+      if(e){e.preventDefault();e.stopPropagation();}
+      const q=String(input.value||'').trim();
+      if(!q){
+        try{history=[];renderHistory();cloudStatus('History ready — enter reference code to search')}catch(_){}
+        return false;
+      }
+      try{
+        setHistorySearchLoading(true);
+        cloudStatus('Searching Cloud…');
+        const cloud=window.CatalystCloudMaster;
+        if(!cloud||typeof cloud.searchHistory!=='function')throw new Error('Cloud search is not ready');
+        await cloud.searchHistory(q);
+      }catch(err){
+        console.error('Final History search failed',err);
+        try{history=[];renderHistory();cloudStatus('Search failed — '+String(err&&err.message||err).slice(0,90))}catch(_){}
+      }finally{
+        try{setHistorySearchLoading(false)}catch(_){}
+      }
+      return false;
+    };
+    btn.onclick=run;
+    input.onkeydown=function(e){
+      if(e.key==='Enter'||e.key==='Search'||e.keyCode===13){
+        run(e);
+      }
+    };
+    form.onsubmit=run;
+    window.__finalHistorySearchBound=true;
+    return true;
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindFinalHistorySearch);
+  else bindFinalHistorySearch();
+  setTimeout(bindFinalHistorySearch,500);
+})();
+</script>
 </body></html>
 <script>
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', function(){
-    const SW_UPDATE_KEY='cata_sw_v28_reloaded'; let reloaded=false;
+    const SW_UPDATE_KEY='cata_sw_v104_history_search_controller'; let reloaded=false;
     navigator.serviceWorker.addEventListener('controllerchange', function(){
       if(reloaded)return; reloaded=true;
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=72-history-search-bootstrap-fix',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=104-history-search-controller',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
