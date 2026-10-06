@@ -1111,13 +1111,9 @@ async function showCloudData(){
   }
   let cloudHistorySearchVersion=0;
   async function cloudSearchHistory(searchTerm){
-    /* Saved Less History must be restored before a Cloud result is priced.
-       This prevents refresh-time races between persistent-settings sync and search. */
-    try{
-      const ensure=window.__ensurePersistentSettings;
-      if(typeof ensure==='function')await ensure();
-      if(typeof getActiveLess==='function')getActiveLess();
-    }catch(e){console.warn('Persistent Less restore before search failed',e)}
+    /* History search must never wait on the background persistent-settings
+       synchronizer. Search is authoritative from Cloud and must start immediately. */
+    try{if(typeof getActiveLess==='function')getActiveLess()}catch(e){console.warn('Less restore before search failed',e)}
     const searchVersion=++cloudHistorySearchVersion;
     const raw=String(searchTerm||'').trim();
     const normalized=normalizeHistoryCode(raw);
@@ -1812,13 +1808,9 @@ async function showCloudData(){
   }
   let cloudHistorySearchVersion=0;
   async function cloudSearchHistory(searchTerm){
-    /* Saved Less History must be restored before a Cloud result is priced.
-       This prevents refresh-time races between persistent-settings sync and search. */
-    try{
-      const ensure=window.__ensurePersistentSettings;
-      if(typeof ensure==='function')await ensure();
-      if(typeof getActiveLess==='function')getActiveLess();
-    }catch(e){console.warn('Persistent Less restore before search failed',e)}
+    /* History search must never wait on the background persistent-settings
+       synchronizer. Search is authoritative from Cloud and must start immediately. */
+    try{if(typeof getActiveLess==='function')getActiveLess()}catch(e){console.warn('Less restore before search failed',e)}
     const searchVersion=++cloudHistorySearchVersion;
     const raw=String(searchTerm||'').trim();
     const normalized=normalizeHistoryCode(raw);
