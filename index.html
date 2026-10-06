@@ -293,10 +293,12 @@ let removedExistingPhotoUrls=[];
 const SUPABASE_URL='https://stakqodobksgmtzquhzs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_n_OO8Rp3mA6VjfA3rEztJA_FQl45HJq';
 let editorSupabaseClient=null;
+/* Login is intentionally session-only: a full page refresh must require login again. */
+try{localStorage.setItem('cat_logged_in','0');localStorage.removeItem('cat_login_user');}catch(e){}
 function getEditorSupabase(){
   try{
     if(!window.supabase||typeof window.supabase.createClient!=='function')return null;
-    if(!editorSupabaseClient) editorSupabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
+    if(!editorSupabaseClient) editorSupabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});
     return editorSupabaseClient;
   }catch(e){console.error('Supabase init failed',e);return null}
 }
