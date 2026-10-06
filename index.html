@@ -1108,14 +1108,19 @@ async function showCloudData(){
       const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
       let result=null;
       if(c){
-        const query=c.from('converter_entries').select(select)
-          .eq('workspace_id',wid)
-          .like('code_normalized',key+'%')
-          .order('created_at',{ascending:false}).limit(10);
-        result=await Promise.race([
-          query,
-          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timeout')),5000))
-        ]);
+        try{
+          const query=c.from('converter_entries').select(select)
+            .eq('workspace_id',wid)
+            .like('code_normalized',key+'%')
+            .order('created_at',{ascending:false}).limit(10);
+          result=await Promise.race([
+            query,
+            new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timeout')),5000))
+          ]);
+        }catch(clientErr){
+          console.warn('Supabase client search failed; using REST fallback',clientErr);
+          result=null;
+        }
       }
       if(!result||result.error){
         /* Fallback: use the same authenticated Supabase REST endpoint directly.
