@@ -665,23 +665,29 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 <script>
 (function(){
   window.confirmTopMenuPin=function(){
+    const pin=String(($('pinInput')&&$('pinInput').value)||'');
     if(typeof pendingAction!=='undefined' && pendingAction==='topMenu'){
-      const pin=String(($('pinInput')&&$('pinInput').value)||'');
       if(pin!=='549936'){alert('Wrong PIN');return false}
-      pendingAction=null;
-      pendingIndex=null;
-      $('pinModal').style.display='none';
-      showProtectedMainMenu();
+      pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';showProtectedMainMenu();return false;
+    }
+    if(typeof pendingAction!=='undefined' && pendingAction==='sectionUnlock'){
+      const sectionPin=String(sectionLocks&&sectionLocks.pin||'');
+      const appPin=String(localStorage.getItem('cat_pin')||'1234');
+      if(!(sectionPin&&(pin===sectionPin||pin===appPin))){alert('Wrong Section Lock PIN');return false}
+      const cb=sectionUnlockCallback;
+      sectionUnlockCallback=null;pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';
+      if(typeof cb==='function'){
+        try{cb()}catch(err){console.error('Section unlock callback failed',err);$('status').textContent='Section open failed: '+String(err&&err.message||err)}
+      }
       return false;
     }
     if(typeof confirmPin==='function') return confirmPin();
     return false;
   };
   const pinInput=$('pinInput');
-  if(pinInput){
-    pinInput.addEventListener('keydown',function(e){
-      if(e.key==='Enter'){e.preventDefault();e.stopPropagation();window.confirmTopMenuPin();}
-    });
+  if(pinInput&&!pinInput.__topMenuPinBound){
+    pinInput.__topMenuPinBound=true;
+    pinInput.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();e.stopPropagation();window.confirmTopMenuPin();}});
   }
 })();
 </script>
