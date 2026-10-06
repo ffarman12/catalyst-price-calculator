@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v99-history-search-working-logic';
+const CACHE='catalyst-calculator-v100-history-search-active-fix';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
