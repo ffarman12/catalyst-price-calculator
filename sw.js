@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v77-remove-duplicate-script';
+const CACHE='catalyst-calculator-v78-original-handlers-restored';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
