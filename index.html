@@ -471,10 +471,10 @@ function historySearchInput(immediate){
       cloudStatus('Searching Cloud…');
       const fn=window.CatalystCloudMaster&&window.CatalystCloudMaster.searchHistory;
       if(typeof fn!=='function')throw new Error('Cloud search is not ready');
-      const result=await Promise.race([
-        Promise.resolve().then(()=>fn(q)),
-        new Promise(resolve=>setTimeout(()=>resolve(false),5000))
-      ]);
+      /* Cloud search has its own 5-second network timeout. Do not add another
+         outer timeout here, otherwise persistent-settings sync + search can be
+         incorrectly reported as failed while the Cloud query is still running. */
+      const result=await fn(q);
       if(seq!==historySearchSeq)return;
       if(result===false){
         history=[];
