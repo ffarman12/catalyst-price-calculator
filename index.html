@@ -1104,18 +1104,38 @@ async function showCloudData(){
 
     let rows=[];
     try{
+      const select='id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at';
       const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
-      if(!c)throw new Error('Cloud client is not ready');
-      const query=c.from('converter_entries')
-        .select('id,workspace_id,company,vehicle,code,notes,weight_g,pt_ppm,pd_ppm,rh_ppm,dpf_weight,dpf_pt_ppm,dpf_pd_ppm,dpf_rh_ppm,final_usd,final_inr,dpf_value_inr,market_snapshot,calculation_snapshot,updated_at,created_at')
-        .eq('workspace_id',wid)
-        .like('code_normalized',key+'%')
-        .order('created_at',{ascending:false})
-        .limit(10);
-      const result=await Promise.race([
-        query,
-        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timeout')),5000))
-      ]);
+      let result=null;
+      if(c){
+        const query=c.from('converter_entries').select(select)
+          .eq('workspace_id',wid)
+          .like('code_normalized',key+'%')
+          .order('created_at',{ascending:false}).limit(10);
+        result=await Promise.race([
+          query,
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Search request timeout')),5000))
+        ]);
+      }
+      if(!result||result.error){
+        /* Fallback: use the same authenticated Supabase REST endpoint directly.
+           This avoids a stale/blocked browser client from making History search fail. */
+        const token=getStoredAccessToken();
+        const params=new URLSearchParams({
+          select,
+          workspace_id:'eq.'+wid,
+          code_normalized:'like.'+key+'%',
+          order:'created_at.desc',
+          limit:'10'
+        });
+        const headers={'apikey':SUPABASE_PUBLISHABLE_KEY,'Accept':'application/json'};
+        if(token)headers.Authorization='Bearer '+token;
+        const rr=await fetch(SUPABASE_URL+'/rest/v1/converter_entries?'+params.toString(),{
+          method:'GET',headers,cache:'no-store'
+        });
+        if(!rr.ok)throw new Error('Cloud search HTTP '+rr.status);
+        result={data:await rr.json(),error:null};
+      }
       if(result.error)throw result.error;
       if(searchVersion!==cloudHistorySearchVersion)return true;
       rows=Array.isArray(result.data)?result.data:[];
@@ -1123,7 +1143,6 @@ async function showCloudData(){
       const seenIds=new Set();
       rows=rows.filter(e=>{
         const actual=normalizeHistoryCode(e.code);
-        /* For 2–3 characters match all available characters; for 4+ use first 4. */
         if(!actual.startsWith(key))return false;
         if(!e.id||seenIds.has(e.id))return false;
         seenIds.add(e.id);return true;
