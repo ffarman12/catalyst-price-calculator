@@ -366,7 +366,7 @@ async function prepareBackgroundRemovalSource(source){
   }finally{URL.revokeObjectURL(url)}
 }
 async function removePhotoBackground(source){const removeBackground=await getBgRemoval();if(typeof removeBackground!=='function')throw new Error('Background removal library function unavailable');const prepared=await prepareBackgroundRemovalSource(source);const blob=await removeBackground(prepared,BG_REMOVAL_CONFIG);if(!blob)throw new Error('Background removal returned no image');return blobToDataURL(blob)}
-async async function photoToDataURL(file){const original=await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>resolve('');reader.readAsDataURL(file)});if(!original)return{name:file.name,url:'',bgRemoved:false};try{const cleaned=await removePhotoBackground(file);if(cleaned)return{name:file.name,url:cleaned,bgRemoved:true,bgRemovalError:''}}catch(e){bgRemovalLastError=String(e&&e.message||e);console.error('New photo background removal failed:',e)}return{name:file.name,url:original,bgRemoved:false,bgRemovalError:bgRemovalLastError||''}}
+async function photoToDataURL(file){const original=await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>resolve('');reader.readAsDataURL(file)});if(!original)return{name:file.name,url:'',bgRemoved:false};try{const cleaned=await removePhotoBackground(file);if(cleaned)return{name:file.name,url:cleaned,bgRemoved:true,bgRemovalError:''}}catch(e){bgRemovalLastError=String(e&&e.message||e);console.error('New photo background removal failed:',e)}return{name:file.name,url:original,bgRemoved:false,bgRemovalError:bgRemovalLastError||''}}
 function recoverHistoryFromBackup(){try{if(Array.isArray(history)&&history.length)return false;const backup=safeStoreGet('cat_history_backup',[]);if(Array.isArray(backup)&&backup.length){history=backup;const s=JSON.stringify(history);localStorage.setItem('cat_history',s);appDbCache['cat_history']=s;if(appDb)appDbWrite('cat_history',s);else appDbPending['cat_history']=s;return true}}catch(e){console.error('History backup recovery failed',e)}return false}
 function saveHistoryStorage(){try{const savedHistory=JSON.stringify(history);localStorage.setItem('cat_history',savedHistory);appDbCache['cat_history']=savedHistory;if(appDb){appDbWrite('cat_history',savedHistory)}else{appDbPending['cat_history']=savedHistory}if(Array.isArray(history)&&history.length){localStorage.setItem('cat_history_backup',savedHistory)}}catch(e){}}
 function queuePhotoBackgroundRemoval(historyIndex,photoIndex){if(!Number.isInteger(historyIndex)||!Number.isInteger(photoIndex))return;const x=history[historyIndex],p=x&&x.photos&&x.photos[photoIndex];if(!p||typeof p==='string'||!p.url||p.bgRemoved||p.bgRemoving)return;p.bgRemoving=true;bgRemovalQueue.push({historyIndex,photoIndex});processNextBackgroundRemoval()}
@@ -2354,59 +2354,9 @@ async function showCloudData(){
       if(!res.ok)throw new Error('Cloud search HTTP '+res.status);
       const rows=await res.json();
       const matches=(Array.isArray(rows)?rows:[]).filter(row=>normalize(row&&row.code).startsWith(key));
-
-      /* Search results must carry the existing Cloud photo records too.
-         This only reads converter_photos/storage; it does not create, replace,
-         delete, or modify any existing History/photo data. */
-      const photoByEntry={};
-      try{
-        const ids=matches.map(row=>row&&row.id).filter(Boolean);
-        if(ids.length){
-          const photoQuery=await client.from('converter_photos')
-            .select('entry_id,storage_path,file_name,sort_order,is_default')
-            .in('entry_id',ids)
-            .order('sort_order',{ascending:true});
-          if(!photoQuery.error){
-            for(const p of (photoQuery.data||[]))(photoByEntry[p.entry_id]||(photoByEntry[p.entry_id]=[])).push(p);
-          }else{
-            console.error('Direct search Cloud photo metadata read failed',photoQuery.error);
-          }
-        }
-      }catch(photoReadError){
-        console.error('Direct search Cloud photo metadata read failed',photoReadError);
-      }
-
-      const photoUrlsByEntry={};
-      for(const row of matches){
-        const pics=photoByEntry[row.id]||[];
-        if(!pics.length)continue;
-        const resolved=[];
-        /* Resolve each existing Cloud photo independently. One bad/missing
-           object must not prevent the other photos for the same entry from
-           appearing in History search results. */
-        for(const p of pics){
-          const path=String(p&&p.storage_path||'').trim();
-          if(!path)continue;
-          try{
-            const signed=await client.storage.from(CLOUD_BUCKET).createSignedUrl(path,3600);
-            const url=String(signed&&signed.data&&signed.data.signedUrl||'').trim();
-            if(url)resolved.push({
-              name:p.file_name||('Photo '+(resolved.length+1)),
-              url,
-              cloudPath:path,
-              bgRemoved:true
-            });
-            else if(signed&&signed.error)console.error('Direct search Cloud photo URL read failed',signed.error);
-          }catch(photoUrlError){
-            console.error('Direct search Cloud photo URL read failed',photoUrlError);
-          }
-        }
-        if(resolved.length)photoUrlsByEntry[row.id]=resolved;
-      }
-
       history=matches.map(e=>{
         const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
-        return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt_ppm??0,pd:e.pd_ppm??legacy.pd_ppm??0,rh:e.rh_ppm??legacy.rh_ppm??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:photoUrlsByEntry[e.id]||[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
+        return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt_ppm??0,pd:e.pd_ppm??legacy.pd_ppm??0,rh:e.rh_ppm??legacy.rh_ppm??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
       });
       try{history=history.map(x=>({...x,price:typeof calculateHistoryPriceWithLess==='function'?calculateHistoryPriceWithLess(x):x.price}));}catch(_){}
       renderHistory();
