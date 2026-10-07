@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v111-history-search-bridge';
+const CACHE='catalyst-calculator-v112-history-search-bridge';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
@@ -56,6 +56,28 @@ const HISTORY_BRIDGE = `
     }
   }
 
+  /* Keep the app's current Cloud search implementation authoritative.
+     This bridge only handles the mobile search event; it must not replace or
+     narrow the existing prefix-search logic. */
+  var originalCloudSearch=null;
+  try{
+    if(window.CatalystCloudMaster && typeof window.CatalystCloudMaster.searchHistory==='function'){
+      originalCloudSearch=window.CatalystCloudMaster.searchHistory;
+    }
+  }catch(_){}
+  if(originalCloudSearch){
+    runHistorySearch=async function(evOrValue){
+      try{
+        if(evOrValue && typeof evOrValue.preventDefault==='function')evOrValue.preventDefault();
+        if(evOrValue && typeof evOrValue.stopPropagation==='function')evOrValue.stopPropagation();
+      }catch(_){}
+      var input=document.getElementById('search');
+      var raw=typeof evOrValue==='string' ? evOrValue : (input ? input.value : '');
+      raw=String(raw||'').trim();
+      if(!raw)return false;
+      return await originalCloudSearch(raw);
+    };
+  }
   window.__cataRunHistorySearch=runHistorySearch;
   try{
     if(window.CatalystCloudMaster)window.CatalystCloudMaster.searchHistory=runHistorySearch;
