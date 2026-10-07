@@ -1164,26 +1164,26 @@ async function showCloudData(){
       ]);
       if(result.error)throw result.error;
       rows=Array.isArray(result.data)?result.data:[];
-      /* Fallback: use the authenticated REST request as well. This keeps search
-         working when the browser client query is affected by its session/cache. */
-      if(!rows.length){
-        try{
-          const sessionResult=await c.auth.getSession();
-          const token=sessionResult&&sessionResult.data&&sessionResult.data.session&&sessionResult.data.session.access_token;
-          if(token){
-            const base=SUPABASE_URL+'/rest/v1/converter_entries';
-            const common='select='+encodeURIComponent(selectCols)+'&workspace_id=eq.'+encodeURIComponent(wid)+'&order=created_at.desc&limit=10';
-            const urls=[
-              base+'?'+common+'&code_normalized=like.'+encodeURIComponent(key+'%'),
-              base+'?'+common+'&code=ilike.'+encodeURIComponent(raw+'%')
-            ];
-            const fetched=await Promise.all(urls.map(u=>fetch(u,{headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:'Bearer '+token},cache:'no-store'}).then(async res=>{if(!res.ok)return [];const data=await res.json();return Array.isArray(data)?data:[]}).catch(()=>[])));
-            const merged=new Map();
-            fetched.flat().forEach(row=>{if(row&&row.id)merged.set(row.id,row)});
-            rows=Array.from(merged.values()).sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))).slice(0,10);
-          }
-        }catch(fallbackError){console.warn('History REST fallback failed',fallbackError)}
-      }
+      /* Also verify through the authenticated REST endpoint even when the client
+         query returns some rows. This prevents a partial/stale client response from
+         hiding other matching Cloud History entries. */
+      try{
+        const sessionResult=await c.auth.getSession();
+        const token=sessionResult&&sessionResult.data&&sessionResult.data.session&&sessionResult.data.session.access_token;
+        if(token){
+          const base=SUPABASE_URL+'/rest/v1/converter_entries';
+          const common='select='+encodeURIComponent(selectCols)+'&workspace_id=eq.'+encodeURIComponent(wid)+'&order=created_at.desc&limit=10';
+          const urls=[
+            base+'?'+common+'&code_normalized=like.'+encodeURIComponent(key+'%'),
+            base+'?'+common+'&code=ilike.'+encodeURIComponent(raw+'%')
+          ];
+          const fetched=await Promise.all(urls.map(u=>fetch(u,{headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:'Bearer '+token},cache:'no-store'}).then(async res=>{if(!res.ok)return [];const data=await res.json();return Array.isArray(data)?data:[]}).catch(()=>[])));
+          const merged=new Map();
+          rows.forEach(row=>{if(row&&row.id)merged.set(row.id,row)});
+          fetched.flat().forEach(row=>{if(row&&row.id)merged.set(row.id,row)});
+          rows=Array.from(merged.values()).sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))).slice(0,10);
+        }
+      }catch(fallbackError){console.warn('History REST verification failed',fallbackError)}
       if(searchVersion!==cloudHistorySearchVersion)return true;
       /* Cloud is authoritative: use only rows returned by this exact search request. */
       const seenIds=new Set();
