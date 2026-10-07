@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v109-history-search-bridge';
+const CACHE='catalyst-calculator-v110-history-search-bridge';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
@@ -44,10 +44,7 @@ const HISTORY_BRIDGE = `
       var mapped=rows.map(function(row){
         return Object.assign({},row,{price:Number(row.final_inr)||0,createdAt:row.created_at||row.updated_at||''});
       });
-      if(typeof window.history!=='undefined' && Array.isArray(window.history))window.history=mapped;
-      else{
-        try{history.length=0;mapped.forEach(function(x){history.push(x);});}catch(_){}
-      }
+      try{history=mapped;}catch(_){console.error('History state assignment failed',_);}
       if(typeof window.renderHistory==='function')window.renderHistory();
       if(typeof window.cloudStatus==='function')window.cloudStatus(rows.length ? ('Cloud search: '+rows.length+' result(s)') : 'No matching reference found');
       return true;
