@@ -1126,7 +1126,7 @@ async function showCloudData(){
 
     /* Search is completely independent of the Supabase JS query layer.
        The workspace is fixed and the browser fetches PostgREST directly. */
-    const key=normalized.length>=4?normalized.slice(0,4):normalized;
+    const key=normalized;
     const wid='0287285c-044b-4a08-9ed5-314b40fde0e8';
 
     const getStoredAccessToken=()=>{
