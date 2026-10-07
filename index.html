@@ -2257,3 +2257,43 @@ async function showCloudData(){
 })();
 </script>
 </body></html>
+
+<!-- HISTORY SEARCH HARD BIND v105: final capture handler; does not change pricing/settings/UI -->
+<script>
+(function(){
+  function bind(){
+    const input=document.getElementById('search');
+    const btn=document.getElementById('historySearchBtn');
+    if(!input||!btn||window.__historySearchHardBound)return;
+    window.__historySearchHardBound=true;
+    async function run(e){
+      if(e){e.preventDefault();e.stopImmediatePropagation();}
+      const q=String(input.value||'').trim();
+      if(!q)return false;
+      try{
+        if(typeof window.setHistorySearchLoading==='function')window.setHistorySearchLoading(true);
+        if(typeof window.cloudStatus==='function')window.cloudStatus('Searching Cloud…');
+        const cloud=window.CatalystCloudMaster;
+        if(!cloud||typeof cloud.searchHistory!=='function')throw new Error('Cloud search is not ready');
+        await cloud.searchHistory(q);
+      }catch(err){
+        console.error('History hard search failed',err);
+        try{window.cloudStatus('Search failed — '+String(err&&err.message||err).slice(0,90));}catch(_){}
+      }finally{
+        try{window.setHistorySearchLoading(false);}catch(_){}
+      }
+      return false;
+    }
+    document.addEventListener('click',function(e){
+      if(e.target&&e.target.closest&&e.target.closest('#historySearchBtn'))run(e);
+    },true);
+    document.addEventListener('keydown',function(e){
+      if((e.key==='Enter'||e.key==='Search'||e.keyCode===13)&&e.target===input)run(e);
+    },true);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});
+  else bind();
+  setTimeout(bind,300);
+  setTimeout(bind,1000);
+})();
+</script>
