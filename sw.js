@@ -1,10 +1,11 @@
-const CACHE='catalyst-calculator-v110-history-search-bridge';
+const CACHE='catalyst-calculator-v111-history-search-bridge';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 const HISTORY_BRIDGE = `
 <script id="cata-history-search-bridge">
 (function(){
+  window.validLess=function(x){return !!x && Number.isFinite(Number(x.pt)) && Number.isFinite(Number(x.pd)) && Number.isFinite(Number(x.rh));};
   function norm(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
   async function runHistorySearch(evOrValue){
     try{
