@@ -2441,15 +2441,9 @@ async function showCloudData(){
           }catch(_){resolve('')}
         });
         try{
-          /* Private bucket: download through the authenticated Supabase client,
-             then convert the image to a self-contained data URL for the History
-             <img>. This avoids private-storage URL/blob rendering failures. */
-          /* Try the official private-bucket signed URL first. */
-          try{
-            const signed=await client.storage.from('converter-photos').createSignedUrl(clean,3600);
-            const signedUrl=String(signed&&signed.data&&signed.data.signedUrl||'').trim();
-            if(signedUrl)return signedUrl;
-          }catch(_){}
+          /* Private bucket: prefer an authenticated download and render a
+             self-contained data URL. This avoids cases where a generated signed
+             URL exists but the browser cannot render that private object. */
           const downloaded=await client.storage.from('converter-photos').download(clean);
           if(!downloaded||downloaded.error||!downloaded.data){
             if(downloaded&&downloaded.error)console.error('Direct search Cloud photo download failed',downloaded.error);
@@ -2457,6 +2451,12 @@ async function showCloudData(){
             const dataUrl=await blobToDataUrl(downloaded.data);
             if(dataUrl)return dataUrl;
           }
+          /* Fallback only: official private-bucket signed URL. */
+          try{
+            const signed=await client.storage.from('converter-photos').createSignedUrl(clean,3600);
+            const signedUrl=String(signed&&signed.data&&signed.data.signedUrl||'').trim();
+            if(signedUrl)return signedUrl;
+          }catch(_){}
         }catch(photoDownloadError){
           console.error('Direct search Cloud photo download failed',photoDownloadError);
         }
