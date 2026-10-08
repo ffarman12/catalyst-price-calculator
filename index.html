@@ -1395,9 +1395,15 @@ async function showCloudData(){
           await window.__cataDirectCloudSearchV107(e);
           return false;
         }
-        const cloud=window.CatalystCloudMaster;
-        if(!cloud||typeof cloud.searchHistory!=='function')throw new Error('Cloud search is not ready');
-        await cloud.searchHistory(q);
+        /* The final direct controller owns exact-prefix Cloud search and
+           private photo loading. Use it before the older Cloud controller. */
+        if(typeof window.__cataDirectCloudSearchV107==='function'){
+          await window.__cataDirectCloudSearchV107(e);
+        }else{
+          const cloud=window.CatalystCloudMaster;
+          if(!cloud||typeof cloud.searchHistory!=='function')throw new Error('Cloud search is not ready');
+          await cloud.searchHistory(q);
+        }
       }catch(err){
         console.error('Final History search failed',err);
         try{history=[];renderHistory();cloudStatus('Search failed — '+String(err&&err.message||err).slice(0,90))}catch(_){}
