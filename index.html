@@ -379,35 +379,36 @@ async function photoToDataURL(file){
   try{
     const cleaned=await removePhotoBackground(file);
     if(cleaned){
-      /* Keep the background-removed result, but normalize it to a browser-safe
-         JPEG with a white background before Cloud upload. This changes only
-         newly processed photos; existing Cloud photos are untouched. */
+      /* Validate the background-removal result before it is ever saved to Cloud.
+         If the result cannot be decoded, keep the original photo instead. */
       const normalized=await new Promise(resolve=>{
         try{
           const im=new Image();
           im.onload=()=>{
             try{
-              const max=1600,scale=Math.min(1,max/Math.max(im.naturalWidth||im.width,im.naturalHeight||im.height));
-              const w=Math.max(1,Math.round((im.naturalWidth||im.width)*scale));
-              const h=Math.max(1,Math.round((im.naturalHeight||im.height)*scale));
+              const nw=im.naturalWidth||im.width,nh=im.naturalHeight||im.height;
+              if(nw<2||nh<2){resolve('');return;}
+              const max=1600,scale=Math.min(1,max/Math.max(nw,nh));
+              const w=Math.max(1,Math.round(nw*scale)),h=Math.max(1,Math.round(nh*scale));
               const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
               const ctx=canvas.getContext('2d',{alpha:false});
-              if(!ctx){resolve(cleaned);return;}
+              if(!ctx){resolve('');return;}
               ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(im,0,0,w,h);
               canvas.toBlob(blob=>{
-                if(!blob){resolve(cleaned);return;}
+                if(!blob||blob.size<100){resolve('');return;}
                 const reader=new FileReader();
-                reader.onload=()=>resolve(String(reader.result||cleaned));
-                reader.onerror=()=>resolve(cleaned);
+                reader.onload=()=>resolve(String(reader.result||''));
+                reader.onerror=()=>resolve('');
                 reader.readAsDataURL(blob);
               },'image/jpeg',.92);
-            }catch(_){resolve(cleaned)}
+            }catch(_){resolve('')}
           };
-          im.onerror=()=>resolve(cleaned);
+          im.onerror=()=>resolve('');
           im.src=cleaned;
-        }catch(_){resolve(cleaned)}
+        }catch(_){resolve('')}
       });
-      return{name:file.name,url:normalized,bgRemoved:true,bgRemovalError:''};
+      if(normalized)return{name:file.name,url:normalized,bgRemoved:true,bgRemovalError:''};
+      console.warn('Background removal result could not be decoded; original photo retained');
     }
   }catch(e){bgRemovalLastError=String(e&&e.message||e);console.error('New photo background removal failed:',e)}
   return{name:file.name,url:original,bgRemoved:false,bgRemovalError:bgRemovalLastError||''}
@@ -415,7 +416,7 @@ async function photoToDataURL(file){
 function recoverHistoryFromBackup(){try{if(Array.isArray(history)&&history.length)return false;const backup=safeStoreGet('cat_history_backup',[]);if(Array.isArray(backup)&&backup.length){history=backup;const s=JSON.stringify(history);localStorage.setItem('cat_history',s);appDbCache['cat_history']=s;if(appDb)appDbWrite('cat_history',s);else appDbPending['cat_history']=s;return true}}catch(e){console.error('History backup recovery failed',e)}return false}
 function saveHistoryStorage(){try{const savedHistory=JSON.stringify(history);localStorage.setItem('cat_history',savedHistory);appDbCache['cat_history']=savedHistory;if(appDb){appDbWrite('cat_history',savedHistory)}else{appDbPending['cat_history']=savedHistory}if(Array.isArray(history)&&history.length){localStorage.setItem('cat_history_backup',savedHistory)}}catch(e){}}
 function queuePhotoBackgroundRemoval(historyIndex,photoIndex){if(!Number.isInteger(historyIndex)||!Number.isInteger(photoIndex))return;const x=history[historyIndex],p=x&&x.photos&&x.photos[photoIndex];if(!p||typeof p==='string'||!p.url||p.bgRemoved||p.bgRemoving)return;p.bgRemoving=true;bgRemovalQueue.push({historyIndex,photoIndex});processNextBackgroundRemoval()}
-async function processNextBackgroundRemoval(){if(bgRemovalBusy||!bgRemovalQueue.length)return;bgRemovalBusy=true;const job=bgRemovalQueue.shift();try{const x=history[job.historyIndex],p=x&&x.photos&&x.photos[job.photoIndex];if(!p||!p.url)return;const res=await fetch(p.url);if(!res.ok)throw new Error('Photo read failed: HTTP '+res.status);const blob=await res.blob();const cleaned=await removePhotoBackground(blob);if(cleaned){const normalized=await new Promise(resolve=>{try{const im=new Image();im.onload=()=>{try{const max=1600,scale=Math.min(1,max/Math.max(im.naturalWidth||im.width,im.naturalHeight||im.height)),w=Math.max(1,Math.round((im.naturalWidth||im.width)*scale)),h=Math.max(1,Math.round((im.naturalHeight||im.height)*scale)),canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d',{alpha:false});if(!ctx){resolve(cleaned);return}ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(im,0,0,w,h);canvas.toBlob(blob=>{if(!blob){resolve(cleaned);return}const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||cleaned));reader.onerror=()=>resolve(cleaned);reader.readAsDataURL(blob)},'image/jpeg',.92)}catch(_){resolve(cleaned)}};im.onerror=()=>resolve(cleaned);im.src=cleaned}catch(_){resolve(cleaned)}});p.url=normalized||cleaned;p.bgRemoved=true;p.bgRemovalError=''}}catch(e){bgRemovalLastError=String(e&&e.message||e);console.error('Background removal failed:',e);const x=history[job.historyIndex],p=x&&x.photos&&x.photos[job.photoIndex];if(p)p.bgRemovalError=bgRemovalLastError}finally{const x=history[job.historyIndex],p=x&&x.photos&&x.photos[job.photoIndex];if(p)p.bgRemoving=false;saveHistoryStorage();if(typeof renderHistory==='function')renderHistory();try{const cloud=window.CatalystCloudMaster;if(cloud&&typeof cloud.saveLatest==='function'&&x&&x._cloud_id)setTimeout(()=>cloud.saveLatest(job.historyIndex),0)}catch(e){console.error('Background-removed photo Cloud save trigger failed',e)}bgRemovalBusy=false;if(bgRemovalQueue.length)setTimeout(processNextBackgroundRemoval,30)}}
+async function processNextBackgroundRemoval(){if(bgRemovalBusy||!bgRemovalQueue.length)return;bgRemovalBusy=true;const job=bgRemovalQueue.shift();try{const x=history[job.historyIndex],p=x&&x.photos&&x.photos[job.photoIndex];if(!p||!p.url)return;const res=await fetch(p.url);if(!res.ok)throw new Error('Photo read failed: HTTP '+res.status);const blob=await res.blob();const cleaned=await removePhotoBackground(blob);if(cleaned){const normalized=await new Promise(resolve=>{try{const im=new Image();im.onload=()=>{try{const nw=im.naturalWidth||im.width,nh=im.naturalHeight||im.height;if(nw<2||nh<2){resolve('');return}const max=1600,scale=Math.min(1,max/Math.max(nw,nh)),w=Math.max(1,Math.round(nw*scale)),h=Math.max(1,Math.round(nh*scale)),canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d',{alpha:false});if(!ctx){resolve('');return}ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(im,0,0,w,h);canvas.toBlob(blob=>{if(!blob||blob.size<100){resolve('');return}const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>resolve('');reader.readAsDataURL(blob)},'image/jpeg',.92)}catch(_){resolve('')}};im.onerror=()=>resolve('');im.src=cleaned}catch(_){resolve('')}});if(normalized){p.url=normalized;p.bgRemoved=true;p.bgRemovalError=''}else{p.bgRemovalError='Background removal result could not be decoded; original photo retained'}}}catch(e){bgRemovalLastError=String(e&&e.message||e);console.error('Background removal failed:',e);const x=history[job.historyIndex],p=x&&x.photos&&x.photos[job.photoIndex];if(p)p.bgRemovalError=bgRemovalLastError}finally{const x=history[job.historyIndex],p=x&&x.photos&&x.photos[job.photoIndex];if(p)p.bgRemoving=false;saveHistoryStorage();if(typeof renderHistory==='function')renderHistory();try{const cloud=window.CatalystCloudMaster;if(cloud&&typeof cloud.saveLatest==='function'&&x&&x._cloud_id)setTimeout(()=>cloud.saveLatest(job.historyIndex),0)}catch(e){console.error('Background-removed photo Cloud save trigger failed',e)}bgRemovalBusy=false;if(bgRemovalQueue.length)setTimeout(processNextBackgroundRemoval,30)}}
 function getPhotoUrl(p){return typeof p==='string'?p:String(p&&p.url||'')}
 function removeExistingPhoto(url){if(url&&!removedExistingPhotoUrls.includes(url))removedExistingPhotoUrls.push(url);previewSelectedPhotos()}
 function removeNewPhoto(index){const input=$('photos');const files=[...input.files];if(index<0||index>=files.length)return;const dt=new DataTransfer();files.forEach((f,i)=>{if(i!==index)dt.items.add(f)});input.files=dt.files;previewSelectedPhotos()}
