@@ -1042,10 +1042,21 @@ async function showCloudData(){
     }catch(e){return null}
   }
   async function photoBlob(p){
+    if(p instanceof Blob)return p;
     const url=typeof p==='string'?p:(p&&p.url)||'';
     if(!url)return null;
-    if(url.startsWith('data:'))return dataUrlToBlob(url);
-    try{const r=await fetch(url);if(!r.ok)return null;return await r.blob()}catch(e){return null}
+    try{
+      if(url.startsWith('data:')){
+        const response=await fetch(url);
+        if(response.ok)return await response.blob();
+        return dataUrlToBlob(url);
+      }
+      const response=await fetch(url,{cache:'no-store'});
+      if(response.ok)return await response.blob();
+    }catch(e){
+      console.error('Cloud photo conversion failed',e);
+    }
+    return null;
   }
   function safeNum(v){const n=Number(v);return Number.isFinite(n)?n:null}
   function entryPayload(x,wid){
@@ -1059,7 +1070,10 @@ async function showCloudData(){
   async function uploadPhotos(entryId, photos, wid){
     const c=client(), rows=[]; if(!c)return rows;
     for(let i=0;i<(photos||[]).length;i++){
-      const p=photos[i], blob=await photoBlob(p); if(!blob)continue;
+      const p=photos[i], blob=await photoBlob(p);
+      if(!blob){
+        throw new Error('Photo '+(i+1)+' could not be prepared for Cloud upload');
+      }
       const ext=(blob.type&&blob.type.split('/')[1])||'jpg';
       const path=wid+'/'+entryId+'/'+Date.now()+'-'+i+'.'+ext.replace(/[^a-z0-9]/gi,'');
       const {error}=await c.storage.from(CLOUD_BUCKET).upload(path,blob,{contentType:blob.type||'image/jpeg',upsert:false,cacheControl:'31536000'});
