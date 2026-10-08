@@ -269,7 +269,13 @@ function initIndexedDBStorage(){if(!window.indexedDB)return;try{const req=indexe
     }
     history=Array.isArray(storedHistory)?storedHistory:[];
     market=safeStoreGet('cat_market',null)||market;settings=safeStoreGet('cat_settings',null)||settings;lessSettings=safeStoreGet('cat_less_settings',null)||lessSettings;entryPercentLess=safeStoreGet('cat_entry_percent_less',null)||entryPercentLess;sectionLocks=safeStoreGet('cat_section_locks',null)||sectionLocks;
-    repairSavedPrices();syncMarket();syncSettings();renderHistory();
+    repairSavedPrices();syncMarket();syncSettings();
+    /* Do not repopulate the visible History screen from local storage after
+       the user has opened History but before a reference-code search. */
+    const historyView=document.getElementById('history');
+    const historySearchInputEl=document.getElementById('search');
+    const historyWaitingForSearch=!!(historyView&&historyView.classList.contains('active')&&historySearchInputEl&&!String(historySearchInputEl.value||'').trim());
+    if(!historyWaitingForSearch)renderHistory();
   }catch(ignore){}
 }};};req.onerror=()=>{};req.onblocked=()=>{}}catch(e){}}
 try{Storage.prototype.__catNativeGet=Storage.prototype.getItem;Storage.prototype.__catNativeSet=Storage.prototype.setItem;Storage.prototype.__catNativeRemove=Storage.prototype.removeItem;Storage.prototype.getItem=function(key){if(this===window.localStorage&&Object.prototype.hasOwnProperty.call(appDbCache,String(key)))return appDbCache[String(key)];return Storage.prototype.__catNativeGet.call(this,key)};Storage.prototype.setItem=function(key,value){if(this===window.localStorage){const k=String(key),v=String(value);appDbCache[k]=v;appDbPending[k]=v;appDbWrite(k,v);try{Storage.prototype.__catNativeSet.call(this,k,v)}catch(e){}return}return Storage.prototype.__catNativeSet.call(this,key,value)};Storage.prototype.removeItem=function(key){if(this===window.localStorage){const k=String(key);delete appDbCache[k];appDbPending[k]=null;appDbDelete(k);try{Storage.prototype.__catNativeRemove.call(this,k)}catch(e){}return}return Storage.prototype.__catNativeRemove.call(this,key)}}catch(e){}
