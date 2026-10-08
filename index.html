@@ -2393,22 +2393,18 @@ async function showCloudData(){
         const clean=String(path||'').trim();
         if(!clean||!authToken)return '';
         try{
-          const encodedPath=clean.split('/').map(part=>encodeURIComponent(part)).join('/');
-          const photoEndpoint=DIRECT_SUPABASE_URL+'/storage/v1/object/authenticated/converter-photos/'+encodedPath;
-          const photoResponse=await fetch(photoEndpoint,{
-            method:'GET',
-            cache:'no-store',
-            headers:{apikey:DIRECT_SUPABASE_KEY,Authorization:'Bearer '+authToken}
-          });
-          if(!photoResponse.ok){
-            console.error('Direct search authenticated Cloud photo HTTP',photoResponse.status,clean);
+          /* Private bucket: use Supabase Storage's authenticated SDK download
+             path so the logged-in workspace session is applied by the client. */
+          const downloaded=await client.storage.from('converter-photos').download(clean);
+          if(!downloaded||downloaded.error||!downloaded.data){
+            if(downloaded&&downloaded.error)console.error('Direct search Cloud photo download failed',downloaded.error);
             return '';
           }
-          const blob=await photoResponse.blob();
+          const blob=downloaded.data;
           if(!blob||!blob.size)return '';
           return URL.createObjectURL(blob);
-        }catch(photoFetchError){
-          console.error('Direct search authenticated Cloud photo read failed',photoFetchError);
+        }catch(photoDownloadError){
+          console.error('Direct search Cloud photo download failed',photoDownloadError);
           return '';
         }
       }
