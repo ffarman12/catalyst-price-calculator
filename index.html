@@ -1258,7 +1258,14 @@ async function showCloudData(){
           if(searchVersion!==cloudHistorySearchVersion)return;
           const byId={};
           withPhotos.forEach(x=>{if(x._cloud_id)byId[x._cloud_id]=x});
-          history=history.map(x=>byId[x._cloud_id]?{...x,photos:byId[x._cloud_id].photos||[]}:x);
+          /* Do not erase photos that the direct History search controller
+             already resolved successfully. The background mapper is only a
+             fallback and must never replace a working photo with an empty list. */
+          history=history.map(x=>{
+            if(!byId[x._cloud_id])return x;
+            const mappedPhotos=byId[x._cloud_id].photos||[];
+            return mappedPhotos.length?{...x,photos:mappedPhotos}:x;
+          });
           renderHistory();
         }catch(e){console.error('Cloud history photo load failed',e)}
       });
@@ -2437,6 +2444,12 @@ async function showCloudData(){
           /* Private bucket: download through the authenticated Supabase client,
              then convert the image to a self-contained data URL for the History
              <img>. This avoids private-storage URL/blob rendering failures. */
+          /* Try the official private-bucket signed URL first. */
+          try{
+            const signed=await client.storage.from('converter-photos').createSignedUrl(clean,3600);
+            const signedUrl=String(signed&&signed.data&&signed.data.signedUrl||'').trim();
+            if(signedUrl)return signedUrl;
+          }catch(_){}
           const downloaded=await client.storage.from('converter-photos').download(clean);
           if(!downloaded||downloaded.error||!downloaded.data){
             if(downloaded&&downloaded.error)console.error('Direct search Cloud photo download failed',downloaded.error);
