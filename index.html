@@ -2450,29 +2450,17 @@ async function showCloudData(){
             reader.readAsDataURL(blob);
           }catch(_){resolve('')}
         });
+        /* Photo display only: use the same private signed-URL path first.
+           The existing History mapper already uses this path successfully.
+           Download/data-URL fallbacks remain if signing fails. */
         try{
-          /* Private bucket: prefer an authenticated download and render a
-             self-contained data URL. This avoids cases where a generated signed
-             URL exists but the browser cannot render that private object. */
-          /* New background-removed photos are stored as PNG. Use the
-             Storage image-download transform for PNG first; Supabase can
-             optimize the returned image for the browser without changing the
-             stored object. Fall back to the original private download. */
-          if(/\\.png$/i.test(clean)){
-            try{
-              const transformed=await client.storage.from('converter-photos').download(clean,{
-                transform:{width:2000,quality:90}
-              });
-              if(transformed&&!transformed.error&&transformed.data){
-                const dataUrl=await blobToDataUrl(transformed.data);
-                if(dataUrl)return dataUrl;
-              }else if(transformed&&transformed.error){
-                console.error('Direct search transformed PNG download failed',transformed.error);
-              }
-            }catch(transformError){
-              console.error('Direct search transformed PNG download failed',transformError);
-            }
-          }
+          const signed=await client.storage.from('converter-photos').createSignedUrl(clean,3600);
+          const signedUrl=String(signed&&signed.data&&signed.data.signedUrl||'').trim();
+          if(signedUrl)return signedUrl;
+        }catch(signedError){
+          console.error('Direct search Cloud signed photo URL failed',signedError);
+        }
+        try{
           const downloaded=await client.storage.from('converter-photos').download(clean);
           if(!downloaded||downloaded.error||!downloaded.data){
             if(downloaded&&downloaded.error)console.error('Direct search Cloud photo download failed',downloaded.error);
@@ -2480,17 +2468,9 @@ async function showCloudData(){
             const dataUrl=await blobToDataUrl(downloaded.data);
             if(dataUrl)return dataUrl;
           }
-          /* Fallback only: official private-bucket signed URL. */
-          try{
-            const signed=await client.storage.from('converter-photos').createSignedUrl(clean,3600);
-            const signedUrl=String(signed&&signed.data&&signed.data.signedUrl||'').trim();
-            if(signedUrl)return signedUrl;
-          }catch(_){}
         }catch(photoDownloadError){
           console.error('Direct search Cloud photo download failed',photoDownloadError);
         }
-        /* Narrow fallback: same authenticated object endpoint, only if SDK
-           download did not return an image. No data is modified. */
         try{
           const encodedPath=clean.split('/').map(part=>encodeURIComponent(part)).join('/');
           const photoEndpoint=DIRECT_SUPABASE_URL+'/storage/v1/object/authenticated/converter-photos/'+encodedPath;
