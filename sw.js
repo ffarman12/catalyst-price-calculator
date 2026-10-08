@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v115-photo-normalize';
+const CACHE='catalyst-calculator-v116-history-photo-objecturl';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
