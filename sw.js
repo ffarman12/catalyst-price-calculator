@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v113-direct-photo-search';
+const CACHE='catalyst-calculator-v114-history-photo-display';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
