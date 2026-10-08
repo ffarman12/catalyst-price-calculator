@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v112-history-search-bridge';
+const CACHE='catalyst-calculator-v113-direct-photo-search';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
@@ -75,6 +75,12 @@ const HISTORY_BRIDGE = `
       var raw=typeof evOrValue==='string' ? evOrValue : (input ? input.value : '');
       raw=String(raw||'').trim();
       if(!raw)return false;
+      /* The app's direct controller owns exact-prefix search and Cloud photo
+         loading. Always prefer it when available; the older controller can
+         otherwise truncate 79G-C04 to the 4-character 79gc prefix. */
+      if(typeof window.__cataDirectCloudSearchV107==='function'){
+        return await window.__cataDirectCloudSearchV107(evOrValue);
+      }
       return await originalCloudSearch(raw);
     };
   }
