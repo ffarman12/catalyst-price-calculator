@@ -1385,6 +1385,10 @@ async function showCloudData(){
       try{
         setHistorySearchLoading(true);
         cloudStatus('Searching Cloud…');
+        if(typeof window.__cataDirectCloudSearchV107==='function'){
+          await window.__cataDirectCloudSearchV107(e);
+          return false;
+        }
         const cloud=window.CatalystCloudMaster;
         if(!cloud||typeof cloud.searchHistory!=='function')throw new Error('Cloud search is not ready');
         await cloud.searchHistory(q);
