@@ -2480,7 +2480,7 @@ async function showCloudData(){
         const clean=String(path||'').trim();
         if(!clean||!authToken)return '';
         try{
-          const result=await client.storage.from(CLOUD_BUCKET).createSignedUrl(clean,3600);
+          const result=await client.storage.from('converter-photos').createSignedUrl(clean,3600);
           const url=String(result&&result.data&&result.data.signedUrl||'').trim();
           if(url)return url;
         }catch(e){console.error('History photo signed URL failed',e)}
