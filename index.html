@@ -2454,6 +2454,25 @@ async function showCloudData(){
           /* Private bucket: prefer an authenticated download and render a
              self-contained data URL. This avoids cases where a generated signed
              URL exists but the browser cannot render that private object. */
+          /* New background-removed photos are stored as PNG. Use the
+             Storage image-download transform for PNG first; Supabase can
+             optimize the returned image for the browser without changing the
+             stored object. Fall back to the original private download. */
+          if(/\\.png$/i.test(clean)){
+            try{
+              const transformed=await client.storage.from('converter-photos').download(clean,{
+                transform:{width:2000,quality:90}
+              });
+              if(transformed&&!transformed.error&&transformed.data){
+                const dataUrl=await blobToDataUrl(transformed.data);
+                if(dataUrl)return dataUrl;
+              }else if(transformed&&transformed.error){
+                console.error('Direct search transformed PNG download failed',transformed.error);
+              }
+            }catch(transformError){
+              console.error('Direct search transformed PNG download failed',transformError);
+            }
+          }
           const downloaded=await client.storage.from('converter-photos').download(clean);
           if(!downloaded||downloaded.error||!downloaded.data){
             if(downloaded&&downloaded.error)console.error('Direct search Cloud photo download failed',downloaded.error);
