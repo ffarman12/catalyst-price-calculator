@@ -2407,6 +2407,7 @@ async function showCloudData(){
          and signed URLs for these search matches. No photo data is created,
          replaced, deleted, or otherwise modified by History search. */
       const photoByEntry={};
+      const authToken=String(session.access_token||'').trim();
       try{
         const ids=matches.map(row=>row&&row.id).filter(Boolean);
         if(ids.length){
@@ -2437,7 +2438,6 @@ async function showCloudData(){
       }
 
       const photoUrlsByEntry={};
-      const authToken=String(session.access_token||'').trim();
       async function loadAuthenticatedPhotoUrl(path){
         const clean=String(path||'').trim();
         if(!clean||!authToken)return '';
