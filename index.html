@@ -2476,64 +2476,14 @@ async function showCloudData(){
       }
 
       const photoUrlsByEntry={};
-      async function loadAuthenticatedPhotoUrl(path){
+      async function loadHistoryPhoto(path){
         const clean=String(path||'').trim();
         if(!clean||!authToken)return '';
-        const blobToObjectUrl=blob=>{
-          try{
-            if(!blob||!blob.size)return '';
-            return URL.createObjectURL(blob);
-          }catch(_){return ''}
-        };
-        /* Photo display only: do not hand the private signed URL directly to
-           the History <img>. Fetch the already-existing object first and give
-           the browser a local data URL. This keeps the stored Cloud photo and
-           all History data unchanged, while avoiding a signed-URL/browser
-           rendering mismatch seen with newly uploaded PNG photos. */
         try{
-          const signed=await client.storage.from('converter-photos').createSignedUrl(clean,3600);
-          const signedUrl=String(signed&&signed.data&&signed.data.signedUrl||'').trim();
-          if(signedUrl){
-            try{
-              const response=await fetch(signedUrl,{method:'GET',cache:'no-store'});
-              if(response.ok){
-                const blob=await response.blob();
-                const objectUrl=blobToObjectUrl(blob);
-                if(objectUrl)return objectUrl;
-              }else{
-                console.error('Direct search signed Cloud photo HTTP',response.status,clean);
-              }
-            }catch(signedFetchError){
-              console.error('Direct search signed Cloud photo fetch failed',signedFetchError);
-            }
-          }
-        }catch(signedError){
-          console.error('Direct search Cloud signed photo URL failed',signedError);
-        }
-        try{
-          const downloaded=await client.storage.from('converter-photos').download(clean);
-          if(!downloaded||downloaded.error||!downloaded.data){
-            if(downloaded&&downloaded.error)console.error('Direct search Cloud photo download failed',downloaded.error);
-          }else{
-            const dataUrl=await blobToDataUrl(downloaded.data);
-            if(dataUrl)return dataUrl;
-          }
-        }catch(photoDownloadError){
-          console.error('Direct search Cloud photo download failed',photoDownloadError);
-        }
-        try{
-          const encodedPath=clean.split('/').map(part=>encodeURIComponent(part)).join('/');
-          const photoEndpoint=DIRECT_SUPABASE_URL+'/storage/v1/object/authenticated/converter-photos/'+encodedPath;
-          const photoResponse=await fetch(photoEndpoint,{method:'GET',cache:'no-store',headers:{apikey:DIRECT_SUPABASE_KEY,Authorization:'Bearer '+authToken}});
-          if(photoResponse.ok){
-            const dataUrl=await blobToDataUrl(await photoResponse.blob());
-            if(dataUrl)return dataUrl;
-          }else{
-            console.error('Direct search authenticated Cloud photo HTTP',photoResponse.status,clean);
-          }
-        }catch(photoFetchError){
-          console.error('Direct search authenticated Cloud photo fallback failed',photoFetchError);
-        }
+          const result=await client.storage.from(CLOUD_BUCKET).createSignedUrl(clean,3600);
+          const url=String(result&&result.data&&result.data.signedUrl||'').trim();
+          if(url)return url;
+        }catch(e){console.error('History photo signed URL failed',e)}
         return '';
       }
       for(const row of matches){
@@ -2543,7 +2493,7 @@ async function showCloudData(){
         for(const p of pics){
           const path=String(p&&p.storage_path||'').trim();
           if(!path)continue;
-          const url=await loadAuthenticatedPhotoUrl(path);
+          const url=await loadHistoryPhoto(path);
           if(url)resolved.push({
             name:p.file_name||('Photo '+(resolved.length+1)),
             url,
@@ -2553,24 +2503,6 @@ async function showCloudData(){
         }
         if(resolved.length)photoUrlsByEntry[row.id]=resolved;
       }
-
-      /* Proven fallback: the normal Cloud history photo mapper has already
-         loaded private converter photos successfully elsewhere in History.
-         Use that same path here if the direct photo path returned no photos. */
-      try{
-        const needPhotoFallback=matches.some(row=>!photoUrlsByEntry[row.id]);
-        if(needPhotoFallback&&typeof mapCloudHistoryEntries==='function'){
-          const mapped=await mapCloudHistoryEntries(matches,client);
-          for(const item of (Array.isArray(mapped)?mapped:[])){
-            if(item&&item._cloud_id&&Array.isArray(item.photos)&&item.photos.length&&!photoUrlsByEntry[item._cloud_id]){
-              photoUrlsByEntry[item._cloud_id]=item.photos;
-            }
-          }
-        }
-      }catch(photoMapperFallbackError){
-        console.error('Direct search Cloud photo mapper fallback failed',photoMapperFallbackError);
-      }
-
       history=matches.map(e=>{
         const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
         return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt_ppm??0,pd:e.pd_ppm??legacy.pd_ppm??0,rh:e.rh_ppm??legacy.rh_ppm??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:photoUrlsByEntry[e.id]||[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
