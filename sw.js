@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v119-photo-display-only';
+const CACHE='catalyst-calculator-v120-cloud-freshness';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
@@ -108,6 +108,15 @@ self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addA
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET')return;
+  /* Cloud/API reads must never come from the app cache. The previous
+     catch-all GET cache could return deleted History rows after refresh. */
+  try{
+    const u=new URL(e.request.url);
+    if(u.hostname.endsWith('.supabase.co')){
+      e.respondWith(fetch(e.request,{cache:'no-store'}));
+      return;
+    }
+  }catch(_){}
   const isPage=e.request.mode==='navigate'||e.request.destination==='document';
   if(isPage){
     e.respondWith(fetch(e.request,{cache:'no-store'}).then(async x=>{
