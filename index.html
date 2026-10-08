@@ -2392,21 +2392,45 @@ async function showCloudData(){
       async function loadAuthenticatedPhotoUrl(path){
         const clean=String(path||'').trim();
         if(!clean||!authToken)return '';
+        const blobToDataUrl=blob=>new Promise(resolve=>{
+          try{
+            if(!blob||!blob.size){resolve('');return;}
+            const reader=new FileReader();
+            reader.onload=()=>resolve(String(reader.result||''));
+            reader.onerror=()=>resolve('');
+            reader.readAsDataURL(blob);
+          }catch(_){resolve('')}
+        });
         try{
-          /* Private bucket: use Supabase Storage's authenticated SDK download
-             path so the logged-in workspace session is applied by the client. */
+          /* Private bucket: download through the authenticated Supabase client,
+             then convert the image to a self-contained data URL for the History
+             <img>. This avoids private-storage URL/blob rendering failures. */
           const downloaded=await client.storage.from('converter-photos').download(clean);
           if(!downloaded||downloaded.error||!downloaded.data){
             if(downloaded&&downloaded.error)console.error('Direct search Cloud photo download failed',downloaded.error);
-            return '';
+          }else{
+            const dataUrl=await blobToDataUrl(downloaded.data);
+            if(dataUrl)return dataUrl;
           }
-          const blob=downloaded.data;
-          if(!blob||!blob.size)return '';
-          return URL.createObjectURL(blob);
         }catch(photoDownloadError){
           console.error('Direct search Cloud photo download failed',photoDownloadError);
-          return '';
         }
+        /* Narrow fallback: same authenticated object endpoint, only if SDK
+           download did not return an image. No data is modified. */
+        try{
+          const encodedPath=clean.split('/').map(part=>encodeURIComponent(part)).join('/');
+          const photoEndpoint=DIRECT_SUPABASE_URL+'/storage/v1/object/authenticated/converter-photos/'+encodedPath;
+          const photoResponse=await fetch(photoEndpoint,{method:'GET',cache:'no-store',headers:{apikey:DIRECT_SUPABASE_KEY,Authorization:'Bearer '+authToken}});
+          if(photoResponse.ok){
+            const dataUrl=await blobToDataUrl(await photoResponse.blob());
+            if(dataUrl)return dataUrl;
+          }else{
+            console.error('Direct search authenticated Cloud photo HTTP',photoResponse.status,clean);
+          }
+        }catch(photoFetchError){
+          console.error('Direct search authenticated Cloud photo fallback failed',photoFetchError);
+        }
+        return '';
       }
       for(const row of matches){
         const pics=photoByEntry[row.id]||[];
