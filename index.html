@@ -2493,6 +2493,24 @@ async function showCloudData(){
       async function loadHistoryPhoto(path){
         const clean=String(path||'').trim();
         if(!clean||!authToken)return '';
+        const blobToDataUrl=blob=>new Promise(resolve=>{
+          try{
+            if(!blob||!blob.size){resolve('');return}
+            const reader=new FileReader();
+            reader.onload=()=>resolve(String(reader.result||''));
+            reader.onerror=()=>resolve('');
+            reader.readAsDataURL(blob);
+          }catch(_){resolve('')}
+        });
+        /* Photo display only: use the authenticated Storage download path first,
+           then fall back to a signed URL. Search and Cloud data are unchanged. */
+        try{
+          const downloaded=await client.storage.from('converter-photos').download(clean);
+          if(downloaded&&!downloaded.error&&downloaded.data){
+            const dataUrl=await blobToDataUrl(downloaded.data);
+            if(dataUrl)return dataUrl;
+          }
+        }catch(e){console.error('History Cloud photo download failed',e)}
         try{
           const result=await client.storage.from('converter-photos').createSignedUrl(clean,3600);
           const url=String(result&&result.data&&result.data.signedUrl||'').trim();
@@ -2517,6 +2535,7 @@ async function showCloudData(){
         }
         if(resolved.length)photoUrlsByEntry[row.id]=resolved;
       }
+
       history=matches.map(e=>{
         const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
         return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt_ppm??0,pd:e.pd_ppm??legacy.pd_ppm??0,rh:e.rh_ppm??legacy.rh_ppm??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:photoUrlsByEntry[e.id]||[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
