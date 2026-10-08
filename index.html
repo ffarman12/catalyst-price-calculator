@@ -357,7 +357,7 @@ let bgRemovalModulePromise=null;
 let bgRemovalQueue=[];
 let bgRemovalBusy=false;
 let bgRemovalLastError='';
-const BG_REMOVAL_CONFIG={model:'isnet_quint8',device:'gpu',debug:false,proxyToWorker:true,publicPath:'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',output:{format:'image/png',type:'foreground'}};
+const BG_REMOVAL_CONFIG={model:'isnet_quint8',device:'cpu',debug:false,proxyToWorker:true,publicPath:'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',output:{format:'image/png',type:'foreground'}};
 async function getBgRemoval(){if(!bgRemovalModulePromise){bgRemovalModulePromise=import('https://esm.sh/@imgly/background-removal@1.7.0?bundle').then(m=>m.default||m.removeBackground).catch(e=>{bgRemovalLastError='Library load failed: '+String(e&&e.message||e);throw e})}return bgRemovalModulePromise}
 function blobToDataURL(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=reject;reader.readAsDataURL(blob)})}
 async function prepareBackgroundRemovalSource(source){
