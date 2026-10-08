@@ -2354,9 +2354,56 @@ async function showCloudData(){
       if(!res.ok)throw new Error('Cloud search HTTP '+res.status);
       const rows=await res.json();
       const matches=(Array.isArray(rows)?rows:[]).filter(row=>normalize(row&&row.code).startsWith(key));
+      /* Photo display only: read the already-existing Cloud photo metadata
+         and signed URLs for these search matches. No photo data is created,
+         replaced, deleted, or otherwise modified by History search. */
+      const photoByEntry={};
+      try{
+        const ids=matches.map(row=>row&&row.id).filter(Boolean);
+        if(ids.length){
+          const photoQuery=await client.from('converter_photos')
+            .select('entry_id,storage_path,file_name,sort_order,is_default')
+            .in('entry_id',ids)
+            .order('sort_order',{ascending:true});
+          if(!photoQuery.error){
+            for(const p of (photoQuery.data||[])){
+              (photoByEntry[p.entry_id]||(photoByEntry[p.entry_id]=[])).push(p);
+            }
+          }else{
+            console.error('Direct search Cloud photo metadata read failed',photoQuery.error);
+          }
+        }
+      }catch(photoReadError){
+        console.error('Direct search Cloud photo metadata read failed',photoReadError);
+      }
+
+      const photoUrlsByEntry={};
+      for(const row of matches){
+        const pics=photoByEntry[row.id]||[];
+        if(!pics.length)continue;
+        const resolved=[];
+        for(const p of pics){
+          const path=String(p&&p.storage_path||'').trim();
+          if(!path)continue;
+          try{
+            const signed=await client.storage.from('converter-photos').createSignedUrl(path,3600);
+            const url=String(signed&&signed.data&&signed.data.signedUrl||'').trim();
+            if(url)resolved.push({
+              name:p.file_name||('Photo '+(resolved.length+1)),
+              url,
+              cloudPath:path,
+              bgRemoved:true
+            });
+          }catch(photoUrlError){
+            console.error('Direct search Cloud photo URL read failed',photoUrlError);
+          }
+        }
+        if(resolved.length)photoUrlsByEntry[row.id]=resolved;
+      }
+
       history=matches.map(e=>{
         const legacy=(e.calculation_snapshot&&e.calculation_snapshot.legacy)||{};
-        return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt_ppm??0,pd:e.pd_ppm??legacy.pd_ppm??0,rh:e.rh_ppm??legacy.rh_ppm??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
+        return {...legacy,company:e.company??legacy.company??'',vehicle:e.vehicle??legacy.vehicle??'',code:e.code??legacy.code??'No code',note:e.notes??legacy.note??'',weight:e.weight_g??legacy.weight??0,pt:e.pt_ppm??legacy.pt_ppm??0,pd:e.pd_ppm??legacy.pd_ppm??0,rh:e.rh_ppm??legacy.rh_ppm??0,dpfWeight:e.dpf_weight??legacy.dpfWeight??0,dpfPt:e.dpf_pt_ppm??legacy.dpfPt??0,dpfPd:e.dpf_pd_ppm??legacy.dpfPd??0,dpfRh:e.dpf_rh_ppm??legacy.dpfRh??0,price:e.final_inr??legacy.price??0,photos:photoUrlsByEntry[e.id]||[],_cloud_id:e.id,_cloud_synced_at:e.updated_at};
       });
       try{history=history.map(x=>({...x,price:typeof calculateHistoryPriceWithLess==='function'?calculateHistoryPriceWithLess(x):x.price}));}catch(_){}
       renderHistory();
