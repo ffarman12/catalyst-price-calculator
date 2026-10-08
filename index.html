@@ -2410,20 +2410,30 @@ async function showCloudData(){
       try{
         const ids=matches.map(row=>row&&row.id).filter(Boolean);
         if(ids.length){
-          const photoQuery=await client.from('converter_photos')
-            .select('entry_id,storage_path,file_name,sort_order,is_default')
-            .in('entry_id',ids)
-            .order('sort_order',{ascending:true});
-          if(!photoQuery.error){
-            for(const p of (photoQuery.data||[])){
+          /* Use the same authenticated REST path as the working entry search.
+             This avoids a separate PostgREST client/RLS path preventing the
+             photo metadata from reaching the browser. */
+          const photoBase=DIRECT_SUPABASE_URL+'/rest/v1/converter_photos';
+          const photoUrl=photoBase
+            +'?select='+encodeURIComponent('entry_id,storage_path,file_name,sort_order,is_default')
+            +'&entry_id=in.'+encodeURIComponent('('+ids.join(',')+')')
+            +'&order=sort_order.asc';
+          const photoResponse=await fetch(photoUrl,{
+            method:'GET',
+            cache:'no-store',
+            headers:{apikey:DIRECT_SUPABASE_KEY,Authorization:'Bearer '+authToken}
+          });
+          if(!photoResponse.ok){
+            console.error('Direct search Cloud photo metadata HTTP',photoResponse.status);
+          }else{
+            const photoRows=await photoResponse.json();
+            for(const p of (Array.isArray(photoRows)?photoRows:[])){
               (photoByEntry[p.entry_id]||(photoByEntry[p.entry_id]=[])).push(p);
             }
-          }else{
-            console.error('Direct search Cloud photo metadata read failed',photoQuery.error);
           }
         }
       }catch(photoReadError){
-        console.error('Direct search Cloud photo metadata read failed',photoReadError);
+        console.error('Direct search Cloud photo metadata REST read failed',photoReadError);
       }
 
       const photoUrlsByEntry={};
