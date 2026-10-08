@@ -2479,15 +2479,12 @@ async function showCloudData(){
       async function loadAuthenticatedPhotoUrl(path){
         const clean=String(path||'').trim();
         if(!clean||!authToken)return '';
-        const blobToDataUrl=blob=>new Promise(resolve=>{
+        const blobToObjectUrl=blob=>{
           try{
-            if(!blob||!blob.size){resolve('');return;}
-            const reader=new FileReader();
-            reader.onload=()=>resolve(String(reader.result||''));
-            reader.onerror=()=>resolve('');
-            reader.readAsDataURL(blob);
-          }catch(_){resolve('')}
-        });
+            if(!blob||!blob.size)return '';
+            return URL.createObjectURL(blob);
+          }catch(_){return ''}
+        };
         /* Photo display only: do not hand the private signed URL directly to
            the History <img>. Fetch the already-existing object first and give
            the browser a local data URL. This keeps the stored Cloud photo and
@@ -2501,8 +2498,8 @@ async function showCloudData(){
               const response=await fetch(signedUrl,{method:'GET',cache:'no-store'});
               if(response.ok){
                 const blob=await response.blob();
-                const dataUrl=await blobToDataUrl(blob);
-                if(dataUrl)return dataUrl;
+                const objectUrl=blobToObjectUrl(blob);
+                if(objectUrl)return objectUrl;
               }else{
                 console.error('Direct search signed Cloud photo HTTP',response.status,clean);
               }
