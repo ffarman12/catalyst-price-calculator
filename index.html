@@ -2450,13 +2450,28 @@ async function showCloudData(){
             reader.readAsDataURL(blob);
           }catch(_){resolve('')}
         });
-        /* Photo display only: use the same private signed-URL path first.
-           The existing History mapper already uses this path successfully.
-           Download/data-URL fallbacks remain if signing fails. */
+        /* Photo display only: do not hand the private signed URL directly to
+           the History <img>. Fetch the already-existing object first and give
+           the browser a local data URL. This keeps the stored Cloud photo and
+           all History data unchanged, while avoiding a signed-URL/browser
+           rendering mismatch seen with newly uploaded PNG photos. */
         try{
           const signed=await client.storage.from('converter-photos').createSignedUrl(clean,3600);
           const signedUrl=String(signed&&signed.data&&signed.data.signedUrl||'').trim();
-          if(signedUrl)return signedUrl;
+          if(signedUrl){
+            try{
+              const response=await fetch(signedUrl,{method:'GET',cache:'no-store'});
+              if(response.ok){
+                const blob=await response.blob();
+                const dataUrl=await blobToDataUrl(blob);
+                if(dataUrl)return dataUrl;
+              }else{
+                console.error('Direct search signed Cloud photo HTTP',response.status,clean);
+              }
+            }catch(signedFetchError){
+              console.error('Direct search signed Cloud photo fetch failed',signedFetchError);
+            }
+          }
         }catch(signedError){
           console.error('Direct search Cloud signed photo URL failed',signedError);
         }
