@@ -2378,6 +2378,30 @@ async function showCloudData(){
       }
 
       const photoUrlsByEntry={};
+      const authToken=String(session.access_token||'').trim();
+      async function loadAuthenticatedPhotoUrl(path){
+        const clean=String(path||'').trim();
+        if(!clean||!authToken)return '';
+        try{
+          const encodedPath=clean.split('/').map(part=>encodeURIComponent(part)).join('/');
+          const photoEndpoint=DIRECT_SUPABASE_URL+'/storage/v1/object/authenticated/converter-photos/'+encodedPath;
+          const photoResponse=await fetch(photoEndpoint,{
+            method:'GET',
+            cache:'no-store',
+            headers:{apikey:DIRECT_SUPABASE_KEY,Authorization:'Bearer '+authToken}
+          });
+          if(!photoResponse.ok){
+            console.error('Direct search authenticated Cloud photo HTTP',photoResponse.status,clean);
+            return '';
+          }
+          const blob=await photoResponse.blob();
+          if(!blob||!blob.size)return '';
+          return URL.createObjectURL(blob);
+        }catch(photoFetchError){
+          console.error('Direct search authenticated Cloud photo read failed',photoFetchError);
+          return '';
+        }
+      }
       for(const row of matches){
         const pics=photoByEntry[row.id]||[];
         if(!pics.length)continue;
@@ -2385,18 +2409,13 @@ async function showCloudData(){
         for(const p of pics){
           const path=String(p&&p.storage_path||'').trim();
           if(!path)continue;
-          try{
-            const signed=await client.storage.from('converter-photos').createSignedUrl(path,3600);
-            const url=String(signed&&signed.data&&signed.data.signedUrl||'').trim();
-            if(url)resolved.push({
-              name:p.file_name||('Photo '+(resolved.length+1)),
-              url,
-              cloudPath:path,
-              bgRemoved:true
-            });
-          }catch(photoUrlError){
-            console.error('Direct search Cloud photo URL read failed',photoUrlError);
-          }
+          const url=await loadAuthenticatedPhotoUrl(path);
+          if(url)resolved.push({
+            name:p.file_name||('Photo '+(resolved.length+1)),
+            url,
+            cloudPath:path,
+            bgRemoved:true
+          });
         }
         if(resolved.length)photoUrlsByEntry[row.id]=resolved;
       }
