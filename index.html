@@ -2471,7 +2471,14 @@ async function showCloudData(){
     }
     return false;
   }
+  /* Make the direct controller authoritative for every History search caller.
+     This prevents older Cloud/search bridges from replacing an exact 79G-C04
+     result with the broader 79GC result after the search completes. */
   window.__cataDirectCloudSearchV107=run;
+  try{
+    window.__cataRunHistorySearch=run;
+    if(window.CatalystCloudMaster)window.CatalystCloudMaster.searchHistory=run;
+  }catch(_){}
   function bind(){
     const input=document.getElementById('search'),btn=document.getElementById('historySearchBtn'),form=document.getElementById('historySearchForm');
     if(!input||!btn||!form)return;
