@@ -1661,47 +1661,60 @@ async function showCloudData(){
 (function(){
   const KEY='cat_market_alert_settings';
   const STATE_KEY='cat_market_alert_last_state';
+  let lastRates={PT:null,PD:null,RH:null};
   function getSettings(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}}
   function renderSettings(){
     const s=getSettings(),enabled=$('marketAlertEnabled');
     if(!enabled)return;
     enabled.checked=!!s.enabled;
-    ['pt','pd','rh'].forEach(k=>{
-      const min=$('alertMin'+k[0].toUpperCase()+k.slice(1)),max=$('alertMax'+k[0].toUpperCase()+k.slice(1));
-      if(min)min.value=s['min'+k.toUpperCase()]??'';
-      if(max)max.value=s['max'+k.toUpperCase()]??'';
+    ['PT','PD','RH'].forEach(k=>{
+      const min=$('alertMin'+k[0]+k.slice(1).toLowerCase()),max=$('alertMax'+k[0]+k.slice(1).toLowerCase());
+      if(min)min.value=s['min'+k]??'';
+      if(max)max.value=s['max'+k]??'';
     });
-    $('marketAlertFields').style.opacity=enabled.checked?'1':'.55';
-    $('marketAlertFields').style.pointerEvents=enabled.checked?'auto':'none';
+    const fields=$('marketAlertFields');
+    if(fields){fields.style.opacity=enabled.checked?'1':'.55';fields.style.pointerEvents=enabled.checked?'auto':'none'}
+  }
+  async function showDeviceNotification(title,body){
+    if(!('Notification'in window)||Notification.permission!=='granted'){
+      if(typeof cloudStatus==='function')cloudStatus(title+': '+body);
+      return;
+    }
+    try{
+      if('serviceWorker'in navigator){
+        const reg=await navigator.serviceWorker.getRegistration();
+        if(reg&&reg.showNotification){await reg.showNotification(title,{body,tag:'cata-market-'+title.replace(/[^a-z0-9]/gi,'-'),renotify:false});return}
+      }
+      if(document.visibilityState==='visible')new Notification(title,{body,tag:'cata-market-'+title.replace(/[^a-z0-9]/gi,'-')});
+      else if(typeof cloudStatus==='function')cloudStatus(title+': '+body);
+    }catch(e){console.error('Market alert notification failed',e);if(typeof cloudStatus==='function')cloudStatus(title+': '+body)}
   }
   window.saveMarketAlertSettings=async function(){
     const enabled=$('marketAlertEnabled').checked,s={enabled};
-    for(const k of ['pt','pd','rh']){
-      const cap=k.toUpperCase(),min=$('alertMin'+cap).value.trim(),max=$('alertMax'+cap).value.trim();
-      if(min!==''&&(!Number.isFinite(Number(min))||Number(min)<0)){alert('Min '+cap+' price must be zero or higher.');return}
-      if(max!==''&&(!Number.isFinite(Number(max))||Number(max)<0)){alert('Max '+cap+' price must be zero or higher.');return}
-      if(min!==''&&max!==''&&Number(min)>Number(max)){alert('Min '+cap+' price cannot be higher than Max '+cap+' price.');return}
-      s['min'+cap]=min===''?'':Number(min);s['max'+cap]=max===''?'':Number(max);
+    for(const k of ['PT','PD','RH']){
+      const min=String($('alertMin'+k[0]+k.slice(1).toLowerCase()).value||'').trim();
+      const max=String($('alertMax'+k[0]+k.slice(1).toLowerCase()).value||'').trim();
+      if(min!==''&&(!Number.isFinite(Number(min))||Number(min)<0)){alert('Min '+k+' price must be zero or higher.');return}
+      if(max!==''&&(!Number.isFinite(Number(max))||Number(max)<0)){alert('Max '+k+' price must be zero or higher.');return}
+      if(min!==''&&max!==''&&Number(min)>Number(max)){alert('Min '+k+' price cannot be higher than Max '+k+' price.');return}
+      s['min'+k]=min===''?'':Number(min);s['max'+k]=max===''?'':Number(max);
     }
-    if(enabled&&('Notification'in window)&&Notification.permission==='default'){
-      try{await Notification.requestPermission()}catch(e){}
+    if(enabled){
+      if(!('Notification'in window)){ $('marketAlertStatus').textContent='This browser does not support device notifications.'; }
+      else if(Notification.permission==='default'){try{await Notification.requestPermission()}catch(e){}}
     }
     localStorage.setItem(KEY,JSON.stringify(s));
-    $('marketAlertStatus').textContent=enabled
-      ?(('Notification'in window&&Notification.permission==='granted')?'Alert settings saved. Browser notifications are enabled while the app is running.':'Alert settings saved. Allow notifications in your browser settings to see device alerts.')
-      :'Alert service is OFF. Your saved price limits are kept.';
+    if(!enabled){
+      localStorage.removeItem(STATE_KEY);
+      $('marketAlertStatus').textContent='Alert service is OFF. Your saved price limits are kept.';
+    }else if(!('Notification'in window)||Notification.permission!=='granted'){
+      $('marketAlertStatus').textContent='Settings saved, but device notifications are not allowed. Enable notifications for this site in browser settings.';
+    }else{
+      $('marketAlertStatus').textContent='Alert settings saved. Alerts check Pt, Pd and Rh when market rates update while the app is open.';
+      checkMarketAlerts(false);
+    }
     renderSettings();
-    if(enabled)checkMarketAlerts(true);
   };
-  function notify(title,body){
-    try{
-      if('Notification'in window&&Notification.permission==='granted'&&document.visibilityState==='visible'){
-        new Notification(title,{body,tag:'cata-market-alert-'+title.replace(/\W/g,'-')});
-      }else if(typeof cloudStatus==='function'){
-        cloudStatus(title+': '+body);
-      }
-    }catch(e){if(typeof cloudStatus==='function')cloudStatus(title+': '+body)}
-  }
   function checkMarketAlerts(initial){
     const s=getSettings();if(!s.enabled)return;
     let old={};try{old=JSON.parse(localStorage.getItem(STATE_KEY)||'{}')}catch(e){}
@@ -1712,12 +1725,13 @@ async function showCloudData(){
       const min=s['min'+k],max=s['max'+k];
       const state=(min!==''&&min!=null&&price<Number(min))?'low':(max!==''&&max!=null&&price>Number(max))?'high':'normal';
       next[k]=state;
-      if(state!=='normal'&&old[k]!==state){
-        const dir=state==='low'?'below minimum':'above maximum';
-        notify(k+' market price alert',k+' price '+price.toLocaleString()+' is '+dir+' limit.');
+      if(!initial&&state!=='normal'&&old[k]!==state){
+        const dir=state==='low'?'below your minimum':'above your maximum';
+        showDeviceNotification(k+' market price alert',k+' price '+price.toLocaleString()+' is '+dir+' limit.');
       }
     });
     localStorage.setItem(STATE_KEY,JSON.stringify(next));
+    lastRates=rates;
   }
   window.checkMarketAlerts=checkMarketAlerts;
   const originalSyncMarket=window.syncMarket;
@@ -1742,7 +1756,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=112-refine-keyboard-overlay',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=134-market-alert-service',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
