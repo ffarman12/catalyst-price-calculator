@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v138-refine-live-market-status';
+const CACHE='catalyst-calculator-v139-refine-status-layout';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
