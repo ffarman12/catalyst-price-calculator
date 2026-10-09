@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v126-refine-keyboard-overlay';
+const CACHE='catalyst-calculator-v127-returns-nav-cache-refresh';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
