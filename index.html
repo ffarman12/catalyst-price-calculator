@@ -553,8 +553,7 @@ function saveSectionLock(e){
     localStorage.setItem('cat_cloud_data_lock',sectionLocks.cloudData?'1':'0');
   }catch(err){console.error('Section Lock save error',err)}
   $('status').textContent=anyLocked?'Section locks ON':'Section locks OFF';
-  $('sectionLockModal').style.display='none';
-  try{resetTopMenu()}catch(err){}
+  closeSectionLock();
   return false;
 }
 function updateEntryLessApplyButton(){const b=$('entryLessApplyBtn'),c=$('entryLessApply');if(!b||!c)return;b.textContent=c.checked?'✓':'×';b.style.background=c.checked?'#2563eb':'#d1d5db';b.style.color=c.checked?'#fff':'#374151'}function previewEntryPercentLess(){try{getActiveLess();const prev=lessSettings||BASE_LESS;const read=(id,key)=>{const raw=String($(id)?.value??'').trim();if(raw==='')return Number(prev[key]);const n=Number(raw);return Number.isFinite(n)?Math.max(0,Math.min(100,n)):Number(prev[key])};entryLessDraft={pt:read('entryLessPt','pt'),pd:read('entryLessPd','pd'),rh:read('entryLessRh','rh'),disabled:!!$('entryLessApply')?.checked};repairSavedPrices();renderHistory()}catch(err){console.warn('Live Less History preview failed',err)}}
