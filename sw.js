@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v130-history-action-menu-fix';
+const CACHE='catalyst-calculator-v131-history-menu-click-fix';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
