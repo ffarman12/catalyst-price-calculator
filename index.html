@@ -1675,7 +1675,28 @@ async function showCloudData(){
     const fields=$('marketAlertFields');
     if(fields){fields.style.opacity=enabled.checked?'1':'.55';fields.style.pointerEvents=enabled.checked?'auto':'none'}
   }
+  function playMarketAlertRing(){
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC)return;
+      const ctx=new AC();
+      const ring=(start,duration,frequency)=>{
+        const osc=ctx.createOscillator(),gain=ctx.createGain();
+        osc.type='sine';osc.frequency.value=frequency;
+        gain.gain.setValueAtTime(0.0001,start);
+        gain.gain.exponentialRampToValueAtTime(0.22,start+0.025);
+        gain.gain.setValueAtTime(0.22,start+duration-0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001,start+duration);
+        osc.connect(gain);gain.connect(ctx.destination);
+        osc.start(start);osc.stop(start+duration);
+      };
+      const begin=ctx.currentTime;
+      ring(begin,0.28,880);ring(begin+0.38,0.28,988);ring(begin+0.76,0.42,880);
+      setTimeout(()=>{ctx.close().catch(()=>{})},1800);
+    }catch(e){console.warn('Market alert sound unavailable',e)}
+  }
   async function showDeviceNotification(title,body){
+    playMarketAlertRing();
     if(!('Notification'in window)||Notification.permission!=='granted'){
       if(typeof cloudStatus==='function')cloudStatus(title+': '+body);
       return;
@@ -1683,9 +1704,9 @@ async function showCloudData(){
     try{
       if('serviceWorker'in navigator){
         const reg=await navigator.serviceWorker.getRegistration();
-        if(reg&&reg.showNotification){await reg.showNotification(title,{body,tag:'cata-market-'+title.replace(/[^a-z0-9]/gi,'-'),renotify:false});return}
+        if(reg&&reg.showNotification){await reg.showNotification(title,{body,tag:'cata-market-'+title.replace(/[^a-z0-9]/gi,'-'),renotify:true,silent:false});return}
       }
-      if(document.visibilityState==='visible')new Notification(title,{body,tag:'cata-market-'+title.replace(/[^a-z0-9]/gi,'-')});
+      if(document.visibilityState==='visible')new Notification(title,{body,tag:'cata-market-'+title.replace(/[^a-z0-9]/gi,'-'),renotify:true,silent:false});
       else if(typeof cloudStatus==='function')cloudStatus(title+': '+body);
     }catch(e){console.error('Market alert notification failed',e);if(typeof cloudStatus==='function')cloudStatus(title+': '+body)}
   }
@@ -1763,7 +1784,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=135-market-alert-toggle-fix',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=136-market-alert-ring',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
