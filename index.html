@@ -1735,6 +1735,11 @@ async function showCloudData(){
       checkMarketAlerts(false);
     }
     renderSettings();
+    if(enabled&&('Notification'in window)&&Notification.permission!=='granted'){
+      return;
+    }
+    $('notification').dataset.saved='true';
+    showSection('market');
   };
   let marketAlertLiveRates=null;
   function checkMarketAlerts(initial){
@@ -1785,7 +1790,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=137-live-market-alerts',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=138-alert-save-close',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
