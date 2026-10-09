@@ -805,7 +805,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=118-history-menu-click-fix',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=119-history-pin-continue-fix',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
@@ -1636,6 +1636,22 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   const sectionPin=String(sectionLocks.pin||'');
   const appPin=String(localStorage.getItem('cat_pin')||'1234');
   const validSectionPin=sectionPin && (pin===sectionPin || pin===appPin);
+  if(pendingAction==='historyMenu'){
+    if(!validSectionPin){alert('Wrong Section Lock PIN');return false}
+    const i=pendingIndex,x=Number(pendingMenuX)||((window.innerWidth||360)/2),y=Number(pendingMenuY)||((window.innerHeight||640)/2);
+    pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';
+    const m=$('actionMenu');
+    m.innerHTML='<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'edit\\','+i+');">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'delete\\','+i+');">Delete</button>';
+    m.style.display='block';m.style.position='fixed';m.style.zIndex='99999';
+    const vw=window.innerWidth||360,vh=window.innerHeight||640;
+    m.style.left=Math.max(8,Math.min(vw-150,x-120))+'px';m.style.top=Math.max(8,Math.min(vh-130,y-70))+'px';
+    return false;
+  }
+  if(pendingAction==='historyAction'){
+    if(!validSectionPin){alert('Wrong PIN');return false}
+    const action=pendingHistoryAction,i=pendingIndex;pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';
+    runHistoryAction(action,i);return false;
+  }
   if(pendingAction==='sectionLockSettings'){
     if(!validSectionPin){alert('Wrong Section Lock PIN');return false}
     pendingAction=null;pendingIndex=null;sectionUnlockCallback=null;
