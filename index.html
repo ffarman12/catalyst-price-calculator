@@ -805,7 +805,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=120-history-pin-continue-fix',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=121-history-pin-confirm-direct',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
@@ -847,6 +847,23 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 <script>
 (function(){
   window.confirmTopMenuPin=function(){
+    if(typeof pendingAction!=='undefined' && (pendingAction==='historyMenu'||pendingAction==='historyAction')){
+      const pin=String(($('pinInput')&&$('pinInput').value)||'');
+      const sectionPin=String(sectionLocks.pin||'');
+      const appPin=String(localStorage.getItem('cat_pin')||'1234');
+      if(!sectionPin||(pin!==sectionPin&&pin!==appPin)){alert('Wrong Section Lock PIN');return false}
+      const actionKind=pendingAction,entryIndex=pendingIndex,action=pendingHistoryAction;
+      pendingAction=null;pendingIndex=null;
+      $('pinModal').style.display='none';
+      if(actionKind==='historyMenu'){
+        const m=$('actionMenu');
+        m.innerHTML='<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'edit\\','+entryIndex+');">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'delete\\','+entryIndex+');">Delete</button>';
+        m.style.display='block';m.style.position='fixed';m.style.zIndex='99999';
+        const vw=window.innerWidth||360,vh=window.innerHeight||640,x=Number(pendingMenuX)||vw/2,y=Number(pendingMenuY)||vh/2;
+        m.style.left=Math.max(8,Math.min(vw-150,x-120))+'px';m.style.top=Math.max(8,Math.min(vh-130,y-70))+'px';
+      }else{runHistoryAction(action,entryIndex)}
+      return false;
+    }
     if(typeof pendingAction!=='undefined' && pendingAction==='topMenu'){
       const pin=String(($('pinInput')&&$('pinInput').value)||'');
       if(pin!=='549936'){alert('Wrong PIN');return false}
