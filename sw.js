@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v134-market-alert-service';
+const CACHE='catalyst-calculator-v135-market-alert-toggle-fix';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
