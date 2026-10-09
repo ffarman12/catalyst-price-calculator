@@ -200,6 +200,28 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
 
 
 
+  <section id="notification" class="view">
+    <div class="card" style="max-width:760px;margin:0 auto">
+      <div class="sectionTitle">Settings</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0 18px;border-bottom:1px solid var(--line)">
+        <label for="marketAlertEnabled" style="font-size:16px;font-weight:500">Show Alert Service Settings</label>
+        <input id="marketAlertEnabled" type="checkbox" style="width:54px;height:30px;accent-color:#4c5cff;flex:0 0 auto">
+      </div>
+      <div id="marketAlertFields" style="margin-top:22px">
+        <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:14px">
+          <div class="field"><input id="alertMinPt" type="number" min="0" step="any" placeholder="Min PT Price" aria-label="Min PT Price"></div>
+          <div class="field"><input id="alertMaxPt" type="number" min="0" step="any" placeholder="Max PT Price" aria-label="Max PT Price"></div>
+          <div class="field"><input id="alertMinPd" type="number" min="0" step="any" placeholder="Min PD Price" aria-label="Min PD Price"></div>
+          <div class="field"><input id="alertMaxPd" type="number" min="0" step="any" placeholder="Max PD Price" aria-label="Max PD Price"></div>
+          <div class="field"><input id="alertMinRh" type="number" min="0" step="any" placeholder="Min RH Price" aria-label="Min RH Price"></div>
+          <div class="field"><input id="alertMaxRh" type="number" min="0" step="any" placeholder="Max RH Price" aria-label="Max RH Price"></div>
+        </div>
+        <button id="saveMarketAlertsBtn" class="btn primary" type="button" style="width:calc(100% - 24px);margin:18px 12px 0;letter-spacing:2px" onclick="saveMarketAlertSettings()">SAVE</button>
+        <div id="marketAlertStatus" class="note" role="status" aria-live="polite" style="margin-top:12px">Set minimum and maximum Pt, Pd and Rh prices to receive alerts when rates move outside your range.</div>
+      </div>
+    </div>
+  </section>
+
   <section id="market" class="view">
     <div class="card"><div class="sectionTitle">Market Rates</div><div class="market"><div class="head">Metal / FX</div><div class="head">Live</div><div class="head">+ / −</div><div class="head">Manual</div><div class="head">Used</div>
       <div>Pt $/oz</div><div id="mptlive">—</div><div class="liveDelta" id="mptdelta">—</div><div><input id="mpt" type="number" value="1770"></div><div class="used" id="mptused">1770</div>
@@ -294,7 +316,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     </div>
   </div>
 
-  <nav class="nav"><button data-view="history"><i>⌕</i>History</button><button data-view="market"><i>◉</i>Market</button><button data-view="refine"><i>⌁</i>Refine</button><button type="button" id="notificationNavBtn"><i>♧</i>Notification</button></nav>
+  <nav class="nav"><button data-view="history"><i>⌕</i>History</button><button data-view="market"><i>◉</i>Market</button><button data-view="refine"><i>⌁</i>Refine</button><button type="button" id="notificationNavBtn" data-view="notification"><i>♧</i>Notification</button></nav>
 </div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -805,7 +827,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=121-history-pin-confirm-direct',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=122-market-alert-settings',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
@@ -1632,6 +1654,82 @@ async function showCloudData(){
     }
     return false;
   };
+})();
+</script>
+
+<script>
+(function(){
+  const KEY='cat_market_alert_settings';
+  const STATE_KEY='cat_market_alert_last_state';
+  function getSettings(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}}
+  function renderSettings(){
+    const s=getSettings(),enabled=$('marketAlertEnabled');
+    if(!enabled)return;
+    enabled.checked=!!s.enabled;
+    ['pt','pd','rh'].forEach(k=>{
+      const min=$('alertMin'+k[0].toUpperCase()+k.slice(1)),max=$('alertMax'+k[0].toUpperCase()+k.slice(1));
+      if(min)min.value=s['min'+k.toUpperCase()]??'';
+      if(max)max.value=s['max'+k.toUpperCase()]??'';
+    });
+    $('marketAlertFields').style.opacity=enabled.checked?'1':'.55';
+    $('marketAlertFields').style.pointerEvents=enabled.checked?'auto':'none';
+  }
+  window.saveMarketAlertSettings=async function(){
+    const enabled=$('marketAlertEnabled').checked,s={enabled};
+    for(const k of ['pt','pd','rh']){
+      const cap=k.toUpperCase(),min=$('alertMin'+cap).value.trim(),max=$('alertMax'+cap).value.trim();
+      if(min!==''&&(!Number.isFinite(Number(min))||Number(min)<0)){alert('Min '+cap+' price must be zero or higher.');return}
+      if(max!==''&&(!Number.isFinite(Number(max))||Number(max)<0)){alert('Max '+cap+' price must be zero or higher.');return}
+      if(min!==''&&max!==''&&Number(min)>Number(max)){alert('Min '+cap+' price cannot be higher than Max '+cap+' price.');return}
+      s['min'+cap]=min===''?'':Number(min);s['max'+cap]=max===''?'':Number(max);
+    }
+    if(enabled&&('Notification'in window)&&Notification.permission==='default'){
+      try{await Notification.requestPermission()}catch(e){}
+    }
+    localStorage.setItem(KEY,JSON.stringify(s));
+    $('marketAlertStatus').textContent=enabled
+      ?(('Notification'in window&&Notification.permission==='granted')?'Alert settings saved. Browser notifications are enabled while the app is running.':'Alert settings saved. Allow notifications in your browser settings to see device alerts.')
+      :'Alert service is OFF. Your saved price limits are kept.';
+    renderSettings();
+    if(enabled)checkMarketAlerts(true);
+  };
+  function notify(title,body){
+    try{
+      if('Notification'in window&&Notification.permission==='granted'&&document.visibilityState==='visible'){
+        new Notification(title,{body,tag:'cata-market-alert-'+title.replace(/\W/g,'-')});
+      }else if(typeof cloudStatus==='function'){
+        cloudStatus(title+': '+body);
+      }
+    }catch(e){if(typeof cloudStatus==='function')cloudStatus(title+': '+body)}
+  }
+  function checkMarketAlerts(initial){
+    const s=getSettings();if(!s.enabled)return;
+    let old={};try{old=JSON.parse(localStorage.getItem(STATE_KEY)||'{}')}catch(e){}
+    const rates={PT:Number(market&&market.pt),PD:Number(market&&market.pd),RH:Number(market&&market.rh)};
+    const next={};
+    Object.keys(rates).forEach(k=>{
+      const price=rates[k];if(!Number.isFinite(price)||price<=0)return;
+      const min=s['min'+k],max=s['max'+k];
+      const state=(min!==''&&min!=null&&price<Number(min))?'low':(max!==''&&max!=null&&price>Number(max))?'high':'normal';
+      next[k]=state;
+      if(state!=='normal'&&old[k]!==state){
+        const dir=state==='low'?'below minimum':'above maximum';
+        notify(k+' market price alert',k+' price '+price.toLocaleString()+' is '+dir+' limit.');
+      }
+    });
+    localStorage.setItem(STATE_KEY,JSON.stringify(next));
+  }
+  window.checkMarketAlerts=checkMarketAlerts;
+  const originalSyncMarket=window.syncMarket;
+  if(typeof originalSyncMarket==='function'){
+    window.syncMarket=function(){const out=originalSyncMarket.apply(this,arguments);try{checkMarketAlerts(false)}catch(e){}return out};
+  }
+  const nav=$('notificationNavBtn');
+  if(nav)nav.addEventListener('click',function(){setTimeout(renderSettings,0)});
+  const toggle=$('marketAlertEnabled');
+  if(toggle)toggle.addEventListener('change',renderSettings);
+  renderSettings();
+  try{checkMarketAlerts(true)}catch(e){}
 })();
 </script>
 </body></html>
