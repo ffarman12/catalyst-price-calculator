@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v141-refine-status-font-match';
+const CACHE='catalyst-calculator-v142-cat-logic-brand';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
