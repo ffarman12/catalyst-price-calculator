@@ -1741,8 +1741,15 @@ async function showCloudData(){
   const nav=$('notificationNavBtn');
   if(nav)nav.addEventListener('click',function(){setTimeout(renderSettings,0)});
   const toggle=$('marketAlertEnabled');
-  if(toggle)toggle.addEventListener('change',renderSettings);
+  function updateAlertFields(){
+    const enabled=!!(toggle&&toggle.checked),fields=$('marketAlertFields');
+    if(fields){fields.style.opacity=enabled?'1':'.55';fields.style.pointerEvents=enabled?'auto':'none'}
+    const save=$('saveMarketAlertsBtn');
+    if(save){save.disabled=false;save.style.opacity='1';save.style.pointerEvents='auto'}
+  }
+  if(toggle)toggle.addEventListener('change',updateAlertFields);
   renderSettings();
+  updateAlertFields();
   try{checkMarketAlerts(true)}catch(e){}
 })();
 </script>
@@ -1756,7 +1763,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=134-market-alert-service',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=135-market-alert-toggle-fix',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
