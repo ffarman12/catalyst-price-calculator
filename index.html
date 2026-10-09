@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=overlays-content">
-<title>Cata-Logic</title>
+<title>Cat-Logic</title>
 <meta name="theme-color" content="#0f1318">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Cata-Logic">
-<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Catalyst%20Price%20Calculator%20-%20Cata-Logic%22%2C%22short_name%22%3A%22Cata-Logic%22%2C%22display%22%3A%22standalone%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22background_color%22%3A%22%230f1318%22%2C%22theme_color%22%3A%22%230f1318%22%2C%22description%22%3A%22Catalyst%20converter%20price%20calculator%22%7D">
+<meta name="apple-mobile-web-app-title" content="Cat-Logic">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Catalyst%20Price%20Calculator%20-%20Cat-Logic%22%2C%22short_name%22%3A%22Cat-Logic%22%2C%22display%22%3A%22standalone%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22background_color%22%3A%22%230f1318%22%2C%22theme_color%22%3A%22%230f1318%22%2C%22description%22%3A%22Catalyst%20converter%20price%20calculator%22%7D">
 <style>
 :root{color-scheme:light dark}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;min-height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;overscroll-behavior:none}
@@ -159,7 +159,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Cata-Logic">
+<meta name="apple-mobile-web-app-title" content="Cat-Logic">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
 #serviceStatusModal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.58);align-items:flex-start;justify-content:flex-start;padding:56px 3vw 24px}
@@ -525,7 +525,7 @@ function clearForm(){editingIndex=null;editingCloudId=null;selectedDefaultPhotoI
 function showProtectedMainMenu(){const m=$('topNewMenu');const logged=isLoggedIn(),name=String(localStorage.getItem('cat_profile_name')||'').trim();m.innerHTML='<div class="menuLabel">ACCOUNT</div>'+(logged?'<button type="button" id="loginMenuBtn" onclick="toggleAccountNameMenu(event)">👤 '+(name||'Account')+' ▾</button><button type="button" id="accountLogoutBtn" style="display:none!important" onclick="toggleLogin(event)">⇥ Logout</button><button type="button" onclick="openProfileSettings(event)">👤 Profile</button><button type="button" onclick="openPasswordSettings(event)">🔒 Password Settings</button><div class="menuSep"></div><button type="button" onclick="openMenuFolder(event)">📁 Menu ▸</button>':'<button type="button" id="loginMenuBtn" onclick="toggleLogin(event)">⇄ Login</button>');m.style.display='block'}
 function openMenuFolder(e){if(e){e.preventDefault();e.stopPropagation()}const m=$('topNewMenu');m.innerHTML='<div class="menuLabel">MENU</div><button type="button" onclick="openNewConverter(event)">+New</button><button type="button" onclick="openSectionLock(event)">🔐 Section Lock</button><div class="menuSep"></div><button type="button" onclick="shareWhatsApp()">📲 Share App</button><button type="button" onclick="installApp()">📥 Install App</button><button type="button" onclick="openLessSettings(event)">↘ Excel Mode</button><button type="button" onclick="openEntryPercentLess(event)">％ Less History</button><button type="button" onclick="openViewerPpmSettings(event)">👁 Viewer App — View PPM</button><button type="button" onclick="openServiceStatus(event)">🔗 Connections / Service Status</button><div class="menuSep"></div><button type="button" onclick="showProtectedMainMenu()">‹ Back</button>';m.style.display='block'}
 function toggleNewMenu(e){e.preventDefault();e.stopPropagation();const m=$('topNewMenu');if(m.style.display==='block'){m.style.display='none';return}if(menuUnlocked){showProtectedMainMenu();return}pendingAction='topMenu';pendingIndex=null;$('pinTitle').textContent='Menu PIN';$('pinInput').value='';$('pinModal').style.display='flex';setTimeout(()=>$('pinInput').focus(),50)}
-async function shareWhatsApp(){const url=window.location.href,text='Catalyst Price Calculator - Cata-Logic\n'+url;try{if(navigator.share){await navigator.share({title:'Catalyst Price Calculator - Cata-Logic',text:'Catalyst Price Calculator - Cata-Logic',url});return}}catch(e){if(e&&e.name==='AbortError')return}const a=document.createElement('a');a.href='https://api.whatsapp.com/send?text='+encodeURIComponent(text);a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove()}
+async function shareWhatsApp(){const url=window.location.href,text='Catalyst Price Calculator - Cat-Logic\n'+url;try{if(navigator.share){await navigator.share({title:'Catalyst Price Calculator - Cat-Logic',text:'Catalyst Price Calculator - Cat-Logic',url});return}}catch(e){if(e&&e.name==='AbortError')return}const a=document.createElement('a');a.href='https://api.whatsapp.com/send?text='+encodeURIComponent(text);a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove()}
 function toggleAccountNameMenu(e){if(e){e.preventDefault();e.stopPropagation()}const b=$('accountLogoutBtn');if(b)b.style.setProperty('display',b.style.display==='none'?'block':'none','important')}
 function isSectionLocked(key){return !!sectionLocks[key]}
 function requestSectionUnlock(key,callback){if(!isSectionLocked(key)){callback();return}sectionUnlockCallback=callback;pendingAction='sectionUnlock';pendingIndex=null;$('pinTitle').textContent='Section Lock PIN';$('pinInput').value='';$('pinModal').style.display='flex';setTimeout(()=>$('pinInput').focus(),50)}
@@ -828,7 +828,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
       location.reload();
     });
-    navigator.serviceWorker.register('./sw.js?v=141-refine-status-font-match',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
+    navigator.serviceWorker.register('./sw.js?v=138-cat-logic-brand',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
   });
 }
 </script>
