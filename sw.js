@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v121-refine-pt-rate-fix';
+const CACHE='catalyst-calculator-v122-refine-keyboard-layout';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
