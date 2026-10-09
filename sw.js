@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v138-alert-save-close';
+const CACHE='catalyst-calculator-v139-status-badges-market-history-only';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
