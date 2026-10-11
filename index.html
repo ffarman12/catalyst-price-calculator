@@ -104,7 +104,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
 #accountModal>div{max-width:320px!important;padding:12px!important;margin-top:25px!important;transform:scale(.75)!important;transform-origin:top center!important;max-height:calc(100vh - 20px)!important;overflow-y:auto!important}
 #market.view.active{padding-top:10px!important}
 #market .marketLiveCard{margin-top:0!important;margin-bottom:0!important}
-#market .marketLiveCard+.card{margin-top:min(20vh,220px)!important}
+#market .marketLiveCard+.card{margin-top:min(20vh,220px)!important} #market .marketDefaultsCard{box-sizing:border-box!important;background:#d9f7df!important;border:1px solid #86c995!important;border-radius:18px!important;padding:12px!important} #market .marketDefaultsCard>.sectionTitle{display:none!important} #market .marketDefaultsCard .market{width:100%!important} #market .marketDefaultsCard .row,#market .marketDefaultsCard .note,#market .marketDefaultsCard #apiDiagnostic{box-sizing:border-box!important;max-width:100%!important}
 #market .marketLiveCard{border:1px solid light-dark(#8b949e,#46515e)!important;border-radius:18px!important;background:light-dark(#fff,#1b222b)!important;padding:16px!important;box-shadow:0 2px 8px #0000000a!important}
 #market.view.active{background:light-dark(#b9efff,#0f1318)!important}
 #market .marketLiveCard .sectionTitle{display:none!important}
@@ -246,7 +246,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
       <div>Rh $/oz</div><div id="mrhlive">—</div><div class="liveDelta" id="mrhdelta">—</div>
       <div>USD/INR</div><div id="musdlive">—</div><div class="liveDelta" id="musddelta">—</div>
     </div></div>
-    <div class="card"><div class="sectionTitle">Market Rates</div><div class="market"><div class="head">Metal / FX</div><div class="head">Manual</div><div class="head">Used</div>
+    <div class="card marketDefaultsCard"><div class="sectionTitle">Market Rates</div><div class="market"><div class="head">Metal / FX</div><div class="head">Manual</div><div class="head">Default</div>
       <div>Pt $/oz</div><div><input id="mpt" type="number" value="1770"></div><div class="used" id="mptused">1770</div>
       <div>Pd $/oz</div><div><input id="mpd" type="number" value="1250"></div><div class="used" id="mpdused">1250</div>
       <div>Rh $/oz</div><div><input id="mrh" type="number" value="8600"></div><div class="used" id="mrhused">8600</div>
