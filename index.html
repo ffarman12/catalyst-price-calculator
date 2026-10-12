@@ -1839,6 +1839,22 @@ async function runMarketDiagnostic(){const box=document.getElementById('apiDiagn
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeMarketPopup()});
 </script>
 
+
+<script>
+/* Hide only the Market History heading; preserve the graph card and its controls. */
+(function(){
+  function hideMarketHistoryHeading(){
+    document.querySelectorAll('h1,h2,h3,h4,.sectionTitle,[class*="title"],label,span,div').forEach(function(el){
+      if(el.children.length===0 && el.textContent && el.textContent.trim()==='Market History'){
+        el.style.setProperty('display','none','important');
+      }
+    });
+  }
+  hideMarketHistoryHeading();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',hideMarketHistoryHeading,{once:true});
+  new MutationObserver(hideMarketHistoryHeading).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
 </body></html>
 <script>
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
