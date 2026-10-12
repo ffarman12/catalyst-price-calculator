@@ -1823,6 +1823,11 @@ async function showCloudData(){
 .nav{background:linear-gradient(115deg,#dff5ff 0%,#e7eaff 42%,#f0e2ff 70%,#ffe8ef 100%)!important;border:1px solid rgba(255,255,255,.92)!important;box-shadow:0 8px 22px rgba(77,111,180,.18)!important}
 .nav button{background:transparent!important}
 .nav button.active{background:rgba(255,255,255,.78)!important;color:#1459d9!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 3px 12px rgba(70,110,190,.12)!important}
+
+/* Final Market page colors: blue labels, soft blue-white backdrop */
+#market.view.active{background:linear-gradient(155deg,#f4f8ff 0%,#dcecff 48%,#f8faff 100%)!important}
+#market .marketLiveGrid>div:nth-child(3n+1):not(.head){color:#1261df!important;font-weight:750!important}
+#market .marketLiveCard{background:rgba(255,255,255,.94)!important;border-color:#aabbd2!important}
 </style>
 <div id="marketMessageOverlay" role="dialog" aria-modal="true" aria-labelledby="marketMessageTitle" onclick="if(event.target===this)closeMarketPopup()">
  <div id="marketMessageDialog"><button id="marketMessageClose" type="button" aria-label="Close" onclick="closeMarketPopup()">×</button><div id="marketMessageTitle">Market Message</div><pre id="marketMessageText"></pre></div>
