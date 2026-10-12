@@ -2742,7 +2742,7 @@ async function showCloudData(){
   const svg=$('marketGraphSvg');if(!svg)return;
   const key=$('marketGraphMetal').value,cut=new Date();cut.setDate(cut.getDate()-rangeDays);
   const shown=rows.filter(r=>new Date(r.slot_date+'T00:00:00')>=new Date(cut.toDateString()));
-  const vals=shown.map(r=>({x:r.slot_date+' '+String(r.slot_time).slice(0,5),v:Number(r[key])})).filter(p=>Number.isFinite(p.v)&&p.v>0);
+  const vals=shown.map(r=>({x:r.slot_date+' '+String(r.slot_time).slice(0,5),v:Number(r[key]),preview:false})).filter(p=>Number.isFinite(p.v)&&p.v>0);const previewValue=Number(currentValues()[key]);if(Number.isFinite(previewValue)&&previewValue>0)vals.push({x:'Current*',v:previewValue,preview:true});
   const now=currentValues(),current=now[key];
   const W=600,H=190,L=58,R=14,T=12,B=24,iw=W-L-R,ih=H-T-B;
   if(!vals.length){
@@ -2759,7 +2759,7 @@ async function showCloudData(){
   const grid=[0,1,2,3].map(i=>{const y=T+i*ih/3,v=hi-i*(hi-lo)/3;return '<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#e3e7ef"/><text x="'+(L-7)+'" y="'+(y+4)+'" text-anchor="end" fill="#7d8798" font-size="10">'+v.toFixed(2)+'</text>'}).join('');
   const first=pts[0].label.split(' ')[0],last=pts[pts.length-1].label.split(' ')[0];
   svg.innerHTML='<rect width="'+W+'" height="'+H+'" rx="10" fill="#fff"/>'+grid+'<polygon points="'+area+'" fill="#f9b04d" opacity=".38"/><polyline points="'+line+'" fill="none" stroke="#e98b0b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+pts.map(p=>'<circle cx="'+p.x+'" cy="'+p.y+'" r="2.8" fill="#d97706"/>').join('')+'<text x="'+L+'" y="'+(H-5)+'" fill="#7d8798" font-size="10">'+first+'</text><text x="'+(W-R)+'" y="'+(H-5)+'" text-anchor="end" fill="#7d8798" font-size="10">'+last+'</text>';
-  $('marketGraphCaption').textContent=vals.length+' saved snapshots · '+labels[key]+' · latest '+vals[vals.length-1].v.toFixed(2);
+  $('marketGraphCaption').textContent=Math.max(0,vals.length-(vals[vals.length-1]&&vals[vals.length-1].preview?1:0))+' saved snapshots · '+labels[key]+' · current manual value preview*';
  }
  function bind(){
   if(!$('marketGraphCard'))return;
