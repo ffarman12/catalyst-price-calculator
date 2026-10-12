@@ -1818,6 +1818,11 @@ async function showCloudData(){
 #marketMessageClose{position:absolute;right:10px;top:8px;border:0;background:transparent;color:#374151;font-size:30px;line-height:1;padding:4px 8px;cursor:pointer}
 #marketMessageTitle{font-size:18px;font-weight:700;padding-right:36px;margin:0 0 12px}
 #marketMessageText{font-size:14px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+
+/* Finalized navigation appearance: soft blue-violet-pink glass gradient */
+.nav{background:linear-gradient(115deg,#dff5ff 0%,#e7eaff 42%,#f0e2ff 70%,#ffe8ef 100%)!important;border:1px solid rgba(255,255,255,.92)!important;box-shadow:0 8px 22px rgba(77,111,180,.18)!important}
+.nav button{background:transparent!important}
+.nav button.active{background:rgba(255,255,255,.78)!important;color:#1459d9!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 3px 12px rgba(70,110,190,.12)!important}
 </style>
 <div id="marketMessageOverlay" role="dialog" aria-modal="true" aria-labelledby="marketMessageTitle" onclick="if(event.target===this)closeMarketPopup()">
  <div id="marketMessageDialog"><button id="marketMessageClose" type="button" aria-label="Close" onclick="closeMarketPopup()">×</button><div id="marketMessageTitle">Market Message</div><pre id="marketMessageText"></pre></div>
