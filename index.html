@@ -246,6 +246,12 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
       <div>Rh $/oz</div><div id="mrhlive">—</div><div class="liveDelta" id="mrhdelta">—</div>
       <div>USD/INR</div><div id="musdlive">—</div><div class="liveDelta" id="musddelta">—</div>
     </div></div>
+    <div class="card marketGraphCard" id="marketGraphCard">
+      <div class="marketGraphHead"><strong>Market History</strong><select id="marketGraphMetal" aria-label="Graph market value"><option value="pt">Pt $/oz</option><option value="pd">Pd $/oz</option><option value="rh">Rh $/oz</option><option value="usd">USD/INR</option></select></div>
+      <svg id="marketGraphSvg" viewBox="0 0 600 190" role="img" aria-label="Saved market history graph" preserveAspectRatio="none"><text x="300" y="95" text-anchor="middle" fill="#778198" font-size="14">Loading market history…</text></svg>
+      <div class="marketGraphRanges"><button type="button" data-range="7" class="active">1 Week</button><button type="button" data-range="90">3 Months</button><button type="button" data-range="365">Year</button></div>
+      <div id="marketGraphCaption" class="marketGraphCaption">Records begin from the first saved market snapshot.</div>
+    </div>
     <div class="card marketDefaultsCard"><div class="sectionTitle">Market Rates</div><div class="market"><div class="head">Metal / FX</div><div class="head">Manual</div><div class="head">Default</div>
       <div>Pt $/oz</div><div><input id="mpt" type="number" value="1770"></div><div class="used" id="mptused">1770</div>
       <div>Pd $/oz</div><div><input id="mpd" type="number" value="1250"></div><div class="used" id="mpdused">1250</div>
@@ -2702,7 +2708,71 @@ async function showCloudData(){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindHistoryGate);else bindHistoryGate();
 })();
 </script>
-</body></html>
+<style>
+#market.view.active{background:linear-gradient(145deg,#c8f5ec 0%,#d9dcff 48%,#ffe0cf 100%)!important;background-color:#d9dcff!important}
+#market .marketGraphCard{box-sizing:border-box!important;flex:0 0 245px!important;height:245px!important;min-height:245px!important;max-height:245px!important;margin:8px 14px!important;width:calc(100% - 28px)!important;max-width:calc(100% - 28px)!important;padding:10px 12px!important;border:1px solid #b8c5e4!important;border-radius:22px!important;background:rgba(255,255,255,.96)!important;box-shadow:0 4px 16px rgba(58,82,135,.12)!important;display:flex!important;flex-direction:column!important;gap:6px!important;overflow:hidden!important}
+#market .marketGraphHead{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#2459b8;font-size:15px}
+#market #marketGraphMetal{max-width:48%;border:1px solid #d3d9e7;border-radius:10px;background:#f8faff;color:#28344b;padding:5px 7px;font-size:12px}
+#market #marketGraphSvg{display:block;width:100%;height:142px;min-height:142px;flex:1 1 auto;background:#fff;border-radius:12px}
+#market .marketGraphRanges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;background:#e8eaff;border-radius:12px;padding:3px}
+#market .marketGraphRanges button{border:0;border-radius:9px;background:transparent;color:#42516f;padding:6px 2px;font-size:12px;font-weight:650}
+#market .marketGraphRanges button.active{background:#4358ee;color:#fff}
+#market .marketGraphCaption{font-size:10px;color:#7a8498;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#market .marketDefaultsCard{margin-top:auto!important}
+#market .marketLiveCard+.marketGraphCard{margin-top:8px!important;flex-shrink:0!important}
+@media(max-height:780px){#market .marketGraphCard{flex-basis:205px!important;height:205px!important;min-height:205px!important;max-height:205px!important}#market #marketGraphSvg{height:110px;min-height:110px}}
+</style><script>
+(function(){
+ const $=id=>document.getElementById(id);
+ const labels={pt:'Pt $/oz',pd:'Pd $/oz',rh:'Rh $/oz',usd:'USD/INR'};
+ let rangeDays=7, rows=[], stateTimer=null;
+ function client(){try{return typeof getEditorSupabase==='function'?getEditorSupabase():null}catch(_){return null}}
+ function currentValues(){return {pt:Number($('mpt')&&$('mpt').value),pd:Number($('mpd')&&$('mpd').value),rh:Number($('mrh')&&$('mrh').value),usd:Number($('musd')&&$('musd').value)}}
+ async function syncState(){
+  const c=client(),v=currentValues();if(!c||Object.values(v).some(n=>!Number.isFinite(n)||n<=0))return;
+  try{const {error}=await c.from('market_manual_state').upsert({id:1,...v,updated_at:new Date().toISOString()},{onConflict:'id'});if(error)console.warn('Market graph state sync failed',error.message)}catch(e){console.warn('Market graph state sync failed',e)}
+ }
+ async function loadRows(){
+  const c=client();if(!c){draw();return}
+  try{const {data,error}=await c.from('market_history').select('slot_date,slot_time,pt,pd,rh,usd,recorded_at').order('slot_date',{ascending:true}).order('slot_time',{ascending:true}).limit(2000);if(error)throw error;rows=Array.isArray(data)?data:[]}
+  catch(e){console.warn('Market graph history load failed',e);$('marketGraphCaption').textContent='Market history is temporarily unavailable.';draw();return}
+  draw();
+ }
+ function draw(){
+  const svg=$('marketGraphSvg');if(!svg)return;
+  const key=$('marketGraphMetal').value,cut=new Date();cut.setDate(cut.getDate()-rangeDays);
+  const shown=rows.filter(r=>new Date(r.slot_date+'T00:00:00')>=new Date(cut.toDateString()));
+  const vals=shown.map(r=>({x:r.slot_date+' '+String(r.slot_time).slice(0,5),v:Number(r[key])})).filter(p=>Number.isFinite(p.v)&&p.v>0);
+  const now=currentValues(),current=now[key];
+  const W=600,H=190,L=58,R=14,T=12,B=24,iw=W-L-R,ih=H-T-B;
+  if(!vals.length){
+   const v=Number.isFinite(current)&&current>0?current:null;
+   const y=v===null?T+ih/2:T+ih/2;
+   svg.innerHTML='<rect x="0" y="0" width="'+W+'" height="'+H+'" rx="10" fill="#fff"/>'+[0,1,2,3].map(i=>'<line x1="'+L+'" y1="'+(T+i*ih/3)+'" x2="'+(W-R)+'" y2="'+(T+i*ih/3)+'" stroke="#e4e8f0"/>').join('')+(v===null?'<text x="300" y="92" text-anchor="middle" fill="#778198" font-size="14">No saved snapshots yet</text>':'<circle cx="'+(L+iw/2)+'" cy="'+y+'" r="5" fill="#ef9b25"/><text x="300" y="165" text-anchor="middle" fill="#778198" font-size="12">Current manual value · not yet saved</text>');
+   $('marketGraphCaption').textContent=vals.length?'':('First historical point will be saved at the next scheduled slot. Current '+labels[key]+': '+(v===null?'—':v.toFixed(2)));
+   return;
+  }
+  const min=Math.min(...vals.map(p=>p.v)),max=Math.max(...vals.map(p=>p.v)),pad=(max-min)*.12||Math.max(max*.002,1),lo=min-pad,hi=max+pad;
+  const pts=vals.map((p,i)=>({x:L+(vals.length===1?iw/2:i*iw/(vals.length-1)),y:T+(hi-p.v)/(hi-lo)*ih,v:p.v,label:p.x}));
+  const line=pts.map(p=>p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ');
+  const area=L+','+(T+ih)+' '+line+' '+(W-R)+','+(T+ih);
+  const grid=[0,1,2,3].map(i=>{const y=T+i*ih/3,v=hi-i*(hi-lo)/3;return '<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#e3e7ef"/><text x="'+(L-7)+'" y="'+(y+4)+'" text-anchor="end" fill="#7d8798" font-size="10">'+v.toFixed(2)+'</text>'}).join('');
+  const first=pts[0].label.split(' ')[0],last=pts[pts.length-1].label.split(' ')[0];
+  svg.innerHTML='<rect width="'+W+'" height="'+H+'" rx="10" fill="#fff"/>'+grid+'<polygon points="'+area+'" fill="#f9b04d" opacity=".38"/><polyline points="'+line+'" fill="none" stroke="#e98b0b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+pts.map(p=>'<circle cx="'+p.x+'" cy="'+p.y+'" r="2.8" fill="#d97706"/>').join('')+'<text x="'+L+'" y="'+(H-5)+'" fill="#7d8798" font-size="10">'+first+'</text><text x="'+(W-R)+'" y="'+(H-5)+'" text-anchor="end" fill="#7d8798" font-size="10">'+last+'</text>';
+  $('marketGraphCaption').textContent=vals.length+' saved snapshots · '+labels[key]+' · latest '+vals[vals.length-1].v.toFixed(2);
+ }
+ function bind(){
+  if(!$('marketGraphCard'))return;
+  $('marketGraphMetal').addEventListener('change',draw);
+  document.querySelectorAll('#market .marketGraphRanges button').forEach(b=>b.addEventListener('click',()=>{rangeDays=Number(b.dataset.range)||7;document.querySelectorAll('#market .marketGraphRanges button').forEach(x=>x.classList.toggle('active',x===b));loadRows()}));
+  ['mpt','mpd','mrh','musd'].forEach(id=>{const el=$(id);if(el)el.addEventListener('input',()=>{draw();clearTimeout(stateTimer);stateTimer=setTimeout(syncState,450)})});
+  const oldSave=window.saveMarket;
+  if(typeof oldSave==='function'&&!oldSave.__graphWrapped){const wrapped=function(){const result=oldSave.apply(this,arguments);syncState();return result};wrapped.__graphWrapped=true;window.saveMarket=wrapped}
+  syncState();loadRows();setInterval(loadRows,60000);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+})();
+</script></body></html>
 
 <!-- HISTORY SEARCH HARD BIND v105: final capture handler; does not change pricing/settings/UI -->
 <script>
