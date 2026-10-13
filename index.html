@@ -3161,3 +3161,15 @@ body.cataMarketKeyboardOpen #app{height:var(--cata-market-visible-height,100dvh)
  #market .cataMarketGraphRanges button{padding:4px 2px!important;font-size:11px!important}
 }
 </style>
+
+
+<style>
+/* CATA MARKET GRAPH EXTEND TO USER MARKED TOP EDGE: convert the oversized distributed gap into graph-card height. */
+#market.view.active{justify-content:flex-start!important;gap:8px!important}
+#market .cataMarketGraphCard{flex:0 0 290px!important;height:290px!important;min-height:290px!important;max-height:290px!important}
+#market .cataMarketGraphPlot{height:196px!important;min-height:196px!important}
+@media(max-height:760px){
+ #market .cataMarketGraphCard{flex-basis:250px!important;height:250px!important;min-height:250px!important;max-height:250px!important}
+ #market .cataMarketGraphPlot{height:158px!important;min-height:158px!important}
+}
+</style>
