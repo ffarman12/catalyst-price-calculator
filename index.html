@@ -3027,3 +3027,85 @@ document.addEventListener('DOMContentLoaded',function(){
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
+
+<style>
+/* CATA MARKET MANUAL KEYBOARD VISIBILITY FIX: scoped only to the four Market manual-rate inputs. */
+body.cataMarketKeyboardOpen #app{height:var(--cata-market-visible-height,100dvh)!important}
+</style>
+<script>
+/* Keeps the currently edited Manual Market row above the Android keyboard. */
+(function(){
+ const cardSelector='#market .marketDefaultsCard';
+ const inputSelector=cardSelector+' .market input';
+ let activeInput=null,fitTimers=[];
+ const app=document.getElementById('app');
+ const marketView=document.getElementById('market');
+ function keyboardVisibleHeight(){
+  try{
+   const vk=navigator.virtualKeyboard;
+   if(vk&&vk.boundingRect&&vk.boundingRect.height>80){
+    const rect=vk.boundingRect;
+    const top=Number(rect.top);
+    const height=Number(rect.height);
+    const visible=top>80?top:window.innerHeight-height;
+    if(Number.isFinite(visible)&&visible>120)return Math.min(window.innerHeight,visible);
+   }
+  }catch(_){}
+  try{
+   const vv=window.visualViewport;
+   if(vv&&window.innerHeight-vv.height>100)return Math.max(120,vv.offsetTop+vv.height);
+  }catch(_){}
+  return null;
+ }
+ function revealActiveRow(){
+  if(!activeInput||!activeInput.isConnected||!marketView||!app)return;
+  const visibleHeight=keyboardVisibleHeight();
+  if(visibleHeight!==null){
+   document.body.classList.add('cataMarketKeyboardOpen');
+   app.style.setProperty('--cata-market-visible-height',Math.round(visibleHeight)+'px');
+  }
+  requestAnimationFrame(function(){
+   if(!activeInput||!activeInput.isConnected||!marketView)return;
+   const cell=activeInput.closest('.market > div')||activeInput.parentElement;
+   if(!cell)return;
+   const row=cell.getBoundingClientRect(),view=marketView.getBoundingClientRect();
+   const safeTop=view.top+10,safeBottom=view.bottom-14;
+   if(row.bottom>safeBottom)marketView.scrollTop+=row.bottom-safeBottom+12;
+   else if(row.top<safeTop)marketView.scrollTop-=safeTop-row.top+8;
+  });
+ }
+ function scheduleReveal(){
+  fitTimers.forEach(clearTimeout);fitTimers=[];
+  requestAnimationFrame(revealActiveRow);
+  [100,240,420].forEach(ms=>fitTimers.push(setTimeout(revealActiveRow,ms)));
+ }
+ function clearKeyboardLayout(){
+  activeInput=null;
+  document.body.classList.remove('cataMarketKeyboardOpen');
+  if(app)app.style.removeProperty('--cata-market-visible-height');
+ }
+ document.addEventListener('focusin',function(event){
+  const target=event.target;
+  if(target&&target.matches&&target.matches(inputSelector)){
+   activeInput=target;
+   scheduleReveal();
+  }
+ });
+ document.addEventListener('focusout',function(event){
+  if(event.target&&event.target.matches&&event.target.matches(inputSelector)){
+   setTimeout(function(){
+    const current=document.activeElement;
+    if(!(current&&current.matches&&current.matches(inputSelector)))clearKeyboardLayout();
+   },80);
+  }
+ });
+ try{
+  if(navigator.virtualKeyboard&&navigator.virtualKeyboard.addEventListener){
+   navigator.virtualKeyboard.addEventListener('geometrychange',scheduleReveal);
+  }
+ }catch(_){}
+ try{
+  if(window.visualViewport)window.visualViewport.addEventListener('resize',scheduleReveal);
+ }catch(_){}
+})();
+</script>
