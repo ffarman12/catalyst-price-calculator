@@ -190,7 +190,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
 </style></head>
 <body>
 <div id="historySearchLoading" aria-live="polite" aria-busy="true"><div class="searchLoaderBox"><div class="searchSpinner"></div><div>Searching…</div></div></div><div id="app"><div class="wrap">
-  <header class="top"><div style="display:flex;align-items:center;gap:6px"><button id="topNewBtn" aria-label="Menu" onclick="toggleNewMenu(event)">⋮</button></div><div></div><div id="statusCluster" style="display:none;align-items:center;gap:8px;position:relative;margin-left:auto"><div class="badge" id="status" style="display:none">Ready</div><div class="badge" id="marketStatus">Manual Market</div></div></header>
+  <header class="top"><div style="display:flex;align-items:center;gap:6px"><button id="topNewBtn" aria-label="Menu" onclick="toggleNewMenu(event)">⋮</button></div><div></div><div id="statusCluster" style="display:none;align-items:center;gap:8px;position:relative;margin-left:auto"><div class="badge" id="status" style="display:none">Ready</div><div class="badge" id="deviceHistoryStatus" style="display:none;max-width:260px;white-space:normal">Checking device History…</div><div class="badge" id="marketStatus">Manual Market</div></div></header>
 
   <section id="home" class="view">
     <div class="card" style="position:relative"><button type="button" aria-label="Close +New" onclick="event.preventDefault();event.stopPropagation();document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('history').classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='history'));renderHistory()" style="position:absolute;right:12px;top:10px;border:0;background:transparent;color:inherit;font-size:28px;line-height:1;padding:2px 7px;cursor:pointer">×</button><div class="sectionTitle" style="padding-right:38px">+New</div><div class="grid">
@@ -378,7 +378,7 @@ function clearDeviceHistoryCopies(){
   }catch(e){}
 }
 function verifyDeviceHistoryStorage(){
-  const report=(msg)=>{try{const el=document.getElementById('status');if(el){el.style.display='inline-flex';el.textContent=msg}}catch(e){}};
+  const report=(msg)=>{try{const el=document.getElementById('deviceHistoryStatus'),cluster=document.getElementById('statusCluster');if(el){el.style.display='inline-flex';el.textContent=msg}if(cluster)cluster.style.display='flex'}catch(e){}};
   let localClear=false;
   try{const get=Storage.prototype.__catNativeGet||Storage.prototype.getItem;localClear=get.call(window.localStorage,'cat_history')===null&&get.call(window.localStorage,'cat_history_backup')===null}catch(e){}
   if(!window.indexedDB){report(localClear?'Device History check: localStorage clear; IndexedDB unavailable':'Device History check incomplete');return}
