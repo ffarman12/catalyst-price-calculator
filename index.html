@@ -2757,7 +2757,7 @@ const cataGraphMetricNames={pt:'Platinum (Pt)',pd:'Palladium (Pd)',rh:'Rhodium (
 function selectCataGraphMetric(key){
  if(!Object.prototype.hasOwnProperty.call(cataGraphMetricNames,key))return;
  cataGraphMetricKey=key;
- document.querySelectorAll('#market .marketLiveGrid [data-graph-metric]').forEach(el=>el.classList.toggle('cataGraphSelected',el.getAttribute('data-graph-metric')===key));
+ document.querySelectorAll('#market .marketLiveGrid [data-graph-metric]').forEach(el=>el.classList.remove('cataGraphSelected'));
  const label=$('cataGraphSelectedLabel');if(label)label.textContent=cataGraphMetricNames[key]+' graph';
  renderCataMarketGraph();
 }
