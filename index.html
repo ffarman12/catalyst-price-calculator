@@ -374,10 +374,33 @@ function clearDeviceHistoryCopies(){
   try{
     delete appDbCache.cat_history;delete appDbCache.cat_history_backup;
     delete appDbPending.cat_history;delete appDbPending.cat_history_backup;
-    if(appDb){const tx=appDb.transaction(APP_DB_STORE,'readwrite'),store=tx.objectStore(APP_DB_STORE);store.delete('cat_history');store.delete('cat_history_backup')}
+    if(appDb){const tx=appDb.transaction(APP_DB_STORE,'readwrite'),store=tx.objectStore(APP_DB_STORE);store.delete('cat_history');store.delete('cat_history_backup');tx.oncomplete=()=>verifyDeviceHistoryStorage();tx.onerror=()=>verifyDeviceHistoryStorage()}else{verifyDeviceHistoryStorage()}
   }catch(e){}
 }
-function initIndexedDBStorage(){if(!window.indexedDB){clearDeviceHistoryCopies();return}try{const req=indexedDB.open(APP_DB_NAME,APP_DB_VERSION);req.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(APP_DB_STORE))db.createObjectStore(APP_DB_STORE)};req.onsuccess=e=>{appDb=e.target.result;const tx=appDb.transaction(APP_DB_STORE,'readonly'),store=tx.objectStore(APP_DB_STORE),all=[];store.openCursor().onsuccess=ev=>{const c=ev.target.result;if(c){all.push([String(c.key),String(c.value)]);c.continue()}};tx.oncomplete=()=>{clearDeviceHistoryCopies();if(all.length){all.forEach(([k,v])=>{if(k==='cat_history'||k==='cat_history_backup')return;appDbCache[k]=v})}else{const ls=window.localStorage,nativeGet=Storage.prototype.__catNativeGet;for(let i=0;i<ls.length;i++){const k=ls.key(i);if(k!==null&&k!=='cat_history'&&k!=='cat_history_backup'){const v=nativeGet.call(ls,k);appDbCache[k]=v;appDbWrite(k,v)}}}Object.keys(appDbPending).forEach(k=>{if(k==='cat_history'||k==='cat_history_backup')return;if(appDbPending[k]===null){delete appDbCache[k];appDbDelete(k)}else{appDbCache[k]=appDbPending[k];appDbWrite(k,appDbPending[k])}});if(typeof history!=='undefined'&&!window.__catalystCloudHistoryLoaded){
+function verifyDeviceHistoryStorage(){
+  const report=(msg)=>{try{const el=document.getElementById('status');if(el){el.style.display='inline-flex';el.textContent=msg}}catch(e){}};
+  let localClear=false;
+  try{const get=Storage.prototype.__catNativeGet||Storage.prototype.getItem;localClear=get.call(window.localStorage,'cat_history')===null&&get.call(window.localStorage,'cat_history_backup')===null}catch(e){}
+  if(!window.indexedDB){report(localClear?'Device History check: localStorage clear; IndexedDB unavailable':'Device History check incomplete');return}
+  try{
+    const req=indexedDB.open(APP_DB_NAME,APP_DB_VERSION);
+    req.onerror=()=>report('Device History check failed: IndexedDB could not open');
+    req.onsuccess=e=>{
+      const db=e.target.result;
+      try{
+        const tx=db.transaction(APP_DB_STORE,'readonly'),store=tx.objectStore(APP_DB_STORE);
+        const a=store.get('cat_history'),b=store.get('cat_history_backup');
+        tx.oncomplete=()=>{
+          const idbClear=(a.result===undefined&&b.result===undefined);
+          report(localClear&&idbClear?'Device History check: CLEAR (localStorage + IndexedDB)':'Device History check: NOT CLEAR — local copy detected');
+          try{db.close()}catch(_){}
+        };
+        tx.onerror=()=>report('Device History check failed: IndexedDB read error');
+      }catch(err){report('Device History check failed: '+String(err&&err.message||err))}
+    };
+  }catch(e){report('Device History check failed')}
+}
+function initIndexedDBStorage(){if(!window.indexedDB){clearDeviceHistoryCopies();verifyDeviceHistoryStorage();return}try{const req=indexedDB.open(APP_DB_NAME,APP_DB_VERSION);req.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(APP_DB_STORE))db.createObjectStore(APP_DB_STORE)};req.onsuccess=e=>{appDb=e.target.result;const tx=appDb.transaction(APP_DB_STORE,'readonly'),store=tx.objectStore(APP_DB_STORE),all=[];store.openCursor().onsuccess=ev=>{const c=ev.target.result;if(c){all.push([String(c.key),String(c.value)]);c.continue()}};tx.oncomplete=()=>{clearDeviceHistoryCopies();if(all.length){all.forEach(([k,v])=>{if(k==='cat_history'||k==='cat_history_backup')return;appDbCache[k]=v})}else{const ls=window.localStorage,nativeGet=Storage.prototype.__catNativeGet;for(let i=0;i<ls.length;i++){const k=ls.key(i);if(k!==null&&k!=='cat_history'&&k!=='cat_history_backup'){const v=nativeGet.call(ls,k);appDbCache[k]=v;appDbWrite(k,v)}}}Object.keys(appDbPending).forEach(k=>{if(k==='cat_history'||k==='cat_history_backup')return;if(appDbPending[k]===null){delete appDbCache[k];appDbDelete(k)}else{appDbCache[k]=appDbPending[k];appDbWrite(k,appDbPending[k])}});if(typeof history!=='undefined'&&!window.__catalystCloudHistoryLoaded){
   try{
     let storedHistory=safeStoreGet('cat_history',[]);
     const backupHistory=safeStoreGet('cat_history_backup',[]);
@@ -397,7 +420,7 @@ function initIndexedDBStorage(){if(!window.indexedDB){clearDeviceHistoryCopies()
     const historyWaitingForSearch=!!(historyView&&historyView.classList.contains('active')&&historySearchInputEl&&!String(historySearchInputEl.value||'').trim());
     if(!historyWaitingForSearch)renderHistory();
   }catch(ignore){}
-}};};req.onerror=()=>{clearDeviceHistoryCopies()};req.onblocked=()=>{clearDeviceHistoryCopies()}}catch(e){}}
+}};};req.onerror=()=>{clearDeviceHistoryCopies();verifyDeviceHistoryStorage()};req.onblocked=()=>{clearDeviceHistoryCopies();verifyDeviceHistoryStorage()}}catch(e){}}
 try{Storage.prototype.__catNativeGet=Storage.prototype.getItem;Storage.prototype.__catNativeSet=Storage.prototype.setItem;Storage.prototype.__catNativeRemove=Storage.prototype.removeItem;Storage.prototype.getItem=function(key){if(this===window.localStorage&&(String(key)==='cat_history'||String(key)==='cat_history_backup'))return null;if(this===window.localStorage&&Object.prototype.hasOwnProperty.call(appDbCache,String(key)))return appDbCache[String(key)];return Storage.prototype.__catNativeGet.call(this,key)};Storage.prototype.setItem=function(key,value){if(this===window.localStorage){const k=String(key),v=String(value);if(k==='cat_history'||k==='cat_history_backup'){return}appDbCache[k]=v;appDbPending[k]=v;appDbWrite(k,v);try{Storage.prototype.__catNativeSet.call(this,k,v)}catch(e){}return}return Storage.prototype.__catNativeSet.call(this,key,value)};Storage.prototype.removeItem=function(key){if(this===window.localStorage){const k=String(key);delete appDbCache[k];appDbPending[k]=null;appDbDelete(k);try{Storage.prototype.__catNativeRemove.call(this,k)}catch(e){}return}return Storage.prototype.__catNativeRemove.call(this,key)}}catch(e){}
 initIndexedDBStorage();
 /* REFRESH LOGOUT: after the custom storage layer hydrates, explicitly sign out the Supabase session and clear the persisted login flag. */
