@@ -244,13 +244,13 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
 
   <section id="market" class="view">
     <div class="card marketLiveCard"><div class="sectionTitle">Live Market</div><div class="marketLiveGrid"><div class="head">Metal / FX</div><div class="head">Live</div><div class="head">+ / −</div>
-      <div>Pt $/oz</div><div id="mptlive">—</div><div class="liveDelta" id="mptdelta">—</div>
-      <div>Pd $/oz</div><div id="mpdlive">—</div><div class="liveDelta" id="mpddelta">—</div>
-      <div>Rh $/oz</div><div id="mrhlive">—</div><div class="liveDelta" id="mrhdelta">—</div>
-      <div>USD/INR</div><div id="musdlive">—</div><div class="liveDelta" id="musddelta">—</div>
+      <div data-graph-metric="pt">Pt $/oz</div><div id="mptlive" data-graph-metric="pt">—</div><div class="liveDelta" id="mptdelta" data-graph-metric="pt">—</div>
+      <div data-graph-metric="pd">Pd $/oz</div><div id="mpdlive" data-graph-metric="pd">—</div><div class="liveDelta" id="mpddelta" data-graph-metric="pd">—</div>
+      <div data-graph-metric="rh">Rh $/oz</div><div id="mrhlive" data-graph-metric="rh">—</div><div class="liveDelta" id="mrhdelta" data-graph-metric="rh">—</div>
+      <div data-graph-metric="usd">USD/INR</div><div id="musdlive" data-graph-metric="usd">—</div><div class="liveDelta" id="musddelta" data-graph-metric="usd">—</div>
     </div></div>
     <div class="card cataMarketGraphCard" id="cataMarketGraphCard">
-      <div class="cataMarketGraphHead"><select id="cataGraphMetric" aria-label="Graph metal" onchange="renderCataMarketGraph()"><option value="pt">Platinum (Pt)</option><option value="pd">Palladium (Pd)</option><option value="rh">Rhodium (Rh)</option><option value="usd" selected>USD/INR</option></select></div>
+      <div class="cataMarketGraphHead"><strong id="cataGraphSelectedLabel">USD/INR graph</strong></div>
       <div class="cataMarketGraphPlot" id="cataMarketGraphPlot"><div class="cataGraphEmpty">Market records will appear here as scheduled snapshots are saved.</div></div>
       <div class="cataMarketGraphRanges"><button type="button" class="active" data-range="7" onclick="setCataGraphRange(7,this)">1 Week</button><button type="button" data-range="90" onclick="setCataGraphRange(90,this)">3 Months</button><button type="button" data-range="730" onclick="setCataGraphRange(730,this)">2 Years</button></div>
       <div id="cataGraphStatus" class="cataGraphStatus">Recording schedule: 10:00 · 14:00 · 18:00 · 22:00 IST</div>
@@ -2732,7 +2732,7 @@ async function showCloudData(){
 
 /* Cata-Logic Market Graph card */
 #market .cataMarketGraphCard{display:block!important;box-sizing:border-box!important;flex:0 0 auto!important;width:calc(100% - 28px)!important;max-width:calc(100% - 28px)!important;margin:10px 14px 10px!important;padding:14px!important;border:1px solid #aebbd3!important;border-radius:24px!important;background:rgba(255,255,255,.96)!important;box-shadow:0 3px 12px rgba(52,78,130,.10)!important;color:#26364c!important;min-height:280px!important;overflow:hidden!important}
-.cataMarketGraphHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.cataMarketGraphHead strong{font-size:18px;color:#245da7}.cataMarketGraphHead select{min-width:0;max-width:58%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:14px;background:#f8faff;color:#344054;font-size:14px}
+.cataMarketGraphHead{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:10px}.cataMarketGraphHead strong{font-size:18px;color:#245da7}#market .marketLiveGrid [data-graph-metric]{cursor:pointer;touch-action:manipulation}#market .marketLiveGrid [data-graph-metric].cataGraphSelected{background:#e8ebff!important;border-radius:8px!important;color:#244bb9!important;font-weight:800!important}
 .cataMarketGraphPlot{height:180px;position:relative;overflow:hidden}.cataMarketGraphPlot svg{width:100%;height:100%;display:block}.cataGraphEmpty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:14px;color:#8792a3;font-size:13px}
 .cataMarketGraphRanges{display:flex;gap:4px;background:#e8ebff;border-radius:18px;padding:4px;margin-top:8px}.cataMarketGraphRanges button{flex:1;border:0;border-radius:14px;padding:9px 3px;background:transparent;color:#425274;font-weight:700;font-size:13px}.cataMarketGraphRanges button.active{background:#465cf5;color:white}.cataGraphStatus{margin-top:8px;font-size:11px;color:#7b8798;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Approved isolated colour update: Manual Market card only. */
@@ -2740,14 +2740,22 @@ async function showCloudData(){
 </style>
 <script>
 /* Graph-only state and rendering. Reads scheduled snapshots; does not touch converter History. */
-let cataGraphDays=7,cataGraphRows=[];
+let cataGraphDays=7,cataGraphRows=[],cataGraphMetricKey='usd';
+const cataGraphMetricNames={pt:'Platinum (Pt)',pd:'Palladium (Pd)',rh:'Rhodium (Rh)',usd:'USD/INR'};
+function selectCataGraphMetric(key){
+ if(!Object.prototype.hasOwnProperty.call(cataGraphMetricNames,key))return;
+ cataGraphMetricKey=key;
+ document.querySelectorAll('#market .marketLiveGrid [data-graph-metric]').forEach(el=>el.classList.toggle('cataGraphSelected',el.getAttribute('data-graph-metric')===key));
+ const label=$('cataGraphSelectedLabel');if(label)label.textContent=cataGraphMetricNames[key]+' graph';
+ renderCataMarketGraph();
+}
 function setCataGraphRange(days,btn){cataGraphDays=days;document.querySelectorAll('.cataMarketGraphRanges button').forEach(b=>b.classList.toggle('active',b===btn));renderCataMarketGraph()}
 async function loadCataMarketGraph(){
  try{const sb=getEditorSupabase();if(!sb)return;const since=new Date(Date.now()-730*86400000).toISOString().slice(0,10);const {data,error}=await sb.from('market_history').select('slot_date,slot_time,pt,pd,rh,usd,recorded_at').gte('slot_date',since).order('slot_date',{ascending:true}).order('slot_time',{ascending:true});if(error)throw error;cataGraphRows=data||[];renderCataMarketGraph();const st=$('cataGraphStatus');if(st)st.textContent=cataGraphRows.length+' saved snapshots · 10:00 · 14:00 · 18:00 · 22:00 IST'}catch(e){const st=$('cataGraphStatus');if(st)st.textContent='Market history will appear when scheduled records are available.'}
 }
 function renderCataMarketGraph(){
- const plot=$('cataMarketGraphPlot'),metric=$('cataGraphMetric');if(!plot||!metric)return;
- const key=metric.value,now=new Date(),cutoff=new Date(now.getTime()-cataGraphDays*86400000),rows=cataGraphRows.filter(r=>new Date(r.slot_date+'T00:00:00')>=new Date(cutoff.toISOString().slice(0,10)));
+ const plot=$('cataMarketGraphPlot');if(!plot)return;
+ const key=cataGraphMetricKey,now=new Date(),cutoff=new Date(now.getTime()-cataGraphDays*86400000),rows=cataGraphRows.filter(r=>new Date(r.slot_date+'T00:00:00')>=new Date(cutoff.toISOString().slice(0,10)));
  if(!rows.length){plot.innerHTML='<div class="cataGraphEmpty">Graph is ready. Saved market records will be plotted here; scheduled history starts with the first saved snapshot.</div>';return}
  const vals=rows.map(r=>Number(r[key])).filter(v=>Number.isFinite(v)&&v>0);if(!vals.length){plot.innerHTML='<div class="cataGraphEmpty">No values for this selection yet.</div>';return}
  const w=600,h=180,left=42,right=10,top=12,bottom=24,min=Math.min(...vals),max=Math.max(...vals),pad=(max-min)*.12||Math.max(max*.005,.01),lo=min-pad,hi=max+pad;
@@ -2758,7 +2766,12 @@ function renderCataMarketGraph(){
  const label=r=>String(r.slot_date).slice(5)+' '+String(r.slot_time).slice(0,5);
  plot.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" role="img" aria-label="Saved market price history">'+grid+'<path d="'+area+'" fill="'+color+'" opacity=".28"/><path d="'+path+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'+pts.map(p=>'<circle cx="'+p.x+'" cy="'+p.y+'" r="2.8" fill="'+color+'"><title>'+label(p.r)+': '+p.v.toFixed(2)+'</title></circle>').join('')+'<text x="'+left+'" y="'+(h-5)+'" fill="#8b95a4" font-size="10">'+label(pts[0].r)+'</text><text x="'+(w-right)+'" y="'+(h-5)+'" text-anchor="end" fill="#8b95a4" font-size="10">'+label(pts[pts.length-1].r)+'</text></svg>';
 }
-document.addEventListener('DOMContentLoaded',loadCataMarketGraph);
+document.addEventListener('DOMContentLoaded',function(){
+ const grid=document.querySelector('#market .marketLiveGrid');
+ if(grid)grid.addEventListener('click',function(event){const target=event.target.closest('[data-graph-metric]');if(target&&grid.contains(target))selectCataGraphMetric(target.getAttribute('data-graph-metric'))});
+ selectCataGraphMetric(cataGraphMetricKey);
+ loadCataMarketGraph();
+});
 </script>
 </body></html>
 
