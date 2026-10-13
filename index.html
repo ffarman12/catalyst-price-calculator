@@ -1534,8 +1534,15 @@ async function showCloudData(){
          data can never hide existing Cloud entries. Only migrate local data when Cloud is empty. */
       const loaded=await loadCloudHistory();
       if(loaded){cloudStatus('Cloud Master synced');return true;}
-      const migrated=await migrateLocalHistory();
-      if(migrated){const loadedAfterMigration=await loadCloudHistory();if(loadedAfterMigration){cloudStatus('Cloud Master synced');return true;}}
+      const cloudCountBeforeMigration=await loadCloudEntryCount();
+      const migrationMarker=localStorage.getItem(CLOUD_MIGRATION);
+      /* Never auto-migrate local rows into an already-populated Cloud workspace.
+         This avoids duplicate uploads when local rows lack _cloud_id. History Search
+         remains owned by its separate direct-search controller and is not modified. */
+      if(cloudCountBeforeMigration===0 && migrationMarker!=='done'){
+        const migrated=await migrateLocalHistory();
+        if(migrated){const loadedAfterMigration=await loadCloudHistory();if(loadedAfterMigration){cloudStatus('Cloud Master synced');return true;}}
+      }
       return false;
     }catch(e){console.error('Cloud Master bootstrap failed',e);cloudStatus('Cloud sync unavailable — local data kept');return false;}
     finally{cloudBusy=false;}
@@ -2497,8 +2504,15 @@ async function showCloudData(){
          data can never hide existing Cloud entries. Only migrate local data when Cloud is empty. */
       const loaded=await loadCloudHistory();
       if(loaded){cloudStatus('Cloud Master synced');return true;}
-      const migrated=await migrateLocalHistory();
-      if(migrated){const loadedAfterMigration=await loadCloudHistory();if(loadedAfterMigration){cloudStatus('Cloud Master synced');return true;}}
+      const cloudCountBeforeMigration=await loadCloudEntryCount();
+      const migrationMarker=localStorage.getItem(CLOUD_MIGRATION);
+      /* Never auto-migrate local rows into an already-populated Cloud workspace.
+         This avoids duplicate uploads when local rows lack _cloud_id. History Search
+         remains owned by its separate direct-search controller and is not modified. */
+      if(cloudCountBeforeMigration===0 && migrationMarker!=='done'){
+        const migrated=await migrateLocalHistory();
+        if(migrated){const loadedAfterMigration=await loadCloudHistory();if(loadedAfterMigration){cloudStatus('Cloud Master synced');return true;}}
+      }
       return false;
     }catch(e){console.error('Cloud Master bootstrap failed',e);cloudStatus('Cloud sync unavailable — local data kept');return false;}
     finally{cloudBusy=false;}
