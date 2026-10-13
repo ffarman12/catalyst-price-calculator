@@ -240,6 +240,18 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
         <div id="marketAlertStatus" class="note" role="status" aria-live="polite" style="margin-top:12px">Set minimum and maximum Pt, Pd and Rh prices to receive alerts when rates move outside your range.</div>
       </div>
     </div>
+    <div class="card" id="previousMarketLookupCard" style="max-width:760px;margin:14px auto 0">
+      <div class="sectionTitle">Previous Market Records</div>
+      <div class="note" style="margin:0 0 14px">Choose a year, date and scheduled time to look up a saved market snapshot. Times are in IST.</div>
+      <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+        <div class="field"><label for="previousMarketYear">Year</label><select id="previousMarketYear" aria-label="Market record year"></select></div>
+        <div class="field"><label for="previousMarketDate">Date</label><input id="previousMarketDate" type="date" aria-label="Market record date"></div>
+        <div class="field full"><label for="previousMarketTime">Time (IST)</label><select id="previousMarketTime" aria-label="Market record time"><option value="10:00:00">10:00 AM</option><option value="14:00:00">2:00 PM</option><option value="18:00:00">6:00 PM</option><option value="22:00:00">10:00 PM</option></select></div>
+      </div>
+      <button id="findPreviousMarketRecordBtn" class="btn primary" type="button" style="width:100%;margin-top:14px" onclick="findPreviousMarketRecord()">Find Previous Record</button>
+      <div id="previousMarketRecordStatus" class="note" role="status" aria-live="polite" style="margin-top:12px">Select a date and time to search saved market records.</div>
+      <div id="previousMarketRecordResult" style="display:none;margin-top:14px"></div>
+    </div>
   </section>
 
   <section id="market" class="view">
@@ -2966,5 +2978,52 @@ document.addEventListener('DOMContentLoaded',function(){
   else bind();
   setTimeout(bind,100);
   setTimeout(bind,500);
+})();
+</script>
+<script>
+/* Notification page: read-only lookup of saved market snapshots. Does not alter market rates or converter History. */
+(function(){
+ const minDate=()=>{const d=new Date();d.setFullYear(d.getFullYear()-2);return d};
+ const localDateString=d=>{const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)};
+ function setStatus(message){const el=document.getElementById('previousMarketRecordStatus');if(el)el.textContent=message}
+ function syncYearFromDate(){const date=document.getElementById('previousMarketDate'),year=document.getElementById('previousMarketYear');if(date&&year&&date.value)year.value=date.value.slice(0,4)}
+ function applyYear(){
+  const year=document.getElementById('previousMarketYear'),date=document.getElementById('previousMarketDate');if(!year||!date)return;
+  const today=new Date(),min=minDate(),y=Number(year.value);
+  const first=new Date(y,0,1),last=new Date(y,11,31);
+  const low=first<min?min:first,high=last>today?today:last;
+  date.min=localDateString(min);date.max=localDateString(today);
+  if(low>high){date.value='';return}
+  const current=new Date(date.value+'T12:00:00');
+  if(!date.value||current<low||current>high)date.value=localDateString(low);
+  setStatus('Choose the saved snapshot time for '+year.value+'. Times are in IST.');
+ }
+ function init(){
+  const year=document.getElementById('previousMarketYear'),date=document.getElementById('previousMarketDate');if(!year||!date||year.dataset.ready)return;year.dataset.ready='1';
+  const now=new Date(),min=minDate();date.min=localDateString(min);date.max=localDateString(now);date.value=localDateString(now);
+  for(let y=now.getFullYear();y>=min.getFullYear();y--){const opt=document.createElement('option');opt.value=String(y);opt.textContent=String(y);year.appendChild(opt)}
+  year.value=String(now.getFullYear());year.addEventListener('change',applyYear);date.addEventListener('change',syncYearFromDate);
+ }
+ window.findPreviousMarketRecord=async function(){
+  const date=document.getElementById('previousMarketDate'),year=document.getElementById('previousMarketYear'),time=document.getElementById('previousMarketTime'),button=document.getElementById('findPreviousMarketRecordBtn'),result=document.getElementById('previousMarketRecordResult');
+  if(!date||!year||!time||!result)return;
+  const selectedDate=date.value,selectedTime=time.value;
+  if(!selectedDate||selectedDate.slice(0,4)!==year.value){setStatus('Please choose a valid date for the selected year.');return}
+  if(selectedDate<localDateString(minDate())||selectedDate>localDateString(new Date())){setStatus('Choose a date within the last 2 years.');return}
+  if(button){button.disabled=true;button.textContent='Searching…'}
+  result.style.display='none';result.innerHTML='';setStatus('Searching saved market records…');
+  try{
+   const sb=typeof getEditorSupabase==='function'?getEditorSupabase():null;if(!sb)throw new Error('Cloud connection is not ready.');
+   const {data,error}=await sb.from('market_history').select('slot_date,slot_time,pt,pd,rh,usd,recorded_at').eq('slot_date',selectedDate).eq('slot_time',selectedTime).limit(1);
+   if(error)throw error;
+   if(!data||!data.length){setStatus('No saved market record was found for this date and time. Records are available only from the day snapshot recording starts.');return}
+   const row=data[0],fmt=n=>Number(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+   const stamp=row.recorded_at?new Date(row.recorded_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',dateStyle:'medium',timeStyle:'short'}):'Not available';
+   result.innerHTML='<div style="border:1px solid #cbd5e1;border-radius:14px;padding:14px;background:#f8fafc;color:#26364c"><div style="font-weight:800;font-size:16px;margin-bottom:10px">Saved Market Snapshot</div><div style="font-size:12px;color:#64748b;margin-bottom:12px">'+row.slot_date+' · '+String(row.slot_time).slice(0,5)+' IST</div><div style="display:grid;grid-template-columns:1fr auto;gap:10px;font-size:14px"><div>Pt $/oz</div><strong>'+fmt(row.pt)+'</strong><div>Pd $/oz</div><strong>'+fmt(row.pd)+'</strong><div>Rh $/oz</div><strong>'+fmt(row.rh)+'</strong><div>USD/INR</div><strong>'+fmt(row.usd)+'</strong></div><div style="font-size:11px;color:#64748b;margin-top:12px">Saved at: '+stamp+' IST</div></div>';
+   result.style.display='block';setStatus('Saved record found. This is a read-only view; market values were not changed.');
+  }catch(e){console.error('Previous market record lookup failed',e);setStatus('Could not load the record: '+String(e&&e.message||e).slice(0,150))}
+  finally{if(button){button.disabled=false;button.textContent='Find Previous Record'}}
+ };
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
