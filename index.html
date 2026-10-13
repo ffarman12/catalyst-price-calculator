@@ -3141,3 +3141,23 @@ body.cataMarketKeyboardOpen #app{height:var(--cata-market-visible-height,100dvh)
  #market .marketDefaultsCard .row .btn{padding:4px 3px!important;font-size:10px!important}
 }
 </style>
+
+<style>
+/* CATA MARKET GRAPH SPACING BALANCE: remove only marked excess space while restoring usable graph height. */
+#market.view.active{gap:8px!important;padding-top:4px!important;padding-bottom:4px!important}
+#market .marketLiveCard{margin:0 14px!important}
+#market .cataMarketGraphCard{flex:0 0 220px!important;height:220px!important;min-height:220px!important;max-height:220px!important;margin:0 14px!important;padding:6px 10px!important;border-radius:20px!important}
+#market .cataMarketGraphHead{margin:0 0 2px!important;padding:0!important;min-height:22px!important}
+#market .cataMarketGraphHead strong{font-size:16px!important;line-height:22px!important}
+#market .cataMarketGraphPlot{height:126px!important;min-height:126px!important;margin:0!important}
+#market .cataGraphEmpty{padding:4px 8px!important;font-size:12px!important;line-height:1.25!important}
+#market .cataMarketGraphRanges{margin:4px 0 0!important;padding:3px!important;gap:3px!important}
+#market .cataMarketGraphRanges button{padding:6px 2px!important;font-size:12px!important;line-height:16px!important}
+#market .cataGraphStatus{margin:3px 0 0!important;padding:0!important;font-size:10px!important;line-height:12px!important}
+#market .marketDefaultsCard{margin:0 14px 2px!important}
+@media(max-height:760px){
+ #market .cataMarketGraphCard{flex-basis:190px!important;height:190px!important;min-height:190px!important;max-height:190px!important;padding:5px 9px!important}
+ #market .cataMarketGraphPlot{height:98px!important;min-height:98px!important}
+ #market .cataMarketGraphRanges button{padding:4px 2px!important;font-size:11px!important}
+}
+</style>
