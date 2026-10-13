@@ -3109,3 +3109,35 @@ body.cataMarketKeyboardOpen #app{height:var(--cata-market-visible-height,100dvh)
  }catch(_){}
 })();
 </script>
+
+<style>
+/* CATA MARKET THREE-CARD SINGLE-VIEW FIT: scoped layout-only adjustments. */
+#market.view.active{gap:0!important;padding-top:4px!important;padding-bottom:2px!important}
+#market .marketLiveCard{flex:0 0 138px!important;height:138px!important;min-height:138px!important;max-height:138px!important;padding:4px 8px!important;margin-top:0!important;margin-bottom:4px!important}
+#market .marketLiveGrid{height:128px!important;grid-template-rows:repeat(4,32px)!important;grid-auto-rows:32px!important}
+#market .marketLiveGrid>div{height:32px!important;max-height:32px!important;padding:3px 6px!important;font-size:15px!important}
+#market .cataMarketGraphCard{flex:0 0 154px!important;height:154px!important;min-height:154px!important;max-height:154px!important;padding:8px 10px!important;margin:0 14px 4px!important;border-radius:20px!important}
+#market .cataMarketGraphHead{margin-bottom:2px!important;min-height:20px!important}
+#market .cataMarketGraphHead strong{font-size:16px!important;line-height:20px!important}
+#market .cataMarketGraphPlot{height:66px!important;min-height:66px!important}
+#market .cataGraphEmpty{padding:4px 8px!important;font-size:11px!important;line-height:1.2!important}
+#market .cataMarketGraphRanges{margin-top:3px!important;padding:3px!important;border-radius:14px!important;gap:3px!important}
+#market .cataMarketGraphRanges button{padding:6px 2px!important;font-size:12px!important;line-height:16px!important}
+#market .cataGraphStatus{margin-top:3px!important;font-size:9px!important;line-height:12px!important}
+#market .marketDefaultsCard{flex:0 0 auto!important;padding:5px 8px!important;margin:0 14px 2px!important;border-radius:16px!important}
+#market .marketDefaultsCard .market>div{padding:1px 3px!important;line-height:18px!important}
+#market .marketDefaultsCard .market input{padding:3px 5px!important;height:25px!important;min-height:25px!important;font-size:13px!important;border-radius:9px!important}
+#market .marketDefaultsCard .row{margin-top:4px!important;gap:5px!important}
+#market .marketDefaultsCard .row .btn{padding:5px 4px!important;font-size:11px!important;line-height:15px!important;white-space:nowrap!important}
+#market .marketDefaultsCard .note{margin-top:3px!important;font-size:9px!important;line-height:12px!important}
+@media(max-height:760px){
+ #market .marketLiveCard{flex-basis:126px!important;height:126px!important;min-height:126px!important;max-height:126px!important}
+ #market .marketLiveGrid{height:116px!important;grid-template-rows:repeat(4,29px)!important;grid-auto-rows:29px!important}
+ #market .marketLiveGrid>div{height:29px!important;max-height:29px!important;font-size:14px!important}
+ #market .cataMarketGraphCard{flex-basis:136px!important;height:136px!important;min-height:136px!important;max-height:136px!important;padding:6px 9px!important}
+ #market .cataMarketGraphPlot{height:52px!important;min-height:52px!important}
+ #market .cataMarketGraphRanges button{padding:4px 2px!important;font-size:11px!important}
+ #market .marketDefaultsCard .market input{height:22px!important;min-height:22px!important;padding:2px 4px!important}
+ #market .marketDefaultsCard .row .btn{padding:4px 3px!important;font-size:10px!important}
+}
+</style>
