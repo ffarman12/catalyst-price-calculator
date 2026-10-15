@@ -499,7 +499,43 @@ function repairSavedPrices(){try{
 function syncMarket(){['pt','pd','rh'].forEach(k=>{ $('m'+k).value=Number(manualMarket[k]).toFixed(2); $('m'+k+'used').textContent=Number(market[k]).toFixed(2) });$('musd').value=Number(manualMarket.usd).toFixed(2);$('musdused').textContent=Number(market.usd-3).toFixed(2);if($('rptppm')&&$('rw'))refineCalc()}
 function adjustLiveMarket(key,delta){const current=Number(market[key])||0;market={...market,[key]:Math.max(0,current+delta)};localStorage.setItem('cat_market',JSON.stringify(market));repairSavedPrices();syncMarket();if($('m'+key+'live'))$('m'+key+'live').textContent=Number(market[key]).toFixed(2);$('marketStatus').textContent='Adjusted Market';if($('rptppm')&&$('rw'))refineCalc();renderHistory()}
 function syncSettings(){Object.keys(settings).forEach(k=>{if($(k))$(k).value=settings[k]})}
-async function saveMarket(){manualMarket={pt:+$('mpt').value||defaults.pt,pd:+$('mpd').value||defaults.pd,rh:+$('mrh').value||defaults.rh,usd:+$('musd').value||defaults.usd};localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));let cloudSaved=false,cloudError='';try{const sb=getEditorSupabase();if(!sb)throw new Error('Supabase connection is not ready.');const {error}=await sb.from('market_manual_state').upsert({id:1,pt:manualMarket.pt,pd:manualMarket.pd,rh:manualMarket.rh,usd:manualMarket.usd,updated_at:new Date().toISOString()},{onConflict:'id'});if(error)throw error;const {data:verifyData,error:verifyError}=await sb.from('market_manual_state').select('pt,pd,rh,usd,updated_at').eq('id',1).maybeSingle();if(verifyError)throw verifyError;if(!verifyData||Number(verifyData.pt)!==Number(manualMarket.pt)||Number(verifyData.pd)!==Number(manualMarket.pd)||Number(verifyData.rh)!==Number(manualMarket.rh)||Number(verifyData.usd)!==Number(manualMarket.usd))throw new Error('Cloud verification failed: saved values do not match manual values.');cloudSaved=true;}catch(e){cloudError=String(e&&e.message||e);console.warn('Market cloud save failed',e);}$('cataGraphStatus')&&($('cataGraphStatus').textContent=cloudSaved?'Cloud saved: Pt, Pd, Rh and USD/INR · automatic snapshots at 10:00, 14:00, 18:00 and 22:00 IST.':'Local save only; Cloud save failed: '+cloudError.slice(0,120));market={...market,...manualMarket};localStorage.setItem('cat_market',JSON.stringify(market));repairSavedPrices();syncMarket();$('mpt').value=Number(manualMarket.pt).toFixed(2);$('mpd').value=Number(manualMarket.pd).toFixed(2);$('mrh').value=Number(manualMarket.rh).toFixed(2);$('musd').value=Number(manualMarket.usd).toFixed(2);renderHistory();const lastLive=safeStoreGet('cat_last_live_rates',null);if(lastLive){$('marketStatus').textContent=lastLive.rh===null||lastLive.rh===undefined?'Partial Live Market — Rh Manual':'Live Market';}else{$('marketStatus').textContent='Manual Market';}if($('rptppm')&&$('rw'))refineCalc()}
+async function saveMarket(){
+  manualMarket={pt:+$('mpt').value||defaults.pt,pd:+$('mpd').value||defaults.pd,rh:+$('mrh').value||defaults.rh,usd:+$('musd').value||defaults.usd};
+  localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));
+  let cloudSaved=false,cloudError='';
+  try{
+    const sb=getEditorSupabase();
+    if(!sb)throw new Error('Supabase connection is not ready.');
+    const {data:userData,error:userError}=await sb.auth.getUser();
+    if(userError)throw new Error('Login session check failed: '+userError.message);
+    if(!userData||!userData.user)throw new Error('No active Supabase login session. Log in again, then press Save Manual.');
+    const payload={id:1,pt:manualMarket.pt,pd:manualMarket.pd,rh:manualMarket.rh,usd:manualMarket.usd,updated_at:new Date().toISOString()};
+    const {error:saveError}=await sb.from('market_manual_state').upsert(payload,{onConflict:'id'});
+    if(saveError)throw new Error('Cloud write rejected: '+saveError.message);
+    const {data:verifyData,error:verifyError}=await sb.from('market_manual_state').select('pt,pd,rh,usd,updated_at').eq('id',1).maybeSingle();
+    if(verifyError)throw new Error('Cloud read-back failed: '+verifyError.message);
+    if(!verifyData||Number(verifyData.pt)!==Number(manualMarket.pt)||Number(verifyData.pd)!==Number(manualMarket.pd)||Number(verifyData.rh)!==Number(manualMarket.rh)||Number(verifyData.usd)!==Number(manualMarket.usd))throw new Error('Cloud verification failed: saved values do not match all four manual values.');
+    cloudSaved=true;
+  }catch(e){
+    cloudError=String(e&&e.message||e);
+    console.warn('Market cloud save failed',e);
+  }
+  if($('cataGraphStatus'))$('cataGraphStatus').textContent=cloudSaved
+    ?'Cloud verified: Pt, Pd, Rh and USD/INR saved. Scheduled snapshots use these Cloud values at 10:00, 14:00, 18:00 and 22:00 IST.'
+    :'NOT saved to Cloud — '+cloudError.slice(0,180);
+  market={...market,...manualMarket};
+  localStorage.setItem('cat_market',JSON.stringify(market));
+  repairSavedPrices();syncMarket();
+  $('mpt').value=Number(manualMarket.pt).toFixed(2);
+  $('mpd').value=Number(manualMarket.pd).toFixed(2);
+  $('mrh').value=Number(manualMarket.rh).toFixed(2);
+  $('musd').value=Number(manualMarket.usd).toFixed(2);
+  renderHistory();
+  const lastLive=safeStoreGet('cat_last_live_rates',null);
+  if(lastLive){$('marketStatus').textContent=lastLive.rh===null||lastLive.rh===undefined?'Partial Live Market — Rh Manual':'Live Market';}
+  else{$('marketStatus').textContent='Manual Market';}
+  if($('rptppm')&&$('rw'))refineCalc();
+}
 function saveSettings(){['spt','spd','srh','days','interest','treatment','rpt','rpd','rrh'].forEach(id=>{settings[{spt:'spt',spd:'spd',srh:'srh',days:'days',interest:'interest',treatment:'treatment',rpt:'rpt',rpd:'rpd',rrh:'rrh'}[id]]=$(id).value});settings.spt=+$('spt').value;settings.spd=+$('spd').value;settings.srh=+$('srh').value;settings.days=+$('days').value;settings.interest=+$('interest').value;settings.treatment=+$('treatment').value;settings.rpt=+$('rpt').value;settings.rpd=+$('rpd').value;settings.rrh=+$('rrh').value;localStorage.setItem('cat_settings',JSON.stringify(settings));repairSavedPrices();renderHistory();if($('rptppm')&&$('rw'))refineCalc();$('status').textContent='Settings saved';document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('market').classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='market'))}
 let bgRemovalModulePromise=null;
 let bgRemovalQueue=[];
