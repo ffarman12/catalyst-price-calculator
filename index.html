@@ -2024,22 +2024,26 @@ html body #app #historyDetailContent>div:nth-child(3)>div:first-child{
 /* Keep PPM details in normal flow so they remain visible after the PIN unlock. */
 html body #app .wrap #historyDetailContent [id^="detailPpm-"]{
   display:none;
-  position:static!important;
-  inset:auto!important;
+  position:absolute!important;
+  top:150px!important;
+  right:12px!important;
+  left:auto!important;
+  bottom:auto!important;
   transform:none!important;
-  transform-origin:initial!important;
+  transform-origin:top right!important;
   width:max-content!important;
   max-width:min(320px,calc(100vw - 48px))!important;
-  margin:8px 0 0 auto!important;
+  margin:0!important;
   padding:10px 12px!important;
   background:#fff!important;
   color:#17202a!important;
   border:1px solid #dfe4ea!important;
   border-radius:12px!important;
-  box-shadow:0 3px 12px #00000012!important;
+  box-shadow:0 4px 18px #00000030!important;
   font-size:12px!important;
   line-height:1.45!important;
-  z-index:30!important;
+  z-index:50!important;
+  pointer-events:auto!important;
 }
 html body #app .wrap #historyDetailContent [id^="detailPpm-"].ppmVisible{
   display:block!important;
