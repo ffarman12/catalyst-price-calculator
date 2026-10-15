@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v222-ppm-card-tap-close';
+const CACHE='catalyst-calculator-v223-ppm-card-below-buttons';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
