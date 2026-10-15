@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v189-actions-normal-flow';
+const CACHE='catalyst-calculator-v191-actions-normal-flow';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
