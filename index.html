@@ -3285,3 +3285,31 @@ html body #app .wrap #market.view.active .marketLiveCard,
 html body #app .wrap #market.view.active #cataMarketGraphCard,
 html body #app .wrap #market.view.active .marketDefaultsCard{margin-top:0!important;margin-bottom:0!important;flex-shrink:0!important;}
 </style>
+<style id="cata-market-layout-correction-final">
+/* One final, authoritative layout rule: equal card gaps and fully visible snapshot status. */
+html body #app .wrap:has(#market.view.active)>.top{margin-bottom:8px!important;}
+html body #app .wrap #market.view.active{
+  display:flex!important;flex-direction:column!important;justify-content:flex-start!important;
+  align-items:stretch!important;gap:8px!important;row-gap:8px!important;
+  padding:0 0 8px!important;box-sizing:border-box!important;
+}
+html body #app .wrap #market.view.active .marketLiveCard,
+html body #app .wrap #market.view.active #cataMarketGraphCard,
+html body #app .wrap #market.view.active .marketDefaultsCard,
+html body #app .wrap #market.view.active .marketLiveCard+.card{
+  margin:0 14px!important;flex-shrink:0!important;
+}
+html body #app .wrap #market.view.active #cataMarketGraphCard{
+  box-sizing:border-box!important;flex:0 0 240px!important;height:240px!important;
+  min-height:240px!important;max-height:240px!important;padding:6px 10px!important;
+  overflow:visible!important;
+}
+html body #app .wrap #market.view.active #cataMarketGraphCard .cataMarketGraphHead{margin:0 0 2px!important;min-height:20px!important;}
+html body #app .wrap #market.view.active #cataMarketGraphCard .cataMarketGraphPlot{height:132px!important;min-height:132px!important;max-height:132px!important;}
+html body #app .wrap #market.view.active #cataMarketGraphCard .cataMarketGraphRanges{margin:0!important;padding:3px 0!important;}
+html body #app .wrap #market.view.active #cataMarketGraphCard #cataGraphStatus{
+ display:block!important;visibility:visible!important;white-space:normal!important;
+ overflow:visible!important;text-overflow:clip!important;line-height:15px!important;
+ font-size:10px!important;margin:2px 0 0!important;padding:0!important;min-height:15px!important;
+}
+</style>
