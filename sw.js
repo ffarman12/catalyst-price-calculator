@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v149-compact-market-graph';
+const CACHE='catalyst-calculator-v150-graph-208px';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
