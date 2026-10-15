@@ -3313,3 +3313,54 @@ html body #app .wrap #market.view.active #cataMarketGraphCard #cataGraphStatus{
  font-size:10px!important;margin:2px 0 0!important;padding:0!important;min-height:15px!important;
 }
 </style>
+<style id="cata-notification-fit-without-scroll">
+html body #app .wrap #notification.view.active{
+ display:flex!important;flex-direction:column!important;justify-content:flex-start!important;
+ gap:8px!important;padding:0 0 2px!important;overflow:hidden!important;
+}
+html body #app .wrap #notification.view.active>.card,
+html body #app .wrap #notification.view.active>#previousMarketLookupCard{
+ flex:0 0 auto!important;box-sizing:border-box!important;width:100%!important;max-width:100%!important;
+ margin:0!important;padding:8px 10px!important;border-radius:16px!important;
+}
+html body #app .wrap #notification.view.active .sectionTitle{
+ margin:0 0 5px!important;padding:0!important;font-size:15px!important;line-height:18px!important;
+}
+html body #app .wrap #notification.view.active #marketAlertEnabled{
+ width:46px!important;height:26px!important;
+}
+html body #app .wrap #notification.view.active #marketAlertFields{margin-top:8px!important;}
+html body #app .wrap #notification.view.active #marketAlertFields .grid{
+ gap:6px 8px!important;
+}
+html body #app .wrap #notification.view.active .field{gap:2px!important;min-width:0!important;}
+html body #app .wrap #notification.view.active input,
+html body #app .wrap #notification.view.active select{
+ min-height:32px!important;height:32px!important;padding:4px 8px!important;font-size:13px!important;
+}
+html body #app .wrap #notification.view.active #saveMarketAlertsBtn{
+ width:100%!important;margin:8px 0 0!important;padding:8px!important;min-height:34px!important;
+ letter-spacing:1px!important;font-size:13px!important;
+}
+html body #app .wrap #notification.view.active #marketAlertStatus{
+ margin-top:5px!important;font-size:10px!important;line-height:13px!important;
+}
+html body #app .wrap #notification.view.active #previousMarketLookupCard .note{
+ font-size:10px!important;line-height:13px!important;
+}
+html body #app .wrap #notification.view.active #previousMarketLookupCard .grid{
+ gap:6px 8px!important;
+}
+html body #app .wrap #notification.view.active #previousMarketLookupCard #findPreviousMarketRecordBtn{
+ margin-top:7px!important;min-height:34px!important;padding:8px!important;font-size:13px!important;
+}
+html body #app .wrap #notification.view.active #previousMarketRecordStatus{
+ margin-top:5px!important;font-size:10px!important;line-height:13px!important;
+}
+@media(max-height:760px){
+ html body #app .wrap #notification.view.active>.card,
+ html body #app .wrap #notification.view.active>#previousMarketLookupCard{padding:6px 8px!important}
+ html body #app .wrap #notification.view.active input,
+ html body #app .wrap #notification.view.active select{min-height:29px!important;height:29px!important}
+}
+</style>
