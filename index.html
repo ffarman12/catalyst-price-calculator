@@ -3272,15 +3272,16 @@ html body #app .wrap #market.view.active{gap:0!important;padding-top:0!important
 html body #app .wrap #market.view.active .marketLiveCard{margin-top:0!important;}
 </style>
 <style id="cata-market-graph-card-compact">
-html body #app .wrap #market.view.active #cataMarketGraphCard{box-sizing:border-box!important;flex:0 0 208px!important;height:208px!important;min-height:208px!important;max-height:208px!important;padding-top:4px!important;padding-bottom:4px!important;overflow:hidden!important;}
-html body #app .wrap #market.view.active #cataMarketGraphCard .cataMarketGraphHead{margin-bottom:0!important;min-height:20px!important;}
+html body #app .wrap #market.view.active #cataMarketGraphCard{box-sizing:border-box!important;flex:0 0 228px!important;height:228px!important;min-height:228px!important;max-height:228px!important;padding:5px 10px!important;overflow:hidden!important;}
+html body #app .wrap #market.view.active #cataMarketGraphCard .cataMarketGraphHead{margin:0 0 2px!important;min-height:20px!important;}
 html body #app .wrap #market.view.active #cataMarketGraphCard .cataMarketGraphPlot{height:136px!important;min-height:136px!important;max-height:136px!important;}
 html body #app .wrap #market.view.active #cataMarketGraphCard .cataMarketGraphRanges{margin-top:0!important;padding-top:3px!important;padding-bottom:3px!important;}
-html body #app .wrap #market.view.active #cataMarketGraphCard .cataMarketGraphNote{margin-top:1px!important;line-height:14px!important;}
+html body #app .wrap #market.view.active #cataMarketGraphCard #cataGraphStatus{display:block!important;visibility:visible!important;overflow:visible!important;white-space:normal!important;line-height:15px!important;margin-top:3px!important;min-height:15px!important;}
 </style>
 <style id="cata-market-equal-card-gaps">
-html body #app .wrap #market.view.active{display:flex!important;flex-direction:column!important;justify-content:flex-start!important;gap:8px!important;row-gap:8px!important;}
+html body #app .wrap:has(#market.view.active)>.top{margin-bottom:8px!important;}
+html body #app .wrap #market.view.active{display:flex!important;flex-direction:column!important;justify-content:space-between!important;gap:8px!important;row-gap:8px!important;padding-top:8px!important;padding-bottom:8px!important;box-sizing:border-box!important;}
 html body #app .wrap #market.view.active .marketLiveCard,
 html body #app .wrap #market.view.active #cataMarketGraphCard,
-html body #app .wrap #market.view.active .marketDefaultsCard{margin-top:0!important;margin-bottom:0!important;}
+html body #app .wrap #market.view.active .marketDefaultsCard{margin-top:0!important;margin-bottom:0!important;flex-shrink:0!important;}
 </style>
