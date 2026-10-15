@@ -1961,9 +1961,15 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeMarketP
 html body #app .wrap #historyDetailContent{
   display:grid!important;
   grid-template-columns:minmax(0,1fr) max-content!important;
-  align-items:start!important;
-  column-gap:8px!important;
+  align-items:stretch!important;
+  column-gap:0!important;
   row-gap:5px!important;
+}
+html body #app .wrap #historyDetailContent>div:first-child{
+  background:#fff!important;border-radius:10px 0 0 10px!important;
+}
+html body #app .wrap #historyDetailContent>div:nth-child(2){
+  background:#fff!important;border-radius:0 10px 10px 0!important;
 }
 html body #app .wrap #historyDetailContent>div:first-child{
   grid-column:1!important;grid-row:1!important;min-width:0!important;
