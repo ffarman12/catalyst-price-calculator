@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v201-ppm-overlay';
+const CACHE='catalyst-calculator-v202-ppm-overlay-outside-grid';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
