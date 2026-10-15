@@ -2801,10 +2801,11 @@ async function showCloudData(){
 /* Graph-only state and rendering. Reads scheduled snapshots; does not touch converter History. */
 let cataGraphDays=7,cataGraphRows=[],cataGraphMetricKey='usd';
 const cataGraphMetricNames={pt:'Platinum (Pt)',pd:'Palladium (Pd)',rh:'Rhodium (Rh)',usd:'USD/INR'};
+const cataGraphMetricColors={pt:'#e28a13',pd:'#84cc16',rh:'#3b82f6',usd:'#8b5cf6'};
 function selectCataGraphMetric(key){
  if(!Object.prototype.hasOwnProperty.call(cataGraphMetricNames,key))return;
  cataGraphMetricKey=key;
- document.querySelectorAll('#market .marketLiveGrid [data-graph-metric]').forEach(el=>el.classList.remove('cataGraphSelected'));
+ document.querySelectorAll('#market .marketLiveGrid [data-graph-metric]').forEach(el=>{el.classList.remove('cataGraphSelected');if(el.getAttribute('data-graph-metric')===key)el.classList.add('cataGraphSelected')});
  const label=$('cataGraphSelectedLabel');if(label)label.textContent=cataGraphMetricNames[key]+' graph';
  renderCataMarketGraph();
 }
@@ -2820,7 +2821,7 @@ function renderCataMarketGraph(){
  const w=600,h=180,left=42,right=10,top=12,bottom=24,min=Math.min(...vals),max=Math.max(...vals),pad=(max-min)*.12||Math.max(max*.005,.01),lo=min-pad,hi=max+pad;
  const pts=rows.map((r,i)=>{const v=Number(r[key]);return {x:left+(rows.length===1?(w-left-right)/2:i*(w-left-right)/(rows.length-1)),y:top+(hi-v)*(h-top-bottom)/(hi-lo),v,r}}).filter(p=>Number.isFinite(p.v)&&p.v>0);
  if(!pts.length)return;
- const path=pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' '),area=path+' L '+pts[pts.length-1].x+' '+(h-bottom)+' L '+pts[0].x+' '+(h-bottom)+' Z',color='#e28a13';
+ const path=pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' '),area=path+' L '+pts[pts.length-1].x+' '+(h-bottom)+' L '+pts[0].x+' '+(h-bottom)+' Z',color=cataGraphMetricColors[key]||'#e28a13';
  let grid='';for(let i=0;i<4;i++){const y=top+i*(h-top-bottom)/3,val=hi-i*(hi-lo)/3;grid+='<line x1="'+left+'" y1="'+y+'" x2="'+(w-right)+'" y2="'+y+'" stroke="#e1e6ed" stroke-width="1"/><text x="'+(left-6)+'" y="'+(y+4)+'" text-anchor="end" fill="#8b95a4" font-size="10">'+val.toFixed(2)+'</text>'}
  const label=r=>String(r.slot_date).slice(5)+' '+String(r.slot_time).slice(0,5);
  plot.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" role="img" aria-label="Saved market price history">'+grid+'<path d="'+area+'" fill="'+color+'" opacity=".28"/><path d="'+path+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'+pts.map(p=>'<circle cx="'+p.x+'" cy="'+p.y+'" r="2.8" fill="'+color+'"><title>'+label(p.r)+': '+p.v.toFixed(2)+'</title></circle>').join('')+'<text x="'+left+'" y="'+(h-5)+'" fill="#8b95a4" font-size="10">'+label(pts[0].r)+'</text><text x="'+(w-right)+'" y="'+(h-5)+'" text-anchor="end" fill="#8b95a4" font-size="10">'+label(pts[pts.length-1].r)+'</text></svg>';
