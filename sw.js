@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v219-ppm-card-guide-alignment';
+const CACHE='catalyst-calculator-v220-ppm-card-viewport-anchor';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
