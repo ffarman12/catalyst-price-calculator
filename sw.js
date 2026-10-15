@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v152-equal-market-card-gaps';
+const CACHE='catalyst-calculator-v153-market-spacing-status';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
