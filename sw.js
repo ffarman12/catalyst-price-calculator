@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v181-detail-action-alignment';
+const CACHE='catalyst-calculator-v182-detail-actions-render';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
