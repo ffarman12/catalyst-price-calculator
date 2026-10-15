@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v150-graph-208px';
+const CACHE='catalyst-calculator-v151-graph-height-enforced';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
