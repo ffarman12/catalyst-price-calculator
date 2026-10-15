@@ -1996,6 +1996,20 @@ html body #app .wrap #historyDetailContent>div:nth-child(n+3){
 html body #app .wrap #historyDetailContent>div:nth-child(3){
   margin-top:5px!important;position:relative!important;z-index:1!important;
 }
+
+<style id="cata-history-white-area-only">
+/* Match the reference's continuous white detail area; keep all content positions and controls unchanged. */
+html body #app #historyDetail.view.active,
+html body #app #historyDetail .card,
+html body #app #historyDetailContent{
+  background:#fff!important;
+}
+html body #app #historyDetailContent>div:first-child,
+html body #app #historyDetailContent>div:nth-child(2),
+html body #app #historyDetailContent>div:nth-child(3)>div:first-child{
+  background:#fff!important;
+}
+</style>
 </style>
 </body></html>
 <script>
