@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v144-manual-edge-save';
+const CACHE='catalyst-calculator-v145-header-status-fix';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
