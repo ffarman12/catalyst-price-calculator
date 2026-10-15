@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v153-market-spacing-status';
+const CACHE='catalyst-calculator-v154-market-layout-correction';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
