@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v155-notification-fit';
+const CACHE='catalyst-calculator-v156-previous-record-scroll';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
