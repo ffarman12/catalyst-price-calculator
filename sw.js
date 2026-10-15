@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v207-ppm-below-actions';
+const CACHE='catalyst-calculator-v208-ppm-below-buttons';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
