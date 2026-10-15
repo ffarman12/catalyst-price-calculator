@@ -504,16 +504,17 @@ async function saveMarket(){
   localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));
   let cloudSaved=false,cloudError='';
   try{
-    const sb=getEditorSupabase();
-    if(!sb)throw new Error('Supabase connection is not ready.');
-    const {data:saveData,error:saveError}=await sb.rpc('save_manual_market_state',{
-      p_pt:manualMarket.pt,p_pd:manualMarket.pd,p_rh:manualMarket.rh,p_usd:manualMarket.usd
+    const response=await fetch(SUPABASE_URL+'/functions/v1/market-manual-save',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY},
+      cache:'no-store',
+      body:JSON.stringify({pt:manualMarket.pt,pd:manualMarket.pd,rh:manualMarket.rh,usd:manualMarket.usd})
     });
-    if(saveError)throw new Error('Cloud write rejected: '+saveError.message);
-    if(!Array.isArray(saveData)||!saveData.length)throw new Error('Cloud save returned no verified row.');
-    const {data:verifyData,error:verifyError}=await sb.from('market_manual_state').select('pt,pd,rh,usd,updated_at').eq('id',1).maybeSingle();
-    if(verifyError)throw new Error('Cloud read-back failed: '+verifyError.message);
-    if(!verifyData||Number(verifyData.pt)!==Number(manualMarket.pt)||Number(verifyData.pd)!==Number(manualMarket.pd)||Number(verifyData.rh)!==Number(manualMarket.rh)||Number(verifyData.usd)!==Number(manualMarket.usd))throw new Error('Cloud verification failed: saved values do not match all four manual values.');
+    let result=null;
+    try{result=await response.json();}catch(_){throw new Error('Cloud save returned an unreadable response (HTTP '+response.status+').');}
+    if(!response.ok||!result||result.ok!==true)throw new Error((result&&result.error?result.error:'Cloud write rejected')+(result&&result.detail?': '+String(result.detail).slice(0,220):'')+' (HTTP '+response.status+').');
+    const saved=result.saved;
+    if(!saved||Number(saved.pt)!==Number(manualMarket.pt)||Number(saved.pd)!==Number(manualMarket.pd)||Number(saved.rh)!==Number(manualMarket.rh)||Number(saved.usd)!==Number(manualMarket.usd)||!saved.updated_at)throw new Error('Cloud verification failed: returned Cloud values do not match all four manual values.');
     cloudSaved=true;
   }catch(e){
     cloudError=String(e&&e.message||e);
