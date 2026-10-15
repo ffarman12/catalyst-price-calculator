@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v142-cat-logic-brand';
+const CACHE='catalyst-calculator-v143-market-save';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
