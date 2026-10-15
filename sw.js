@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v151-graph-height-enforced';
+const CACHE='catalyst-calculator-v152-equal-market-card-gaps';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
