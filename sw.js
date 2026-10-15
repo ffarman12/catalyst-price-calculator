@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v161-history-photo-limit';
+const CACHE='catalyst-calculator-v162-detail-photo-gap';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
