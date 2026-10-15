@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v182-detail-actions-render';
+const CACHE='catalyst-calculator-v183-detail-actions-below-dprice';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
