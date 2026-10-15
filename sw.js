@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v146-blue-market-bg';
+const CACHE='catalyst-calculator-v147-market-gap-fix';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
