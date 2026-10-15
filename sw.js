@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v214-ppm-panel-right';
+const CACHE='catalyst-calculator-v215-ppm-panel-position-restored';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
