@@ -506,12 +506,11 @@ async function saveMarket(){
   try{
     const sb=getEditorSupabase();
     if(!sb)throw new Error('Supabase connection is not ready.');
-    const {data:userData,error:userError}=await sb.auth.getUser();
-    if(userError)throw new Error('Login session check failed: '+userError.message);
-    if(!userData||!userData.user)throw new Error('No active Supabase login session. Log in again, then press Save Manual.');
-    const payload={id:1,pt:manualMarket.pt,pd:manualMarket.pd,rh:manualMarket.rh,usd:manualMarket.usd,updated_at:new Date().toISOString()};
-    const {error:saveError}=await sb.from('market_manual_state').upsert(payload,{onConflict:'id'});
+    const {data:saveData,error:saveError}=await sb.rpc('save_manual_market_state',{
+      p_pt:manualMarket.pt,p_pd:manualMarket.pd,p_rh:manualMarket.rh,p_usd:manualMarket.usd
+    });
     if(saveError)throw new Error('Cloud write rejected: '+saveError.message);
+    if(!Array.isArray(saveData)||!saveData.length)throw new Error('Cloud save returned no verified row.');
     const {data:verifyData,error:verifyError}=await sb.from('market_manual_state').select('pt,pd,rh,usd,updated_at').eq('id',1).maybeSingle();
     if(verifyError)throw new Error('Cloud read-back failed: '+verifyError.message);
     if(!verifyData||Number(verifyData.pt)!==Number(manualMarket.pt)||Number(verifyData.pd)!==Number(manualMarket.pd)||Number(verifyData.rh)!==Number(manualMarket.rh)||Number(verifyData.usd)!==Number(manualMarket.usd))throw new Error('Cloud verification failed: saved values do not match all four manual values.');
