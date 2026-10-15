@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v158-refine-market-source';
+const CACHE='catalyst-calculator-v159-history-white-photo-area';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
