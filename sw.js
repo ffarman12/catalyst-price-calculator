@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v172-history-detail-visibility';
+const CACHE='catalyst-calculator-v173-history-price-white';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
