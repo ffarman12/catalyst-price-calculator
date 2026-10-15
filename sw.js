@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v211-ppm-card-offset-corrected';
+const CACHE='catalyst-calculator-v212-ppm-panel-button-anchor';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
