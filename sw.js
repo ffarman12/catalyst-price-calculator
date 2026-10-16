@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v232-ppm-card-vertical-position';
+const CACHE='catalyst-calculator-v233-ppm-card-below-controls';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
