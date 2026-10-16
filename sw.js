@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v237-photo-side-white';
+const CACHE='catalyst-calculator-v238-detail-photo-sides-white';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
