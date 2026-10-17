@@ -266,7 +266,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
     <div class="card cataMarketGraphCard" id="cataMarketGraphCard">
       <div class="cataMarketGraphHead"><strong id="cataGraphSelectedLabel">USD/INR graph</strong></div>
       <div class="cataMarketGraphPlot" id="cataMarketGraphPlot"><div class="cataGraphEmpty">Market records will appear here as scheduled snapshots are saved.</div></div>
-      <div class="cataMarketGraphRanges"><button type="button" class="active" data-range="7" onclick="setCataGraphRange(7,this)">1 Week</button><button type="button" data-range="90" onclick="setCataGraphRange(90,this)">3 Months</button><button type="button" data-range="730" onclick="setCataGraphRange(730,this)">2 Years</button></div>
+      <div class="cataMarketGraphRanges"><button type="button" class="active" data-range="7" onclick="setCataGraphRange(7,this)">1 Week</button><button type="button" data-range="90" onclick="setCataGraphRange(90,this)">3 Months</button><button type="button" data-range="365" onclick="setCataGraphRange(365,this)">1 Year</button></div>
       <div id="cataGraphStatus" class="cataGraphStatus">Recording schedule: 10:00 · 14:00 · 18:00 · 22:00 IST</div>
     </div>
     <div class="card marketDefaultsCard"><div class="sectionTitle">Market Rates</div><div class="market"><div class="head">Metal / FX</div><div class="head">Manual</div><div class="head">Default</div>
@@ -3004,7 +3004,7 @@ function selectCataGraphMetric(key){
 }
 function setCataGraphRange(days,btn){cataGraphDays=days;document.querySelectorAll('.cataMarketGraphRanges button').forEach(b=>b.classList.toggle('active',b===btn));renderCataMarketGraph()}
 async function loadCataMarketGraph(){
- try{const sb=getEditorSupabase();if(!sb)return;const since=new Date(Date.now()-730*86400000).toISOString().slice(0,10);const {data,error}=await sb.from('market_history').select('slot_date,slot_time,pt,pd,rh,usd,recorded_at').gte('slot_date',since).order('slot_date',{ascending:true}).order('slot_time',{ascending:true});if(error)throw error;cataGraphRows=data||[];renderCataMarketGraph();const st=$('cataGraphStatus');if(st)st.textContent=cataGraphRows.length+' saved snapshots · 10:00 · 14:00 · 18:00 · 22:00 IST'}catch(e){const st=$('cataGraphStatus');if(st)st.textContent='Market history will appear when scheduled records are available.'}
+ try{const sb=getEditorSupabase();if(!sb)return;const since=new Date(Date.now()-365*86400000).toISOString().slice(0,10);const {data,error}=await sb.from('market_history').select('slot_date,slot_time,pt,pd,rh,usd,recorded_at').gte('slot_date',since).order('slot_date',{ascending:true}).order('slot_time',{ascending:true});if(error)throw error;cataGraphRows=data||[];renderCataMarketGraph();const st=$('cataGraphStatus');if(st)st.textContent=cataGraphRows.length+' saved snapshots · 10:00 · 14:00 · 18:00 · 22:00 IST'}catch(e){const st=$('cataGraphStatus');if(st)st.textContent='Market history will appear when scheduled records are available.'}
 }
 function renderCataMarketGraph(){
  const plot=$('cataMarketGraphPlot');if(!plot)return;
@@ -3224,7 +3224,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <script>
 /* Notification page: read-only lookup of saved market snapshots. Does not alter market rates or converter History. */
 (function(){
- const minDate=()=>{const d=new Date();d.setFullYear(d.getFullYear()-2);return d};
+ const minDate=()=>{const d=new Date();d.setFullYear(d.getFullYear()-1);return d};
  const localDateString=d=>{const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)};
  function setStatus(message){const el=document.getElementById('previousMarketRecordStatus');if(el)el.textContent=message}
  function syncYearFromDate(){const date=document.getElementById('previousMarketDate'),year=document.getElementById('previousMarketYear');if(date&&year&&date.value)year.value=date.value.slice(0,4)}
@@ -3250,7 +3250,7 @@ document.addEventListener('DOMContentLoaded',function(){
   if(!date||!year||!time||!result)return;
   const selectedDate=date.value,selectedTime=time.value;
   if(!selectedDate||selectedDate.slice(0,4)!==year.value){setStatus('Please choose a valid date for the selected year.');return}
-  if(selectedDate<localDateString(minDate())||selectedDate>localDateString(new Date())){setStatus('Choose a date within the last 2 years.');return}
+  if(selectedDate<localDateString(minDate())||selectedDate>localDateString(new Date())){setStatus('Choose a date within the last 1 year.');return}
   if(button){button.disabled=true;button.textContent='Searching…'}
   result.style.display='none';result.innerHTML='';setStatus('Searching saved market records…');
   try{
