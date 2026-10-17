@@ -2858,7 +2858,7 @@ async function showCloudData(){
   /* Shared non-secret app preferences. Authentication/session data and personal
      account fields are intentionally excluded. Existing market values remain
      governed by their dedicated cloud tables. */
-  const SHARED_PREF_KEYS=['cat_settings','cat_refine_calc_settings','cat_entry_percent_less','cat_last_view'];
+  const SHARED_PREF_KEYS=['cat_settings','cat_market','cat_refine_calc_settings','cat_entry_percent_less','cat_last_view','cat_cloud_data_lock','cat_profile_name','cat_profile_address','cat_profile_city','cat_profile_phone','cat_profile_pincode','cat_profile_state'];
   let sharedPrefsReady=false, sharedPrefsTimer=null;
   function readSharedPrefs(){
     const out={};
