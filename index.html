@@ -2939,9 +2939,19 @@ async function showCloudData(){
            the local saved configuration instead of wiping it. */
         if(!lockConfigExists(cloudLocks)&&lockConfigExists(local.sectionLocks)){
           const pushed=await writeCloud(local);
-          if(pushed){localStorage.removeItem('cat_persistent_settings_pending');return true}
+          if(pushed){localStorage.removeItem('cat_persistent_settings_pending');sharedPrefsReady=true;return true}
         }
-        applyState({sectionLocks:cloudLocks,viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||{},lessHistoryRates:settings.historyLessRates||settings.lessHistoryRates||settings.lessHistory||{},sharedPreferences:settings.sharedPreferences||{}});
+        /* Existing cloud values win, but any newly introduced preference missing
+           from the cloud is safely seeded from this device instead of resetting it. */
+        const cloudPrefs=settings.sharedPreferences&&typeof settings.sharedPreferences==='object'?settings.sharedPreferences:{};
+        const localPrefs=local.sharedPreferences||{};
+        const mergedPrefs={...localPrefs,...cloudPrefs};
+        const needsPrefsSeed=Object.keys(localPrefs).some(k=>!Object.prototype.hasOwnProperty.call(cloudPrefs,k));
+        if(needsPrefsSeed){
+          const seeded=await writeCloud({...local,sectionLocks:cloudLocks,viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||local.lessHistory||{},lessHistoryRates:settings.historyLessRates||settings.lessHistoryRates||local.lessHistoryRates||{},sharedPreferences:mergedPrefs});
+          if(!seeded)console.warn('Some local preferences could not be seeded to cloud; keeping local values');
+        }
+        applyState({sectionLocks:cloudLocks,viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||{},lessHistoryRates:settings.historyLessRates||settings.lessHistoryRates||settings.lessHistory||{},sharedPreferences:mergedPrefs});
         try{localStorage.removeItem('cat_persistent_settings_pending')}catch(e){}
         sharedPrefsReady=true;
         return true;
