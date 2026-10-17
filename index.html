@@ -2854,7 +2854,17 @@ async function showCloudData(){
   const PERSIST_KEY='_catalyst_persistent_settings_v1';
   const WORKSPACE_ID='0287285c-044b-4a08-9ed5-314b40fde0e8';
   let syncing=false;
-  const expectedLockKeys=['home','history','cloudData','market','refine','settings','settingsPanel','lessHistory','lessRefine','view','viewerCommand','historyActions','pin'];
+  const expectedLockKeys=['home','history','cloudData','market','refine','settings','settingsPanel','lessHistory','lessRefine','view','viewerCommand','historyActions','pin','webShare','apkShare'];
+  /* Shared non-secret app preferences. Authentication/session data and personal
+     account fields are intentionally excluded. Existing market values remain
+     governed by their dedicated cloud tables. */
+  const SHARED_PREF_KEYS=['cat_settings','cat_refine_calc_settings','cat_entry_percent_less','cat_last_view'];
+  let sharedPrefsReady=false, sharedPrefsTimer=null;
+  function readSharedPrefs(){
+    const out={};
+    for(const k of SHARED_PREF_KEYS){try{const v=localStorage.getItem(k);if(v!==null)out[k]=v}catch(e){}}
+    return out;
+  }
   function lockConfigExists(x){
     return !!(x&&typeof x==='object'&&expectedLockKeys.some(k=>Object.prototype.hasOwnProperty.call(x,k)));
   }
@@ -2868,7 +2878,7 @@ async function showCloudData(){
     const historyDisabled=safeStoreGet('cat_less_history_state_v2',false)===true&&typeof rawHistoryDisabled==='boolean'?rawHistoryDisabled:false;
     const savedHistoryRates=safeStoreGet('cat_less_history_rates',null);
     const historyRates=savedHistoryRates&&typeof savedHistoryRates==='object'?savedHistoryRates:less;
-    return {sectionLocks:locks,viewerPpmEnabled:viewer,excelModeEnabled:excel,lessHistory:{pt:Number(historyRates.pt),pd:Number(historyRates.pd),rh:Number(historyRates.rh),enabled:excel,disabled:historyDisabled},lessHistoryRates:{pt:Number(historyRates.pt),pd:Number(historyRates.pd),rh:Number(historyRates.rh)}};
+    return {sectionLocks:locks,viewerPpmEnabled:viewer,excelModeEnabled:excel,lessHistory:{pt:Number(historyRates.pt),pd:Number(historyRates.pd),rh:Number(historyRates.rh),enabled:excel,disabled:historyDisabled},lessHistoryRates:{pt:Number(historyRates.pt),pd:Number(historyRates.pd),rh:Number(historyRates.rh)},sharedPreferences:readSharedPrefs()};
   }
   function validLess(x){return x&&Number.isFinite(Number(x.pt))&&Number.isFinite(Number(x.pd))&&Number.isFinite(Number(x.rh))}
   async function getClient(){try{return typeof getEditorSupabase==='function'?getEditorSupabase():null}catch(e){return null}}
@@ -2891,8 +2901,12 @@ async function showCloudData(){
         const oldLocks=existing.data&&existing.data.settings&&existing.data.settings.sectionLocks;
         if(lockConfigExists(oldLocks)&&!lockConfigExists(locks))locks=oldLocks;
       }
+      const oldSettings=existing&&!existing.error&&existing.data&&existing.data.settings&&typeof existing.data.settings==='object'?existing.data.settings:{};
+      const oldPrefs=oldSettings.sharedPreferences&&typeof oldSettings.sharedPreferences==='object'?oldSettings.sharedPreferences:{};
+      const incomingPrefs=state.sharedPreferences&&typeof state.sharedPreferences==='object'?state.sharedPreferences:{};
+      const mergedPrefs={...oldPrefs,...incomingPrefs};
       const payload={workspace_id:WORKSPACE_ID,viewer_ppm_enabled:!!state.viewerPpmEnabled,excel_mode_enabled:!!state.excelModeEnabled,
-        settings:{[PERSIST_KEY]:true,sectionLocks:locks,lessHistory:state.lessHistory||{},historyLessRates:state.lessHistoryRates||state.historyLessRates||state.lessHistory||{},savedAt:new Date().toISOString()}};
+        settings:{...oldSettings,[PERSIST_KEY]:true,sectionLocks:locks,lessHistory:state.lessHistory||oldSettings.lessHistory||{},historyLessRates:state.lessHistoryRates||state.historyLessRates||oldSettings.historyLessRates||{},sharedPreferences:mergedPrefs,savedAt:new Date().toISOString()}};
       const q=await c.from('app_settings').upsert(payload,{onConflict:'workspace_id'});
       if(q.error){console.warn('Persistent settings save failed',q.error);return false}return true;
     }catch(e){console.warn('Persistent settings save failed',e);return false}
@@ -2900,6 +2914,7 @@ async function showCloudData(){
   function applyState(state){
     if(!state)return;
     try{if(state.sectionLocks&&typeof state.sectionLocks==='object'&&lockConfigExists(state.sectionLocks)){sectionLocks=Object.assign({cloudData:false},state.sectionLocks);localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks))}}catch(e){}
+    try{const prefs=state.sharedPreferences&&typeof state.sharedPreferences==='object'?state.sharedPreferences:{};for(const k of SHARED_PREF_KEYS){if(Object.prototype.hasOwnProperty.call(prefs,k)&&typeof prefs[k]==='string')localStorage.setItem(k,prefs[k])}}catch(e){}
     try{
       const less=state.lessHistory||{},savedRates=validLess(state.lessHistoryRates)?state.lessHistoryRates:(validLess(state.historyLessRates)?state.historyLessRates:less);
       if(validLess(savedRates)){lessSettings={pt:Number(savedRates.pt),pd:Number(savedRates.pd),rh:Number(savedRates.rh),enabled:!!state.excelModeEnabled};localStorage.setItem('cat_less_settings',JSON.stringify(lessSettings));localStorage.setItem('cat_less_history_rates',JSON.stringify({pt:Number(savedRates.pt),pd:Number(savedRates.pd),rh:Number(savedRates.rh)}));const hasSavedDisabled=typeof less.disabled==='boolean';if(hasSavedDisabled){const disabled=less.disabled;localStorage.setItem('cat_less_history_disabled',JSON.stringify(disabled));localStorage.setItem('cat_less_history_disabled_saved','true');localStorage.setItem('cat_less_history_state_v2','true')}}
@@ -2926,13 +2941,14 @@ async function showCloudData(){
           const pushed=await writeCloud(local);
           if(pushed){localStorage.removeItem('cat_persistent_settings_pending');return true}
         }
-        applyState({sectionLocks:cloudLocks,viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||{},lessHistoryRates:settings.historyLessRates||settings.lessHistoryRates||settings.lessHistory||{}});
+        applyState({sectionLocks:cloudLocks,viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||{},lessHistoryRates:settings.historyLessRates||settings.lessHistoryRates||settings.lessHistory||{},sharedPreferences:settings.sharedPreferences||{}});
         try{localStorage.removeItem('cat_persistent_settings_pending')}catch(e){}
+        sharedPrefsReady=true;
         return true;
       }
       /* No persistent Cloud configuration exists yet, so this browser may seed it. */
       const ok=await writeCloud(localState());
-      if(ok){try{localStorage.removeItem('cat_persistent_settings_pending')}catch(e){}}
+      if(ok){try{localStorage.removeItem('cat_persistent_settings_pending')}catch(e){};sharedPrefsReady=true}
       return ok;
     }finally{syncing=false}
   }
@@ -2956,6 +2972,25 @@ async function showCloudData(){
   }
   window.__persistSettingsToCloud=persistNow;
   window.__syncPersistentSettings=syncFromCloud;
+  function scheduleSharedPrefsSave(key){
+    if(!SHARED_PREF_KEYS.includes(String(key))||!sharedPrefsReady||syncing)return;
+    if(sharedPrefsTimer)clearTimeout(sharedPrefsTimer);
+    sharedPrefsTimer=setTimeout(()=>{persistNow().catch(e=>console.warn('Shared preferences sync failed',e))},350);
+  }
+  /* Observe only explicitly allow-listed preference keys. Do not intercept
+     History, login/session, PIN storage, or market snapshot storage. */
+  try{
+    if(!Storage.prototype.__catSharedPrefsHook){
+      const originalSet=Storage.prototype.setItem;
+      Storage.prototype.setItem=function(key,value){
+        const result=originalSet.apply(this,arguments);
+        if(this===window.localStorage)scheduleSharedPrefsSave(key);
+        return result;
+      };
+      Storage.prototype.__catSharedPrefsHook=true;
+    }
+  }catch(e){}
+
   window.__ensurePersistentSettings=ensurePersistentSettings;
   function hookAuth(){try{const c=getEditorSupabase();if(!c)return false;c.auth.onAuthStateChange((event,session)=>{if(session&&(event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='TOKEN_REFRESHED'))setTimeout(syncFromCloud,250)});return true}catch(e){return false}}
   function boot(){hookAuth();let tries=0;const timer=setInterval(async()=>{tries++;const ok=await syncFromCloud();if(ok||tries>=12)clearInterval(timer)},1500);setTimeout(syncFromCloud,400)}
