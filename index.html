@@ -2898,18 +2898,33 @@ async function showCloudData(){
          unless the current local object itself is a complete saved Section Lock config. */
       let locks=state.sectionLocks||{};
       const existing=await c.from('app_settings').select('settings').eq('workspace_id',WORKSPACE_ID).maybeSingle();
-      if(existing&&!existing.error){
-        const oldLocks=existing.data&&existing.data.settings&&existing.data.settings.sectionLocks;
-        if(lockConfigExists(oldLocks)&&!lockConfigExists(locks))locks=oldLocks;
-      }
-      const oldSettings=existing&&!existing.error&&existing.data&&existing.data.settings&&typeof existing.data.settings==='object'?existing.data.settings:{};
+      /* Do not upsert if the preservation read failed: that could overwrite unrelated
+         settings with an incomplete JSON object. */
+      if(existing&&existing.error){console.warn('Persistent settings pre-save read failed; refusing unsafe overwrite',existing.error);return false}
+      const oldSettings=existing&&existing.data&&existing.data.settings&&typeof existing.data.settings==='object'?existing.data.settings:{};
+      const oldLocks=oldSettings.sectionLocks;
+      if(lockConfigExists(oldLocks)&&!lockConfigExists(locks))locks=oldLocks;
       const oldPrefs=oldSettings.sharedPreferences&&typeof oldSettings.sharedPreferences==='object'?oldSettings.sharedPreferences:{};
       const incomingPrefs=state.sharedPreferences&&typeof state.sharedPreferences==='object'?state.sharedPreferences:{};
       const mergedPrefs={...oldPrefs,...incomingPrefs};
       const payload={workspace_id:WORKSPACE_ID,viewer_ppm_enabled:!!state.viewerPpmEnabled,excel_mode_enabled:!!state.excelModeEnabled,
         settings:{...oldSettings,[PERSIST_KEY]:true,sectionLocks:locks,lessHistory:state.lessHistory||oldSettings.lessHistory||{},historyLessRates:state.lessHistoryRates||state.historyLessRates||oldSettings.historyLessRates||{},sharedPreferences:mergedPrefs,savedAt:new Date().toISOString()}};
       const q=await c.from('app_settings').upsert(payload,{onConflict:'workspace_id'});
-      if(q.error){console.warn('Persistent settings save failed',q.error);return false}return true;
+      if(q.error){console.warn('Persistent settings save failed',q.error);return false}
+      /* A successful upsert response alone is not enough to call sync complete.
+         Read the row back and confirm the marker, modes, lock config and preferences. */
+      const verify=await c.from('app_settings').select('workspace_id,viewer_ppm_enabled,excel_mode_enabled,settings').eq('workspace_id',WORKSPACE_ID).maybeSingle();
+      if(verify.error||!verify.data){console.warn('Persistent settings read-back verification failed',verify.error||'No row returned');return false}
+      const saved=verify.data.settings&&typeof verify.data.settings==='object'?verify.data.settings:{};
+      const savedPrefs=saved.sharedPreferences&&typeof saved.sharedPreferences==='object'?saved.sharedPreferences:{};
+      const prefsMatch=Object.keys(mergedPrefs).every(k=>Object.prototype.hasOwnProperty.call(savedPrefs,k)&&savedPrefs[k]===mergedPrefs[k]);
+      const modesMatch=!!verify.data.viewer_ppm_enabled===!!state.viewerPpmEnabled&&!!verify.data.excel_mode_enabled===!!state.excelModeEnabled;
+      const locksMatch=!lockConfigExists(locks)||JSON.stringify(saved.sectionLocks||{})===JSON.stringify(locks);
+      if(saved[PERSIST_KEY]!==true||!prefsMatch||!modesMatch||!locksMatch){
+        console.warn('Persistent settings read-back verification mismatch; sync remains pending');
+        return false;
+      }
+      return true;
     }catch(e){console.warn('Persistent settings save failed',e);return false}
   }
   function applyState(state){
