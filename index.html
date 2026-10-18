@@ -451,7 +451,7 @@ initIndexedDBStorage();
 })();
 /* Also load Cloud Manual Market when IndexedDB is unavailable or its hydration fails. */
 loadCloudManualMarket();
-/* Supabase session is intentionally preserved across refresh for Cloud settings sync. */
+/* Cloud settings sync is authenticated after explicit login; refresh itself logs the user out. */
 const defaults={pt:1770,pd:1250,rh:8600,usd:92, rpt:1,rpd:1,rrh:1,treatment:1,spt:80,spd:80,srh:80,days:120,interest:5};
 function safeStoreGet(key,fallback){try{if(key==='cat_history'||key==='cat_history_backup')return fallback;const v=localStorage.getItem(key);return v===null?fallback:JSON.parse(v)}catch(e){return fallback}}
 let history=[];
