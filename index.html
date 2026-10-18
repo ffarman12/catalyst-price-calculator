@@ -428,6 +428,27 @@ function initIndexedDBStorage(){if(!window.indexedDB){clearDeviceHistoryCopies()
 }};};req.onerror=()=>{clearDeviceHistoryCopies();verifyDeviceHistoryStorage()};req.onblocked=()=>{clearDeviceHistoryCopies();verifyDeviceHistoryStorage()}}catch(e){}}
 try{Storage.prototype.__catNativeGet=Storage.prototype.getItem;Storage.prototype.__catNativeSet=Storage.prototype.setItem;Storage.prototype.__catNativeRemove=Storage.prototype.removeItem;Storage.prototype.getItem=function(key){if(this===window.localStorage&&(String(key)==='cat_history'||String(key)==='cat_history_backup'))return null;if(this===window.localStorage&&Object.prototype.hasOwnProperty.call(appDbCache,String(key)))return appDbCache[String(key)];return Storage.prototype.__catNativeGet.call(this,key)};Storage.prototype.setItem=function(key,value){if(this===window.localStorage){const k=String(key),v=String(value);if(k==='cat_history'||k==='cat_history_backup'){return}appDbCache[k]=v;appDbPending[k]=v;appDbWrite(k,v);try{Storage.prototype.__catNativeSet.call(this,k,v)}catch(e){}return}return Storage.prototype.__catNativeSet.call(this,key,value)};Storage.prototype.removeItem=function(key){if(this===window.localStorage){const k=String(key);delete appDbCache[k];appDbPending[k]=null;appDbDelete(k);try{Storage.prototype.__catNativeRemove.call(this,k)}catch(e){}return}return Storage.prototype.__catNativeRemove.call(this,key)}}catch(e){}
 initIndexedDBStorage();
+/* Required security behaviour: every full page refresh returns the Editor to logged-out state.
+   Wait for the custom IndexedDB-backed storage layer to hydrate before clearing the login flags,
+   so an older cached value cannot restore the logged-in UI afterward. Cloud settings sync runs
+   again after the user explicitly logs in; no Section Lock, PIN, History, or calculation data is cleared. */
+(function forceLogoutAfterRefresh(){
+  let tries=0;
+  const timer=setInterval(async()=>{
+    tries++;
+    const storageReady=!window.indexedDB||!!appDb||tries>=20;
+    if(!storageReady)return;
+    clearInterval(timer);
+    try{
+      const client=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+      if(client&&client.auth&&typeof client.auth.signOut==='function'){
+        try{await client.auth.signOut({scope:'local'});}catch(e){try{await client.auth.signOut();}catch(ignore){}}
+      }
+    }catch(e){}
+    try{localStorage.removeItem('cat_logged_in');localStorage.removeItem('cat_login_user');}catch(e){}
+    try{if(typeof applyAccessUI==='function')applyAccessUI();}catch(e){}
+  },250);
+})();
 /* Also load Cloud Manual Market when IndexedDB is unavailable or its hydration fails. */
 loadCloudManualMarket();
 /* Supabase session is intentionally preserved across refresh for Cloud settings sync. */
