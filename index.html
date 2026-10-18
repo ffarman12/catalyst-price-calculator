@@ -2919,7 +2919,8 @@ async function showCloudData(){
       const savedPrefs=saved.sharedPreferences&&typeof saved.sharedPreferences==='object'?saved.sharedPreferences:{};
       const prefsMatch=Object.keys(mergedPrefs).every(k=>Object.prototype.hasOwnProperty.call(savedPrefs,k)&&savedPrefs[k]===mergedPrefs[k]);
       const modesMatch=!!verify.data.viewer_ppm_enabled===!!state.viewerPpmEnabled&&!!verify.data.excel_mode_enabled===!!state.excelModeEnabled;
-      const locksMatch=!lockConfigExists(locks)||JSON.stringify(saved.sectionLocks||{})===JSON.stringify(locks);
+      const savedLocks=saved.sectionLocks&&typeof saved.sectionLocks==='object'?saved.sectionLocks:{};
+      const locksMatch=!lockConfigExists(locks)||(Object.keys(locks).every(k=>Object.prototype.hasOwnProperty.call(savedLocks,k)&&savedLocks[k]===locks[k])&&Object.keys(savedLocks).every(k=>Object.prototype.hasOwnProperty.call(locks,k)&&locks[k]===savedLocks[k]));
       if(saved[PERSIST_KEY]!==true||!prefsMatch||!modesMatch||!locksMatch){
         console.warn('Persistent settings read-back verification mismatch; sync remains pending');
         return false;
