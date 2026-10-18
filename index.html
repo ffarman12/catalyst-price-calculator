@@ -416,6 +416,8 @@ function initIndexedDBStorage(){if(!window.indexedDB){clearDeviceHistoryCopies()
     history=Array.isArray(storedHistory)?storedHistory:[];
     market=safeStoreGet('cat_market',null)||market;settings=safeStoreGet('cat_settings',null)||settings;lessSettings=safeStoreGet('cat_less_settings',null)||lessSettings;entryPercentLess=safeStoreGet('cat_entry_percent_less',null)||entryPercentLess;sectionLocks=safeStoreGet('cat_section_locks',null)||sectionLocks;
     repairSavedPrices();syncMarket();syncSettings();
+    /* Cloud Manual Market is authoritative across devices; reapply after local storage hydration. */
+    loadCloudManualMarket();
     /* Do not repopulate the visible History screen from local storage after
        the user has opened History but before a reference-code search. */
     const historyView=document.getElementById('history');
@@ -426,6 +428,8 @@ function initIndexedDBStorage(){if(!window.indexedDB){clearDeviceHistoryCopies()
 }};};req.onerror=()=>{clearDeviceHistoryCopies();verifyDeviceHistoryStorage()};req.onblocked=()=>{clearDeviceHistoryCopies();verifyDeviceHistoryStorage()}}catch(e){}}
 try{Storage.prototype.__catNativeGet=Storage.prototype.getItem;Storage.prototype.__catNativeSet=Storage.prototype.setItem;Storage.prototype.__catNativeRemove=Storage.prototype.removeItem;Storage.prototype.getItem=function(key){if(this===window.localStorage&&(String(key)==='cat_history'||String(key)==='cat_history_backup'))return null;if(this===window.localStorage&&Object.prototype.hasOwnProperty.call(appDbCache,String(key)))return appDbCache[String(key)];return Storage.prototype.__catNativeGet.call(this,key)};Storage.prototype.setItem=function(key,value){if(this===window.localStorage){const k=String(key),v=String(value);if(k==='cat_history'||k==='cat_history_backup'){return}appDbCache[k]=v;appDbPending[k]=v;appDbWrite(k,v);try{Storage.prototype.__catNativeSet.call(this,k,v)}catch(e){}return}return Storage.prototype.__catNativeSet.call(this,key,value)};Storage.prototype.removeItem=function(key){if(this===window.localStorage){const k=String(key);delete appDbCache[k];appDbPending[k]=null;appDbDelete(k);try{Storage.prototype.__catNativeRemove.call(this,k)}catch(e){}return}return Storage.prototype.__catNativeRemove.call(this,key)}}catch(e){}
 initIndexedDBStorage();
+/* Also load Cloud Manual Market when IndexedDB is unavailable or its hydration fails. */
+loadCloudManualMarket();
 /* REFRESH LOGOUT: after the custom storage layer hydrates, explicitly sign out the Supabase session and clear the persisted login flag. */
 (function forceLogoutAfterRefresh(){
   let tries=0;
@@ -500,6 +504,31 @@ function repairSavedPrices(){try{
       history=history.map(x=>({...x,price:Number(x.price)||0}));
     }localStorage.setItem('cat_history',JSON.stringify(history));localStorage.setItem('cat_history_formula_v2','6')}
 function syncMarket(){['pt','pd','rh'].forEach(k=>{ $('m'+k).value=Number(manualMarket[k]).toFixed(2); $('m'+k+'used').textContent=Number(market[k]).toFixed(2) });$('musd').value=Number(manualMarket.usd).toFixed(2);$('musdused').textContent=Number(market.usd-3).toFixed(2);if($('rptppm')&&$('rw'))refineCalc()}
+async function loadCloudManualMarket(){
+  try{
+    const response=await fetch(SUPABASE_URL+'/functions/v1/market-manual-save',{
+      method:'GET',
+      headers:{'apikey':SUPABASE_PUBLISHABLE_KEY},
+      cache:'no-store'
+    });
+    const result=await response.json();
+    if(!response.ok||!result||result.ok!==true||!result.saved)throw new Error((result&&result.error)||'Cloud Manual Market read failed');
+    const saved=result.saved;
+    const next={pt:Number(saved.pt),pd:Number(saved.pd),rh:Number(saved.rh),usd:Number(saved.usd)};
+    if(![next.pt,next.pd,next.rh,next.usd].every(v=>Number.isFinite(v)&&v>0))throw new Error('Cloud Manual Market values are invalid');
+    manualMarket=next;
+    localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));
+    market={...market,...manualMarket};
+    localStorage.setItem('cat_market',JSON.stringify(market));
+    syncMarket();
+    repairSavedPrices();
+    renderHistory();
+    return true;
+  }catch(e){
+    console.warn('Cloud Manual Market load failed; retaining existing local values',e);
+    return false;
+  }
+}
 function adjustLiveMarket(key,delta){const current=Number(market[key])||0;market={...market,[key]:Math.max(0,current+delta)};localStorage.setItem('cat_market',JSON.stringify(market));repairSavedPrices();syncMarket();if($('m'+key+'live'))$('m'+key+'live').textContent=Number(market[key]).toFixed(2);$('marketStatus').textContent='Adjusted Market';if($('rptppm')&&$('rw'))refineCalc();renderHistory()}
 function syncSettings(){Object.keys(settings).forEach(k=>{if($(k))$(k).value=settings[k]})}
 async function saveMarket(){
