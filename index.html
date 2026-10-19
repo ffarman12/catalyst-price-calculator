@@ -2146,6 +2146,19 @@ html body #app .wrap #historyDetailContent>div:nth-child(3)>div:nth-child(2){
   background:#fff!important;
 }
 </style>
+
+<style id="cat-logic-android-nav-spacing">
+/* Lift the app's bottom tabs above Android's system navigation buttons only in the APK WebView. */
+body.catLogicAndroidWebView .nav{margin-bottom:28px!important}
+</style>
+<script>
+(function(){
+  var ua=navigator.userAgent||'';
+  var isCapacitor=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());
+  var isAndroidWebView=/Android/i.test(ua)&&(/; wv\)/i.test(ua)||/Version\/\d+.*Chrome\//i.test(ua));
+  if(isCapacitor||isAndroidWebView)document.body.classList.add('catLogicAndroidWebView');
+})();
+</script>
 </body></html>
 <script>
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
