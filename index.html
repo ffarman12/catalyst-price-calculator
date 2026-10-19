@@ -1867,6 +1867,7 @@ async function showCloudData(){
     const fields=$('marketAlertFields');
     if(fields){fields.style.opacity=enabled.checked?'1':'.55';fields.style.pointerEvents=enabled.checked?'auto':'none'}
   }
+  window.__applyMarketAlertSettings=renderSettings;
   function playMarketAlertRing(){
     try{
       const AC=window.AudioContext||window.webkitAudioContext;
@@ -2893,7 +2894,7 @@ async function showCloudData(){
   /* Shared non-secret app preferences. Authentication/session data and personal
      account fields are intentionally excluded. Existing market values remain
      governed by their dedicated cloud tables. */
-  const SHARED_PREF_KEYS=['cat_settings','cat_market','cat_refine_calc_settings','cat_entry_percent_less','cat_last_view','cat_cloud_data_lock','cat_profile_name','cat_profile_address','cat_profile_city','cat_profile_phone','cat_profile_pincode','cat_profile_state'];
+  const SHARED_PREF_KEYS=['cat_settings','cat_market','cat_refine_calc_settings','cat_entry_percent_less','cat_last_view','cat_cloud_data_lock','cat_profile_name','cat_profile_address','cat_profile_city','cat_profile_phone','cat_profile_pincode','cat_profile_state','cat_market_alert_settings'];
   let sharedPrefsReady=false, sharedPrefsTimer=null;
   function readSharedPrefs(){
     const out={};
@@ -3001,7 +3002,7 @@ async function showCloudData(){
   function applyState(state){
     if(!state)return;
     try{if(state.sectionLocks&&typeof state.sectionLocks==='object'&&lockConfigExists(state.sectionLocks)){const incomingLocks={...state.sectionLocks};if(!Object.prototype.hasOwnProperty.call(incomingLocks,'pin'))incomingLocks.pin=String(sectionLocks.pin||'');sectionLocks=Object.assign({cloudData:false},incomingLocks);localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks))}}catch(e){}
-    try{const prefs=state.sharedPreferences&&typeof state.sharedPreferences==='object'?state.sharedPreferences:{};for(const k of SHARED_PREF_KEYS){if(Object.prototype.hasOwnProperty.call(prefs,k)&&typeof prefs[k]==='string')localStorage.setItem(k,prefs[k])}}catch(e){}
+    try{const prefs=state.sharedPreferences&&typeof state.sharedPreferences==='object'?state.sharedPreferences:{};for(const k of SHARED_PREF_KEYS){if(Object.prototype.hasOwnProperty.call(prefs,k)&&typeof prefs[k]==='string')localStorage.setItem(k,prefs[k])}if(typeof window.__applyMarketAlertSettings==='function')window.__applyMarketAlertSettings()}catch(e){}
     try{
       const less=state.lessHistory||{},savedRates=validLess(state.lessHistoryRates)?state.lessHistoryRates:(validLess(state.historyLessRates)?state.historyLessRates:less);
       if(validLess(savedRates)){lessSettings={pt:Number(savedRates.pt),pd:Number(savedRates.pd),rh:Number(savedRates.rh),enabled:!!state.excelModeEnabled};localStorage.setItem('cat_less_settings',JSON.stringify(lessSettings));localStorage.setItem('cat_less_history_rates',JSON.stringify({pt:Number(savedRates.pt),pd:Number(savedRates.pd),rh:Number(savedRates.rh)}));const hasSavedDisabled=typeof less.disabled==='boolean';if(hasSavedDisabled){const disabled=less.disabled;localStorage.setItem('cat_less_history_disabled',JSON.stringify(disabled));localStorage.setItem('cat_less_history_disabled_saved','true');localStorage.setItem('cat_less_history_state_v2','true')}}
