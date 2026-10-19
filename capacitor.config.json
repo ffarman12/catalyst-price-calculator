@@ -1,6 +1,6 @@
 {
   "appId": "com.catalogic.catalystpricecalculator",
-  "appName": "Cata-Logic Editor",
+  "appName": "Cat-Logic Editor",
   "webDir": "www",
   "server": {
     "url": "https://ffarman12.github.io/catalyst-price-calculator/",
