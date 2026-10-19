@@ -2942,7 +2942,7 @@ async function showCloudData(){
       if(!session||!session.user)return false;
       const value=String(pin||'');
       if(value){
-        if(!/^\\d{4}$/.test(value))return false;
+        if(!/^\d{4}$/.test(value))return false;
         const saved=await c.from('section_lock_secrets').upsert({workspace_id:WORKSPACE_ID,pin:value,updated_by:session.user.id,updated_at:new Date().toISOString()},{onConflict:'workspace_id'});
         if(saved.error){console.warn('Section Lock PIN cloud save failed',saved.error);return false}
         const verify=await c.from('section_lock_secrets').select('pin').eq('workspace_id',WORKSPACE_ID).maybeSingle();
