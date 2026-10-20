@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v240-login-menu-fix';
+const CACHE='catalyst-calculator-v241-login-touch-target';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
