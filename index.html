@@ -428,11 +428,16 @@ function initIndexedDBStorage(){if(!window.indexedDB){clearDeviceHistoryCopies()
 }};};req.onerror=()=>{clearDeviceHistoryCopies();verifyDeviceHistoryStorage()};req.onblocked=()=>{clearDeviceHistoryCopies();verifyDeviceHistoryStorage()}}catch(e){}}
 try{Storage.prototype.__catNativeGet=Storage.prototype.getItem;Storage.prototype.__catNativeSet=Storage.prototype.setItem;Storage.prototype.__catNativeRemove=Storage.prototype.removeItem;Storage.prototype.getItem=function(key){if(this===window.localStorage&&(String(key)==='cat_history'||String(key)==='cat_history_backup'))return null;if(this===window.localStorage&&Object.prototype.hasOwnProperty.call(appDbCache,String(key)))return appDbCache[String(key)];return Storage.prototype.__catNativeGet.call(this,key)};Storage.prototype.setItem=function(key,value){if(this===window.localStorage){const k=String(key),v=String(value);if(k==='cat_history'||k==='cat_history_backup'){return}appDbCache[k]=v;appDbPending[k]=v;appDbWrite(k,v);try{Storage.prototype.__catNativeSet.call(this,k,v)}catch(e){}return}return Storage.prototype.__catNativeSet.call(this,key,value)};Storage.prototype.removeItem=function(key){if(this===window.localStorage){const k=String(key);delete appDbCache[k];appDbPending[k]=null;appDbDelete(k);try{Storage.prototype.__catNativeRemove.call(this,k)}catch(e){}return}return Storage.prototype.__catNativeRemove.call(this,key)}}catch(e){}
 initIndexedDBStorage();
-/* Required security behaviour: every full page refresh returns the Editor to logged-out state.
-   Wait for the custom IndexedDB-backed storage layer to hydrate before clearing the login flags,
-   so an older cached value cannot restore the logged-in UI afterward. Cloud settings sync runs
-   again after the user explicitly logs in; no Section Lock, PIN, History, or calculation data is cleared. */
-(function forceLogoutAfterRefresh(){
+/* Logout only on an actual page refresh/reload.
+   A normal app close and reopen should retain the Supabase session.
+   Reinstall normally clears app data; no saved History/settings are cleared here. */
+(function logoutOnPageRefreshOnly(){
+  let navigationType='';
+  try{
+    const nav=performance.getEntriesByType&&performance.getEntriesByType('navigation');
+    if(nav&&nav[0])navigationType=nav[0].type||'';
+  }catch(e){}
+  if(navigationType!=='reload')return;
   let tries=0;
   const timer=setInterval(async()=>{
     tries++;
