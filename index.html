@@ -3009,26 +3009,29 @@ async function showCloudData(){
      governed by their dedicated cloud tables. */
   const SHARED_PREF_KEYS=['cat_settings','cat_market','cat_refine_calc_settings','cat_entry_percent_less','cat_last_view','cat_cloud_data_lock','cat_profile_name','cat_profile_address','cat_profile_city','cat_profile_phone','cat_profile_pincode','cat_profile_state','cat_market_alert_settings'];
   let sharedPrefsReady=false, sharedPrefsTimer=null;
+  function normalizeSharedPrefs(prefs){
+    const out={...(prefs&&typeof prefs==='object'?prefs:{})};
+    if(typeof out.cat_refine_calc_settings==='string'){
+      try{
+        const refine=JSON.parse(out.cat_refine_calc_settings);
+        if(refine&&typeof refine==='object'){
+          delete refine.ptPrice;delete refine.pdPrice;delete refine.rhPrice;
+          out.cat_refine_calc_settings=JSON.stringify(refine);
+        }
+      }catch(e){}
+    }
+    return out;
+  }
   function readSharedPrefs(){
     const out={};
     for(const k of SHARED_PREF_KEYS){
       try{
         const v=localStorage.getItem(k);
         if(v===null)continue;
-        /* Custom Refine Market prices belong to this device. Share the other
-           Refine Calculator settings, but never publish ptPrice/pdPrice/rhPrice. */
-        if(k==='cat_refine_calc_settings'){
-          try{
-            const refine=JSON.parse(v);
-            if(refine&&typeof refine==='object'){
-              delete refine.ptPrice;delete refine.pdPrice;delete refine.rhPrice;
-              out[k]=JSON.stringify(refine);
-            }else out[k]=v;
-          }catch(e){out[k]=v}
-        }else out[k]=v;
+        out[k]=v;
       }catch(e){}
     }
-    return out;
+    return normalizeSharedPrefs(out);
   }
   function lockConfigExists(x){
     return !!(x&&typeof x==='object'&&expectedLockKeys.some(k=>Object.prototype.hasOwnProperty.call(x,k)));
@@ -3148,6 +3151,28 @@ async function showCloudData(){
       }
       if(typeof window.__applyMarketAlertSettings==='function')window.__applyMarketAlertSettings()
     }catch(e){}
+    /* Refresh in-memory objects as well as localStorage so synced settings affect
+       the current screen/calculation without requiring a manual app restart. */
+    try{
+      market=safeStoreGet('cat_market',market)||market;
+      settings=safeStoreGet('cat_settings',settings)||settings;
+      entryPercentLess=safeStoreGet('cat_entry_percent_less',entryPercentLess)||entryPercentLess;
+      const savedRefine=safeStoreGet('cat_refine_calc_settings',null);
+      if(savedRefine&&typeof savedRefine==='object'){
+        const localRates=refineCalcSettings&&typeof refineCalcSettings==='object'?{
+          ptPrice:refineCalcSettings.ptPrice,pdPrice:refineCalcSettings.pdPrice,rhPrice:refineCalcSettings.rhPrice
+        }:{};
+        refineCalcSettings={...REFINE_CALC_DEFAULTS,...savedRefine};
+        ['ptPrice','pdPrice','rhPrice'].forEach(rate=>{
+          if(Object.prototype.hasOwnProperty.call(savedRefine,rate))refineCalcSettings[rate]=savedRefine[rate];
+          else if(Object.prototype.hasOwnProperty.call(localRates,rate))refineCalcSettings[rate]=localRates[rate];
+        });
+        if(!['kg','lb'].includes(refineCalcSettings.unit))refineCalcSettings.unit='kg';
+      }
+      if(typeof syncMarket==='function')syncMarket();
+      if(typeof syncSettings==='function')syncSettings();
+      if(typeof updateRefineWeightLabel==='function')updateRefineWeightLabel();
+    }catch(e){console.warn('Shared settings runtime refresh failed',e)}
     try{
       const less=state.lessHistory||{},savedRates=validLess(state.lessHistoryRates)?state.lessHistoryRates:(validLess(state.historyLessRates)?state.historyLessRates:less);
       if(validLess(savedRates)){lessSettings={pt:Number(savedRates.pt),pd:Number(savedRates.pd),rh:Number(savedRates.rh),enabled:!!state.excelModeEnabled};localStorage.setItem('cat_less_settings',JSON.stringify(lessSettings));localStorage.setItem('cat_less_history_rates',JSON.stringify({pt:Number(savedRates.pt),pd:Number(savedRates.pd),rh:Number(savedRates.rh)}));const hasSavedDisabled=typeof less.disabled==='boolean';if(hasSavedDisabled){const disabled=less.disabled;localStorage.setItem('cat_less_history_disabled',JSON.stringify(disabled));localStorage.setItem('cat_less_history_disabled_saved','true');localStorage.setItem('cat_less_history_state_v2','true')}}
@@ -3170,7 +3195,10 @@ async function showCloudData(){
         const cloudLocks=settings.sectionLocks||{};
         /* Existing Cloud preferences are authoritative; local-only keys are seeded
            without overwriting Cloud values. */
-        const cloudPrefs=settings.sharedPreferences&&typeof settings.sharedPreferences==='object'?settings.sharedPreferences:{};
+        const cloudPrefsRaw=settings.sharedPreferences&&typeof settings.sharedPreferences==='object'?settings.sharedPreferences:{};
+        /* Normalize legacy cloud data too: custom Refine prices must not remain in or
+           be reapplied from the shared payload, even if an older build uploaded them. */
+        const cloudPrefs=normalizeSharedPrefs(cloudPrefsRaw);
         const localPrefs=local.sharedPreferences||{};
         const mergedPrefs={...localPrefs,...cloudPrefs};
         /* If Cloud has no saved Section Lock but this browser still has one, migrate
@@ -3184,7 +3212,8 @@ async function showCloudData(){
           sharedPrefsReady=true;
           return true;
         }
-        const needsPrefsSeed=Object.keys(localPrefs).some(k=>!Object.prototype.hasOwnProperty.call(cloudPrefs,k));
+        const needsPrefsSeed=Object.keys(localPrefs).some(k=>!Object.prototype.hasOwnProperty.call(cloudPrefsRaw,k))||
+          (Object.prototype.hasOwnProperty.call(cloudPrefsRaw,'cat_refine_calc_settings')&&cloudPrefsRaw.cat_refine_calc_settings!==cloudPrefs.cat_refine_calc_settings);
         if(needsPrefsSeed){
           const seeded=await writeCloud({...local,sectionLocks:cloudLocks,viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||local.lessHistory||{},lessHistoryRates:settings.historyLessRates||settings.lessHistoryRates||local.lessHistoryRates||{},sharedPreferences:mergedPrefs});
           if(!seeded){
