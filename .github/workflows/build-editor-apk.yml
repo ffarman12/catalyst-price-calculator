@@ -1,4 +1,4 @@
-name: Build Editor APK
+name: Build and Publish Editor APK
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ on:
       - ".github/workflows/build-editor-apk.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -80,10 +80,25 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload APK artifact
+      - name: Prepare stable APK filename
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Cata-Logic-Editor.apk
+
+      - name: Upload expiring Actions artifact (backup)
         uses: actions/upload-artifact@v4
         with:
           name: cata-logic-editor-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: Cata-Logic-Editor.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish permanent GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: editor-apk-build-${{ github.run_number }}
+          name: Cata-Logic Editor APK build ${{ github.run_number }}
+          body: |
+            Automated Cata-Logic Editor Android APK build.
+            Download **Cata-Logic-Editor.apk** below.
+            This is a debug-signed APK build; it is not a Play Store release.
+          files: Cata-Logic-Editor.apk
+          make_latest: true
