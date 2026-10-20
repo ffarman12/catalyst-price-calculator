@@ -3011,7 +3011,23 @@ async function showCloudData(){
   let sharedPrefsReady=false, sharedPrefsTimer=null;
   function readSharedPrefs(){
     const out={};
-    for(const k of SHARED_PREF_KEYS){try{const v=localStorage.getItem(k);if(v!==null)out[k]=v}catch(e){}}
+    for(const k of SHARED_PREF_KEYS){
+      try{
+        const v=localStorage.getItem(k);
+        if(v===null)continue;
+        /* Custom Refine Market prices belong to this device. Share the other
+           Refine Calculator settings, but never publish ptPrice/pdPrice/rhPrice. */
+        if(k==='cat_refine_calc_settings'){
+          try{
+            const refine=JSON.parse(v);
+            if(refine&&typeof refine==='object'){
+              delete refine.ptPrice;delete refine.pdPrice;delete refine.rhPrice;
+              out[k]=JSON.stringify(refine);
+            }else out[k]=v;
+          }catch(e){out[k]=v}
+        }else out[k]=v;
+      }catch(e){}
+    }
     return out;
   }
   function lockConfigExists(x){
@@ -3115,7 +3131,23 @@ async function showCloudData(){
   function applyState(state){
     if(!state)return;
     try{if(state.sectionLocks&&typeof state.sectionLocks==='object'&&lockConfigExists(state.sectionLocks)){const incomingLocks={...state.sectionLocks};if(!Object.prototype.hasOwnProperty.call(incomingLocks,'pin'))incomingLocks.pin=String(sectionLocks.pin||'');sectionLocks=Object.assign({cloudData:false},incomingLocks);localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks))}}catch(e){}
-    try{const prefs=state.sharedPreferences&&typeof state.sharedPreferences==='object'?state.sharedPreferences:{};for(const k of SHARED_PREF_KEYS){if(Object.prototype.hasOwnProperty.call(prefs,k)&&typeof prefs[k]==='string')localStorage.setItem(k,prefs[k])}if(typeof window.__applyMarketAlertSettings==='function')window.__applyMarketAlertSettings()}catch(e){}
+    try{
+      const prefs=state.sharedPreferences&&typeof state.sharedPreferences==='object'?state.sharedPreferences:{};
+      for(const k of SHARED_PREF_KEYS){
+        if(!Object.prototype.hasOwnProperty.call(prefs,k)||typeof prefs[k]!=='string')continue;
+        if(k==='cat_refine_calc_settings'){
+          /* Merge shared calculator options into local settings while retaining
+             this device's Custom Market rates. */
+          try{
+            const incoming=JSON.parse(prefs[k])||{};
+            let local={};try{local=JSON.parse(localStorage.getItem(k)||'{}')||{}}catch(e){}
+            ['ptPrice','pdPrice','rhPrice'].forEach(rate=>{if(Object.prototype.hasOwnProperty.call(local,rate))incoming[rate]=local[rate];else delete incoming[rate]});
+            localStorage.setItem(k,JSON.stringify(incoming));
+          }catch(e){console.warn('Custom Refine Market settings preserved locally; shared settings parse failed',e)}
+        }else localStorage.setItem(k,prefs[k]);
+      }
+      if(typeof window.__applyMarketAlertSettings==='function')window.__applyMarketAlertSettings()
+    }catch(e){}
     try{
       const less=state.lessHistory||{},savedRates=validLess(state.lessHistoryRates)?state.lessHistoryRates:(validLess(state.historyLessRates)?state.historyLessRates:less);
       if(validLess(savedRates)){lessSettings={pt:Number(savedRates.pt),pd:Number(savedRates.pd),rh:Number(savedRates.rh),enabled:!!state.excelModeEnabled};localStorage.setItem('cat_less_settings',JSON.stringify(lessSettings));localStorage.setItem('cat_less_history_rates',JSON.stringify({pt:Number(savedRates.pt),pd:Number(savedRates.pd),rh:Number(savedRates.rh)}));const hasSavedDisabled=typeof less.disabled==='boolean';if(hasSavedDisabled){const disabled=less.disabled;localStorage.setItem('cat_less_history_disabled',JSON.stringify(disabled));localStorage.setItem('cat_less_history_disabled_saved','true');localStorage.setItem('cat_less_history_state_v2','true')}}
