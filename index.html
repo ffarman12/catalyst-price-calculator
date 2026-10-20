@@ -437,7 +437,10 @@ initIndexedDBStorage();
     const nav=performance.getEntriesByType&&performance.getEntriesByType('navigation');
     if(nav&&nav[0])navigationType=nav[0].type||'';
   }catch(e){}
-  if(navigationType!=='reload')return;
+  /* Android Capacitor WebView can report an app cold-start as a reload.
+     Keep the Supabase session in the native APK; browser refresh logout remains unchanged. */
+  const isNativeApp=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());
+  if(navigationType!=='reload'||isNativeApp)return;
   let tries=0;
   const timer=setInterval(async()=>{
     tries++;
