@@ -41,6 +41,19 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Validate signing secrets are configured
+        env:
+          ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_SIGNING_KEY" || { echo "Missing ANDROID_SIGNING_KEY"; exit 1; }
+          test -n "$ANDROID_KEY_ALIAS" || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "$ANDROID_KEY_PASSWORD" || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
+
       - name: Install dependencies
         run: npm install
 
@@ -81,8 +94,36 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Prepare stable APK filename
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk Cata-Logic-Editor.apk
+      - name: Decode persistent signing keystore
+        env:
+          ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$ANDROID_SIGNING_KEY" | base64 --decode > "$RUNNER_TEMP/cata-logic-release.jks"
+          test -s "$RUNNER_TEMP/cata-logic-release.jks"
+
+      - name: Sign and verify APK with persistent key
+        env:
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" sign \
+            --ks "$RUNNER_TEMP/cata-logic-release.jks" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --key-pass env:ANDROID_KEY_PASSWORD \
+            --out "$RUNNER_TEMP/Cata-Logic-Editor.apk" \
+            "$APK"
+          "$APKSIGNER" verify --verbose --print-certs "$RUNNER_TEMP/Cata-Logic-Editor.apk"
+          cp "$RUNNER_TEMP/Cata-Logic-Editor.apk" Cata-Logic-Editor.apk
+          rm -f "$RUNNER_TEMP/cata-logic-release.jks"
+
 
       - name: Upload expiring Actions artifact (backup)
         uses: actions/upload-artifact@v4
@@ -100,6 +141,6 @@ jobs:
           body: |
             Automated Cata-Logic Editor Android APK build.
             Download **Cata-Logic-Editor.apk** below.
-            This is a debug-signed APK build; it is not a Play Store release.
+            This APK is signed with the persistent Cata-Logic signing key; it is not a Play Store release.
           files: Cata-Logic-Editor.apk
           make_latest: true
