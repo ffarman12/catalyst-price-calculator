@@ -417,7 +417,7 @@ function initIndexedDBStorage(){if(!window.indexedDB){clearDeviceHistoryCopies()
     market=safeStoreGet('cat_market',null)||market;settings=safeStoreGet('cat_settings',null)||settings;lessSettings=safeStoreGet('cat_less_settings',null)||lessSettings;entryPercentLess=safeStoreGet('cat_entry_percent_less',null)||entryPercentLess;sectionLocks=safeStoreGet('cat_section_locks',null)||sectionLocks;
     repairSavedPrices();syncMarket();syncSettings();
     /* Cloud Manual Market is authoritative across devices; reapply after local storage hydration. */
-    loadCloudManualMarket();
+    loadCloudManualMarket();loadCloudDefaultMarket();
     /* Do not repopulate the visible History screen from local storage after
        the user has opened History but before a reference-code search. */
     const historyView=document.getElementById('history');
@@ -458,7 +458,7 @@ initIndexedDBStorage();
   },250);
 })();
 /* Also load Cloud Manual Market when IndexedDB is unavailable or its hydration fails. */
-loadCloudManualMarket();
+loadCloudManualMarket();loadCloudDefaultMarket();
 /* Cloud settings sync is authenticated after explicit login; refresh itself logs the user out. */
 const defaults={pt:1770,pd:1250,rh:8600,usd:92, rpt:1,rpd:1,rrh:1,treatment:1,spt:80,spd:80,srh:80,days:120,interest:5};
 function safeStoreGet(key,fallback){try{if(key==='cat_history'||key==='cat_history_backup')return fallback;const v=localStorage.getItem(key);return v===null?fallback:JSON.parse(v)}catch(e){return fallback}}
@@ -538,14 +538,31 @@ async function loadCloudManualMarket(){
     if(![next.pt,next.pd,next.rh,next.usd].every(v=>Number.isFinite(v)&&v>0))throw new Error('Cloud Manual Market values are invalid');
     manualMarket=next;
     localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));
-    market={...market,...manualMarket};
+    syncMarket();
+    return true;
+  }catch(e){
+    console.warn('Cloud Manual Market load failed; retaining existing local values',e);
+    return false;
+  }
+}
+async function loadCloudDefaultMarket(){
+  try{
+    const response=await fetch(SUPABASE_URL+'/functions/v1/market-default-save',{
+      method:'GET',headers:{'apikey':SUPABASE_PUBLISHABLE_KEY},cache:'no-store'
+    });
+    const result=await response.json();
+    if(!response.ok||!result||result.ok!==true||!result.saved)throw new Error((result&&result.error)||'Cloud Default Market read failed');
+    const saved=result.saved;
+    const next={pt:Number(saved.pt),pd:Number(saved.pd),rh:Number(saved.rh),usd:Number(saved.usd)};
+    if(![next.pt,next.pd,next.rh,next.usd].every(v=>Number.isFinite(v)&&v>0))throw new Error('Cloud Default Market values are invalid');
+    market=next;
     localStorage.setItem('cat_market',JSON.stringify(market));
     syncMarket();
     repairSavedPrices();
     renderHistory();
     return true;
   }catch(e){
-    console.warn('Cloud Manual Market load failed; retaining existing local values',e);
+    console.warn('Cloud Default Market load failed; retaining existing local values',e);
     return false;
   }
 }
@@ -554,7 +571,7 @@ function syncSettings(){Object.keys(settings).forEach(k=>{if($(k))$(k).value=set
 async function saveMarket(){
   manualMarket={pt:+$('mpt').value||defaults.pt,pd:+$('mpd').value||defaults.pd,rh:+$('mrh').value||defaults.rh,usd:+$('musd').value||defaults.usd};
   localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));
-  let cloudSaved=false,cloudError='';
+  let cloudSaved=false,cloudError='',defaultCloudSaved=false,defaultCloudError='';
   try{
     const response=await fetch(SUPABASE_URL+'/functions/v1/market-manual-save',{
       method:'POST',
@@ -572,9 +589,26 @@ async function saveMarket(){
     cloudError=String(e&&e.message||e);
     console.warn('Market cloud save failed',e);
   }
-  if($('cataGraphStatus'))$('cataGraphStatus').textContent=cloudSaved
-    ?'Cloud verified: Pt, Pd, Rh and USD/INR saved. Scheduled snapshots use these Cloud values at 10:00, 14:00, 18:00 and 22:00 IST.'
-    :'NOT saved to Cloud — '+cloudError.slice(0,180);
+  try{
+    const response=await fetch(SUPABASE_URL+'/functions/v1/market-default-save',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY},
+      cache:'no-store',
+      body:JSON.stringify({pt:manualMarket.pt,pd:manualMarket.pd,rh:manualMarket.rh,usd:manualMarket.usd})
+    });
+    let result=null;
+    try{result=await response.json();}catch(_){throw new Error('Default Market Cloud save returned an unreadable response (HTTP '+response.status+').');}
+    if(!response.ok||!result||result.ok!==true)throw new Error((result&&result.error)||'Default Market Cloud write rejected');
+    const saved=result.saved;
+    if(!saved||Number(saved.pt)!==Number(manualMarket.pt)||Number(saved.pd)!==Number(manualMarket.pd)||Number(saved.rh)!==Number(manualMarket.rh)||Number(saved.usd)!==Number(manualMarket.usd)||!saved.updated_at)throw new Error('Default Market Cloud verification failed.');
+    defaultCloudSaved=true;
+  }catch(e){
+    defaultCloudError=String(e&&e.message||e);
+    console.warn('Default Market cloud save failed',e);
+  }
+  if($('cataGraphStatus'))$('cataGraphStatus').textContent=(cloudSaved&&defaultCloudSaved)
+    ?'Cloud verified: Manual Market and Default Market saved separately. Scheduled snapshots continue using the Manual Market Cloud record.'
+    :'Cloud save status — Manual: '+(cloudSaved?'verified':'FAILED '+cloudError.slice(0,100))+'; Default: '+(defaultCloudSaved?'verified':'FAILED '+defaultCloudError.slice(0,100));
   market={...market,...manualMarket};
   localStorage.setItem('cat_market',JSON.stringify(market));
   repairSavedPrices();syncMarket();
@@ -932,7 +966,7 @@ function detailPhotoTouchMove(e,i){const g=detailPhotoTouch[i],img=$('detailGall
 function detailPhotoTouchEnd(e,i){const g=detailPhotoTouch[i];if(!g)return;if(g.mode==='pinch'){g.mode='swipe';return}if(g.scale>1){detailPhotoTouch[i]=g;return}if(!e.changedTouches.length)return;const dx=e.changedTouches[0].clientX-g.x,dy=e.changedTouches[0].clientY-g.y;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.2){e.preventDefault();e.stopPropagation();if(dx<0)detailNext(e,i);else detailPrev(e,i)}detailPhotoTouch[i]=null}
 function addDetailZoomButton(){const box=document.querySelector('#historyDetailContent>div:nth-child(3)>div:nth-child(2)');if(!box||box.querySelector('.detailZoomBtn'))return;const i=Number((box.querySelector('button[onclick^="detailNext"]')?.getAttribute('onclick')||'').match(/detailNext\(event,(\d+)\)/)?.[1]);if(!Number.isFinite(i))return;const b=document.createElement('button');b.className='btn secondary detailZoomBtn';b.style.cssText='padding:8px 10px;font-size:11px';b.textContent='Zoom';b.onclick=e=>{e.preventDefault();e.stopPropagation();const img=$('detailGallery-'+i);if(!img)return;const g=detailPhotoTouch[i]||{scale:1,xOffset:0,yOffset:0};g.scale=g.scale>1?1:2;g.xOffset=g.scale===1?0:g.xOffset||0;g.yOffset=g.scale===1?0:g.yOffset||0;detailPhotoTouch[i]=g;img.style.transform='translate('+g.xOffset+'px,'+g.yOffset+'px) scale('+g.scale+')'};box.appendChild(b)}
 document.addEventListener('click',()=>{if($('historyDetail')?.classList.contains('active'))addDetailZoomButton()});
-async function demoLive(silent=false){const btn=document.querySelector('#market .btn.primary'),box=$('apiDiagnostic');if(btn&&!silent)btn.disabled=true;if(!silent)$('status').textContent='Testing live API...';if(box&&!silent){box.style.display='block';box.textContent='Checking secure MetalpriceAPI service...'}try{const res=await fetch('https://stakqodobksgmtzquhzs.supabase.co/functions/v1/metalprice-market',{cache:'no-store',headers:{Accept:'application/json',apikey:SUPABASE_PUBLISHABLE_KEY}}),raw=await res.text();let data;try{data=JSON.parse(raw)}catch(e){throw new Error('HTTP '+res.status+' — API ne JSON response nahi diya: '+raw.slice(0,180))}if(box&&!silent)box.textContent='HTTP '+res.status+'\n'+JSON.stringify(data,null,2);if(!res.ok)throw new Error((data&&data.provider_message)?('HTTP '+res.status+' — '+data.provider_message):('HTTP '+res.status+' — market API unavailable'));const rates=data.rates||data.data||data,pt=Number(data.pt??data.Pt??data.XPT??rates.pt??rates.Pt??rates.XPT??rates.USDXPT),pd=Number(data.pd??data.Pd??data.XPD??rates.pd??rates.Pd??rates.XPD??rates.USDXPD),rhIsManual=data.rh===null||data.rh===undefined,rh=rhIsManual?Number(market.rh):Number(data.rh??data.Rh??data.XRH??data.RH??rates.rh??rates.Rh??rates.XRH??rates.USDXRH),rawUsd=Number(data.usd??data.USDINR??data.usdinr??data.USDTINR??rates.usd??rates.USDINR??rates.usdinr),usd=rawUsd>0&&rawUsd<1?1/rawUsd:rawUsd;if(![pt,pd,usd].every(Number.isFinite)||pt<=0||pd<=0||usd<=0||!Number.isFinite(rh)||rh<=0)throw new Error('API response mila, lekin Pt/Pd/USD-INR mein se valid rate missing hai');const previousLive=safeStoreGet('cat_last_live_rates',null);market={...market,pt,pd,rh,usd};manualMarket={...manualMarket,pt,pd,rh:rhIsManual?manualMarket.rh:rh,usd};localStorage.setItem('cat_market',JSON.stringify(market));localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));$('mpt').value=Number(manualMarket.pt).toFixed(2);$('mpd').value=Number(manualMarket.pd).toFixed(2);$('mrh').value=Number(manualMarket.rh).toFixed(2);$('musd').value=Number(manualMarket.usd).toFixed(2);repairSavedPrices();syncMarket();$('mpt').value=Number(manualMarket.pt).toFixed(2);$('mpd').value=Number(manualMarket.pd).toFixed(2);$('mrh').value=Number(manualMarket.rh).toFixed(2);$('musd').value=Number(manualMarket.usd).toFixed(2);renderLiveDeltas({pt,pd,rh:rhIsManual?null:rh,usd},previousLive);localStorage.setItem('cat_last_live_rates',JSON.stringify({pt,pd,rh:rhIsManual?(previousLive?.rh??null):rh,usd}));$('mptlive').textContent=pt.toFixed(2);$('mpdlive').textContent=pd.toFixed(2);$('mrhlive').textContent=rhIsManual?'Manual':rh.toFixed(2);$('musdlive').textContent=usd.toFixed(2);$('mptused').textContent=pt.toFixed(2);$('mpdused').textContent=pd.toFixed(2);$('mrhused').textContent=rh.toFixed(2);$('musdused').textContent=(usd-3).toFixed(2);$('marketStatus').textContent=rhIsManual?'Partial Live Market — Rh Manual':'Live Market';if($('rptppm')&&$('rw'))refineCalc();marketAlertLiveRates={pt,pd,rh:rhIsManual?null:rh};try{checkMarketAlerts(false)}catch(e){}if(!silent)$('status').textContent=rhIsManual?'Pt/Pd/USD-INR live; Rh manual fallback':'Live market updated'}catch(err){if(!silent){if(box)box.style.display='none';showMarketPopup('Live Market update failed',String(err&&err.message||err));$('marketStatus').textContent='Manual Fallback';$('status').textContent='API test failed — manual rates retained'}if($('rptppm')&&$('rw'))refineCalc()}finally{if(btn&&!silent)btn.disabled=false}}
+async function demoLive(silent=false){const btn=document.querySelector('#market .btn.primary'),box=$('apiDiagnostic');if(btn&&!silent)btn.disabled=true;if(!silent)$('status').textContent='Testing live API...';if(box&&!silent){box.style.display='block';box.textContent='Checking secure MetalpriceAPI service...'}try{const res=await fetch('https://stakqodobksgmtzquhzs.supabase.co/functions/v1/metalprice-market',{cache:'no-store',headers:{Accept:'application/json',apikey:SUPABASE_PUBLISHABLE_KEY}}),raw=await res.text();let data;try{data=JSON.parse(raw)}catch(e){throw new Error('HTTP '+res.status+' — API ne JSON response nahi diya: '+raw.slice(0,180))}if(box&&!silent)box.textContent='HTTP '+res.status+'\n'+JSON.stringify(data,null,2);if(!res.ok)throw new Error((data&&data.provider_message)?('HTTP '+res.status+' — '+data.provider_message):('HTTP '+res.status+' — market API unavailable'));const rates=data.rates||data.data||data,pt=Number(data.pt??data.Pt??data.XPT??rates.pt??rates.Pt??rates.XPT??rates.USDXPT),pd=Number(data.pd??data.Pd??data.XPD??rates.pd??rates.Pd??rates.XPD??rates.USDXPD),rhIsManual=data.rh===null||data.rh===undefined,rh=rhIsManual?Number(market.rh):Number(data.rh??data.Rh??data.XRH??data.RH??rates.rh??rates.Rh??rates.XRH??rates.USDXRH),rawUsd=Number(data.usd??data.USDINR??data.usdinr??data.USDTINR??rates.usd??rates.USDINR??rates.usdinr),usd=rawUsd>0&&rawUsd<1?1/rawUsd:rawUsd;if(![pt,pd,usd].every(Number.isFinite)||pt<=0||pd<=0||usd<=0||!Number.isFinite(rh)||rh<=0)throw new Error('API response mila, lekin Pt/Pd/USD-INR mein se valid rate missing hai');const previousLive=safeStoreGet('cat_last_live_rates',null);market={...market,pt,pd,rh,usd};manualMarket={...manualMarket,pt,pd,rh:rhIsManual?manualMarket.rh:rh,usd};try{const defaultSave=await fetch(SUPABASE_URL+'/functions/v1/market-default-save',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY},cache:'no-store',body:JSON.stringify({pt:market.pt,pd:market.pd,rh:market.rh,usd:market.usd})});const defaultResult=await defaultSave.json();if(!defaultSave.ok||!defaultResult||defaultResult.ok!==true||!defaultResult.saved||['pt','pd','rh','usd'].some(k=>Number(defaultResult.saved[k])!==Number(market[k])))throw new Error((defaultResult&&defaultResult.error)||'Default Market Cloud verification failed');}catch(defaultSaveError){console.warn('Default Market Cloud save failed after live update',defaultSaveError)}localStorage.setItem('cat_market',JSON.stringify(market));localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));$('mpt').value=Number(manualMarket.pt).toFixed(2);$('mpd').value=Number(manualMarket.pd).toFixed(2);$('mrh').value=Number(manualMarket.rh).toFixed(2);$('musd').value=Number(manualMarket.usd).toFixed(2);repairSavedPrices();syncMarket();$('mpt').value=Number(manualMarket.pt).toFixed(2);$('mpd').value=Number(manualMarket.pd).toFixed(2);$('mrh').value=Number(manualMarket.rh).toFixed(2);$('musd').value=Number(manualMarket.usd).toFixed(2);renderLiveDeltas({pt,pd,rh:rhIsManual?null:rh,usd},previousLive);localStorage.setItem('cat_last_live_rates',JSON.stringify({pt,pd,rh:rhIsManual?(previousLive?.rh??null):rh,usd}));$('mptlive').textContent=pt.toFixed(2);$('mpdlive').textContent=pd.toFixed(2);$('mrhlive').textContent=rhIsManual?'Manual':rh.toFixed(2);$('musdlive').textContent=usd.toFixed(2);$('mptused').textContent=pt.toFixed(2);$('mpdused').textContent=pd.toFixed(2);$('mrhused').textContent=rh.toFixed(2);$('musdused').textContent=(usd-3).toFixed(2);$('marketStatus').textContent=rhIsManual?'Partial Live Market — Rh Manual':'Live Market';if($('rptppm')&&$('rw'))refineCalc();marketAlertLiveRates={pt,pd,rh:rhIsManual?null:rh};try{checkMarketAlerts(false)}catch(e){}if(!silent)$('status').textContent=rhIsManual?'Pt/Pd/USD-INR live; Rh manual fallback':'Live market updated'}catch(err){if(!silent){if(box)box.style.display='none';showMarketPopup('Live Market update failed',String(err&&err.message||err));$('marketStatus').textContent='Manual Fallback';$('status').textContent='API test failed — manual rates retained'}if($('rptppm')&&$('rw'))refineCalc()}finally{if(btn&&!silent)btn.disabled=false}}
 /* Auto-refresh live market every five minutes without changing the currently selected page. Silent refreshes do not open diagnostics or replace visible status on API failure. */
 /* Live Market auto-refresh: only at the approved IST times, Monday-Friday. No startup fetch and no five-minute polling. */
 (function scheduleLiveMarketRefresh(){
