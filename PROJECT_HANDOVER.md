@@ -11,7 +11,10 @@ This document is the persistent handover note for future maintenance sessions. R
 - **Service worker:** `sw.js`
 - **Supabase project reference:** `stakqodobksgmtzquhzs`
 - **Viewer App:** planned; do not assume a complete Viewer frontend exists.
-- **APK download link / binary:** not recorded in this repository handover yet. Do not invent a download link. Add the actual APK artifact/release URL here once the owner supplies or publishes it. The actual APK binary was not available in the chat context when this note was created.
+- **APK permanent download URL (expected after successful Release publish):** https://github.com/ffarman12/catalyst-price-calculator/releases/latest/download/Cata-Logic-Editor.apk
+- **APK Releases page:** https://github.com/ffarman12/catalyst-price-calculator/releases
+- **APK build workflow:** https://github.com/ffarman12/catalyst-price-calculator/actions/workflows/build-editor-apk.yml
+- **Important:** The stable download URL works only after the GitHub Actions workflow successfully publishes a Release asset named `Cata-Logic-Editor.apk`. Check the latest workflow run and Releases page; do not claim it is available until the asset is visible. The workflow builds a debug-signed APK, not a Play Store production-signed APK.
 
 ## Owner's strict change rules
 
@@ -27,7 +30,8 @@ This document is the persistent handover note for future maintenance sessions. R
 - The Editor Web App is deployed through GitHub Pages.
 - The Android APK is understood to be a Capacitor/WebView wrapper that loads the remote Editor page. Confirm this against the actual Android source/build configuration before relying on it.
 - A change to the remote web page may reach the APK without rebuilding it if the APK loads that remote page and no bundled/native code changed. Native Android, Capacitor configuration, permissions, or bundled assets may require a new APK build.
-- The actual APK source project and APK binary/build artifact link still need to be located or supplied before promising an APK rebuild or distribution.
+- `.github/workflows/build-editor-apk.yml` builds a debug APK, uploads a short-retention Actions artifact as a backup, and is configured to publish `Cata-Logic-Editor.apk` to a GitHub Release. Verify the workflow run succeeded and the asset is present before sharing the stable download URL as working.
+- The APK build workflow uses a generated Capacitor project; verify the workflow and its configuration before promising changes to native Android behavior.
 
 ## Important recorded commits
 
@@ -39,6 +43,7 @@ This document is the persistent handover note for future maintenance sessions. R
 - Viewer market source control labels/state: https://github.com/ffarman12/catalyst-price-calculator/commit/97e5077a068a2938eecb970e9a0aed41f87e5850
 - Latest recorded JavaScript syntax repair for Viewer controls: https://github.com/ffarman12/catalyst-price-calculator/commit/691baa325758e005c3559a9b6ee346ee00223f66
   - Owner subsequently reported the app/tabs were working again. Recheck current branch before further edits.
+- Permanent APK release workflow configuration: https://github.com/ffarman12/catalyst-price-calculator/commit/617e823fa853fb1eebfd772ecf226165af48d613
 
 ## Supabase / market architecture recorded so far
 
@@ -117,7 +122,7 @@ The Viewer frontend remains a separate pending work item unless the current repo
 
 ## Missing items to fill in
 
-- Actual APK download/release URL and version.
+- Confirm that the latest APK Release workflow completed successfully and that its asset is downloadable.
 - Location/link for the Android Capacitor source project and build instructions.
 - Confirmation of the latest deployed Edge Function code and any server-side snapshot scheduler.
 - Viewer frontend repository/path and implementation status.
