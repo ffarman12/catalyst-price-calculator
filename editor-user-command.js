@@ -114,6 +114,10 @@ const FEATURE_ACTIONS = {
   openRefineCalculatorSettings: 'refine_settings',
   saveRefineCalculatorSettings: 'refine_settings',
   cloudDataButtonClick: 'view_cloud_data',
+  guardedCloudDataClick: 'view_cloud_data',
+  openProtectedCloudData: 'view_cloud_data',
+  showCloudData: 'view_cloud_data',
+  historySearchInput: 'history_search',
   openServiceStatus: 'connection_service',
   saveMarket: 'manual_market_update'
 };
