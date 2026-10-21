@@ -171,32 +171,65 @@ function guardHistoryAction(){
  guarded.__eucGuarded=true;guarded.__eucOriginal=original;window.requestHistoryAction=guarded;
 }
 function guardShareAction(){
- const original=window.performShareWhatsApp;
- if(typeof original!=='function'||original.__eucGuarded)return;
- const guarded=function(){
-  const self=this,args=Array.from(arguments);
-  // Reserve a tab synchronously while the click still has browser user activation.
-  // Only navigate it to WhatsApp after the live permission check succeeds.
-  let pending=null;
-  try{pending=window.open('about:blank','_blank');if(pending)pending.opener=null}catch(_){}
-  return (async()=>{
-   if(!(await featureAllowed('share_app_link'))){
-    if(pending&&!pending.closed)pending.close();
-    denyFeature('share_app_link');return false;
-   }
-   return original.apply(self,args.concat(pending));
-  })();
- };
- guarded.__eucGuarded=true;guarded.__eucOriginal=original;window.performShareWhatsApp=guarded;
+ const originalShare=window.shareWhatsApp;
+ const originalPerform=window.performShareWhatsApp;
+ // Share has an existing Section Lock PIN flow. Reserve a tab directly in the
+ // initial click handler so a later PIN prompt/permission check cannot cause a
+ // popup blocker to discard the WhatsApp fallback.
+ if(typeof originalShare==='function'&&!originalShare.__eucGuarded){
+  const guardedShare=function(){
+   const self=this,args=Array.from(arguments);
+   let pending=null;
+   try{pending=window.open('about:blank','_blank');if(pending)pending.opener=null}catch(_){}
+   if(window.__eucShareTabTimer)clearTimeout(window.__eucShareTabTimer);
+   window.__eucPendingShareWindow=pending;
+   window.__eucShareTabTimer=pending?setTimeout(()=>{
+    try{if(window.__eucPendingShareWindow===pending&&!pending.closed)pending.close()}catch(_){}
+    if(window.__eucPendingShareWindow===pending)window.__eucPendingShareWindow=null;
+    window.__eucShareTabTimer=null;
+   },60000):null;
+   return (async()=>{
+    if(!(await featureAllowed('share_app_link'))){
+     try{if(pending&&!pending.closed)pending.close()}catch(_){}
+     if(window.__eucPendingShareWindow===pending)window.__eucPendingShareWindow=null;
+     if(window.__eucShareTabTimer)clearTimeout(window.__eucShareTabTimer);
+     window.__eucShareTabTimer=null;
+     denyFeature('share_app_link');return false;
+    }
+    return originalShare.apply(self,args);
+   })();
+  };
+  guardedShare.__eucGuarded=true;guardedShare.__eucOriginal=originalShare;window.shareWhatsApp=guardedShare;
+ }
+ // The original share callback may run only after Section Lock PIN entry. Reuse
+ // the synchronously reserved tab; if native share is rejected for lost activation,
+ // the existing function navigates that tab to WhatsApp rather than opening a popup.
+ if(typeof originalPerform==='function'&&!originalPerform.__eucGuarded){
+  const guardedPerform=function(){
+   const self=this,args=Array.from(arguments);
+   let pending=window.__eucPendingShareWindow||null;
+   window.__eucPendingShareWindow=null;
+   if(window.__eucShareTabTimer)clearTimeout(window.__eucShareTabTimer);
+   window.__eucShareTabTimer=null;
+   return (async()=>{
+    if(!(await featureAllowed('share_app_link'))){
+     try{if(pending&&!pending.closed)pending.close()}catch(_){}
+     denyFeature('share_app_link');return false;
+    }
+    return originalPerform.apply(self,args.concat(pending));
+   })();
+  };
+  guardedPerform.__eucGuarded=true;guardedPerform.__eucOriginal=originalPerform;window.performShareWhatsApp=guardedPerform;
+ }
 }
 function installActionGuards(){
  // Saving a new record and saving an edit are different permissions.
  // The original calculate handler is context-aware in this wrapper.
  guardCalculate();
  guardHistoryAction();
+ guardShareAction();
  const map={
   openNewConverter:'new_entry',
-  shareWhatsApp:'share_app_link',
   openSectionLock:'section_lock',
   saveSectionLock:'section_lock',
   openEntryPercentLess:'less_history',
