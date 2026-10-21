@@ -1,45 +1,59 @@
-/* Owner-controlled Editor User Command UI. Requires the additive permissions migration. */
+/* Owner-controlled Editor User Command. UI enforcement for the nine user-approved protected features. */
 (function(){
 'use strict';
 const WORKSPACE_ID='0287285c-044b-4a08-9ed5-314b40fde0e8';
 const OWNER_FEATURES=[
- ['new_entry','+ New'],['excel_mode','Excel Mode'],['history_search','History Search'],
- ['notification_full_page','Notification — Full Page'],
- ['viewer_app_command','Viewer App Command'],['view_cloud_data','View Cloud Data'],['change_app_pin','App PIN / Password Change'],
- ['edit_delete','Edit / Delete'],['share_app_link','Share App Link'],['section_lock','Section Lock'],
- ['connection_service','Connection Service'],['less_history','Less History'],['manual_market_update','Manual Market Update']
+ ['new_entry','+ New'],
+ ['share_app_link','App Share'],
+ ['section_lock','Section Lock'],
+ ['less_history','Less History'],
+ ['connection_service','Connection Service Status'],
+ ['viewer_app_command','Viewer Command'],
+ ['edit_delete','Edit/Delete'],
+ ['view_cloud_data','View Cloud Data'],
+ ['manual_market_update','Manual Market']
 ];
-let ownerId=null,ownerReady=false,modal=null;
+let ownerId=null,modal=null;
 const $=id=>document.getElementById(id);
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function client(){return typeof window.getEditorSupabase==='function'?window.getEditorSupabase():null}
-async function verifyOwner(){
- const c=client(); if(!c)return false;
- const ses=await c.auth.getSession(), user=ses&&ses.data&&ses.data.session&&ses.data.session.user;
- if(!user)return false;
- const q=await c.from('workspaces').select('owner_id').eq('id',EUC_WORKSPACE_ID).maybeSingle();
+async function verifiedUser(){
+ const c=client();if(!c)return null;
+ const ses=await c.auth.getSession();
+ const user=ses&&ses.data&&ses.data.session&&ses.data.session.user;
+ if(!user)return null;
+ const q=await c.from('workspaces').select('owner_id').eq('id',WORKSPACE_ID).maybeSingle();
  if(q.error)throw q.error;
- ownerId=q.data&&q.data.owner_id||null; ownerReady=!!ownerId&&ownerId===user.id;
- return ownerReady;
+ if(!q.data||!q.data.owner_id)throw new Error('Workspace owner could not be verified');
+ ownerId=q.data.owner_id;
+ return user;
+}
+async function isOwner(){
+ try{const u=await verifiedUser();return !!u&&u.id===ownerId}
+ catch(e){console.warn('Owner verification failed closed',e);return false}
 }
 function ensureModal(){
  if(modal)return modal;
  modal=document.createElement('div');modal.id='editorUserCommandModal';
  modal.style.cssText='display:none;position:fixed;inset:0;z-index:100010;background:#0009;align-items:center;justify-content:center;padding:12px';
- modal.innerHTML='<section style="width:min(720px,100%);max-height:90dvh;overflow:auto;background:light-dark(#fff,#171c22);color:inherit;border:1px solid #8b98a8;border-radius:16px;padding:16px"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><strong style="font-size:18px">Editor User Command</strong><button type="button" id="eucClose" class="btn secondary">Close</button></div><p style="font-size:12px;opacity:.7">Owner-only approval and per-user permissions. Each user has an independent permission set.</p><div id="eucStatus" role="status" style="font-size:13px;margin:8px 0"></div><div id="eucUsers"></div></section>';
+ modal.innerHTML='<section style="width:min(720px,100%);max-height:90dvh;overflow:auto;background:light-dark(#fff,#171c22);color:inherit;border:1px solid #8b98a8;border-radius:16px;padding:16px"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><strong style="font-size:18px">Editor User Command</strong><button type="button" id="eucClose" class="btn secondary">Close</button></div><p style="font-size:12px;opacity:.7">Owner-only approval and per-user permissions for the nine protected Editor features.</p><div id="eucStatus" role="status" style="font-size:13px;margin:8px 0"></div><div id="eucUsers"></div></section>';
  document.body.appendChild(modal);$('eucClose').onclick=()=>modal.style.display='none';return modal;
 }
+function permissionsForDisplay(saved){
+ const p=saved&&typeof saved==='object'?saved:{};
+ return Object.fromEntries(OWNER_FEATURES.map(([key])=>[key,p[key]===true]));
+}
 function renderUser(m){
- const defaults=Object.fromEntries(OWNER_FEATURES.map(([key])=>[key,['excel_mode','history_search','notification_full_page'].includes(key)]));
- const p={...defaults,...(m.permissions&&typeof m.permissions==='object'?m.permissions:{})};
- const features=OWNER_FEATURES.map(([key,label])=>'<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #8883;font-size:13px"><span>'+esc(label)+'</span><input type="checkbox" data-permission="'+key+'" '+(p[key]===true?'checked':'')+' style="width:20px;height:20px"></label>').join('');
- return '<article data-user="'+esc(m.user_id)+'" style="border:1px solid #8885;border-radius:12px;padding:12px;margin:10px 0"><div style="font-weight:800;overflow-wrap:anywhere">'+esc(m.user_id)+'</div><div style="font-size:12px;opacity:.7;margin:3px 0 8px">Role: '+esc(m.role||'member')+' · '+(m.approved?'Approved':'Pending / Rejected')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn primary" type="button" data-action="approve">Approve</button><button class="btn danger" type="button" data-action="reject">Reject</button><button class="btn secondary" type="button" data-action="save">Save Permissions</button></div><details><summary style="cursor:pointer;font-weight:700;padding:6px 0">16 permissions</summary>'+features+'</details></article>';
+ const p=permissionsForDisplay(m.permissions);
+ const features=OWNER_FEATURES.map(([key,label])=>'<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #8883;font-size:13px"><span>'+esc(label)+'</span><input type="checkbox" data-permission="'+key+'" '+(p[key]?'checked':'')+' style="width:20px;height:20px"></label>').join('');
+ return '<article data-user="'+esc(m.user_id)+'" style="border:1px solid #8885;border-radius:12px;padding:12px;margin:10px 0"><div style="font-weight:800;overflow-wrap:anywhere">'+esc(m.user_id)+'</div><div style="font-size:12px;opacity:.7;margin:3px 0 8px">Role: '+esc(m.role||'member')+' · '+(m.approved?'Approved':'Not approved')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn primary" type="button" data-action="approve">Approve</button><button class="btn danger" type="button" data-action="reject">Reject</button><button class="btn secondary" type="button" data-action="save">Save Permissions</button></div><details><summary style="cursor:pointer;font-weight:700;padding:6px 0">9 protected features</summary>'+features+'</details></article>';
 }
 async function loadUsers(){
  const c=client(),status=$('eucStatus'),list=$('eucUsers');
  status.textContent='Loading users…';list.innerHTML='';
  try{
-  if(!await verifyOwner()){status.textContent='Owner account required. No changes made.';return}
+  const user=await verifiedUser();
+  if(!user||user.id!==ownerId){status.textContent='Owner account required. No changes made.';return}
   const members=await c.from('workspace_members').select('user_id,role').eq('workspace_id',WORKSPACE_ID);
   if(members.error)throw members.error;
   const perms=await c.from('workspace_member_permissions').select('user_id,approved,permissions,approved_at').eq('workspace_id',WORKSPACE_ID);
@@ -50,20 +64,29 @@ async function loadUsers(){
   status.textContent='Owner verified · '+users.length+' member(s).';
   list.querySelectorAll('article[data-user]').forEach(card=>{
    const uid=card.dataset.user;
-   card.querySelector('[data-action="approve"]').onclick=()=>saveUser(uid,{approved:true},card);
-   card.querySelector('[data-action="reject"]').onclick=()=>saveUser(uid,{approved:false},card);
-   card.querySelector('[data-action="save"]').onclick=()=>{const permissions={};card.querySelectorAll('[data-permission]').forEach(x=>permissions[x.dataset.permission]=!!x.checked);saveUser(uid,{permissions},card)};
+   card.querySelector('[data-action="approve"]').onclick=()=>saveUser(uid,{approved:true});
+   card.querySelector('[data-action="reject"]').onclick=()=>saveUser(uid,{approved:false});
+   card.querySelector('[data-action="save"]').onclick=()=>{
+    const permissions={};card.querySelectorAll('[data-permission]').forEach(x=>permissions[x.dataset.permission]=!!x.checked);
+    saveUser(uid,{permissions});
+   };
   });
- }catch(e){status.textContent='Could not load users/permissions: '+String(e&&e.message||e)+'. Check that the permissions migration is applied. No existing data was changed.'}
+ }catch(e){status.textContent='Could not load users/permissions: '+String(e&&e.message||e)+'. Verify the permissions migration is applied. No existing data was changed.'}
 }
-async function saveUser(uid,patch,card){
+async function saveUser(uid,patch){
  const status=$('eucStatus'),c=client();
  try{
-  if(!await verifyOwner())throw new Error('Owner verification failed');
+  const user=await verifiedUser();
+  if(!user||user.id!==ownerId)throw new Error('Owner verification failed');
   const current=await c.from('workspace_member_permissions').select('approved,permissions').eq('workspace_id',WORKSPACE_ID).eq('user_id',uid).maybeSingle();
   if(current.error)throw current.error;
-  const defaults=Object.fromEntries(OWNER_FEATURES.map(([k])=>[k,['excel_mode','history_search','notification_full_page'].includes(k)]));
-  const permissions={...defaults,...(current.data&&current.data.permissions||{}),...(patch.permissions||{})};
+  const old=current.data&&current.data.permissions&&typeof current.data.permissions==='object'?current.data.permissions:{};
+  // Preserve legacy/unrelated keys in storage; manage only the nine approved keys.
+  const permissions={...old};
+  OWNER_FEATURES.forEach(([key])=>{
+   if(Object.prototype.hasOwnProperty.call(patch.permissions||{},key))permissions[key]=patch.permissions[key]===true;
+   else if(!Object.prototype.hasOwnProperty.call(permissions,key))permissions[key]=false;
+  });
   const approved=typeof patch.approved==='boolean'?patch.approved:!!(current.data&&current.data.approved);
   const payload={workspace_id:WORKSPACE_ID,user_id:uid,approved,permissions,approved_by:ownerId,approved_at:approved?new Date().toISOString():null,updated_at:new Date().toISOString()};
   const saved=await c.from('workspace_member_permissions').upsert(payload,{onConflict:'workspace_id,user_id'});
@@ -74,129 +97,85 @@ async function saveUser(uid,patch,card){
 }
 window.openEditorUserCommand=async function(e){
  if(e){e.preventDefault();e.stopPropagation()}
- const m=ensureModal();m.style.display='flex';$('eucStatus').textContent='Verifying Owner account…';$('eucUsers').innerHTML='';
+ ensureModal().style.display='flex';$('eucStatus').textContent='Verifying Owner account…';$('eucUsers').innerHTML='';
  await loadUsers();
 };
 function addOwnerButton(){
- const menu=$('topNewMenu');if(!menu||!menu.querySelector('button[onclick="openViewerCommandFolder(event)"]'))return;
- if(menu.querySelector('#editorUserCommandBtn'))return;
+ const menu=$('topNewMenu');if(!menu||menu.querySelector('#editorUserCommandBtn'))return;
  const b=document.createElement('button');b.id='editorUserCommandBtn';b.type='button';b.textContent='🛡 Editor User Command';b.onclick=window.openEditorUserCommand;
  const sep=document.createElement('div');sep.className='menuSep';
- const viewer=menu.querySelector('button[onclick="openViewerCommandFolder(event)"]');
- if(viewer)menu.insertBefore(sep,viewer.nextSibling),menu.insertBefore(b,sep);
+ const anchor=menu.querySelector('button[onclick="openViewerCommandFolder(event)"]')||menu.firstElementChild;
+ if(anchor){menu.insertBefore(sep,anchor);menu.insertBefore(b,sep)}
 }
-const original=window.showProtectedMainMenu;
-if(typeof original==='function'){
- window.showProtectedMainMenu=function(){const r=original.apply(this,arguments);setTimeout(async()=>{try{if(await verifyOwner())addOwnerButton()}catch(e){console.warn('Owner command unavailable',e)}},0);return r};
+const firstMenu=window.showProtectedMainMenu;
+if(typeof firstMenu==='function'){
+ window.showProtectedMainMenu=function(){const r=firstMenu.apply(this,arguments);setTimeout(async()=>{try{if(await isOwner())addOwnerButton()}catch(e){console.warn('Owner command unavailable',e)}},0);return r};
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{});
-})();
-
-// Enforce permissions at the Editor UI action boundary as well as in the database.
-const FEATURE_ACTIONS = {
-  openNewConverter: 'new_entry',
-  editSelected: 'edit_delete',
-  deleteSelected: 'edit_delete',
-  openSectionLock: 'section_lock',
-  saveSectionLock: 'section_lock',
-  shareWhatsApp: 'share_app_link',
-  openViewerCommandFolder: 'viewer_app_command',
-  openViewerPpmSettings: 'viewer_app_command',
-  saveViewerPpmSettings: 'viewer_app_command',
-  toggleViewerMarketSource: 'viewer_app_command',
-  toggleViewerHistoryLess: 'viewer_app_command',
-  openLessSettings: 'excel_mode',
-  saveLessSettings: 'excel_mode',
-  openEntryPercentLess: 'less_history',
-  saveEntryPercentLess: 'less_history',
-  toggleEntryLessApply: 'less_history',
-  openPasswordSettings: 'change_app_pin',
-  cloudDataButtonClick: 'view_cloud_data',
-  guardedCloudDataClick: 'view_cloud_data',
-  openProtectedCloudData: 'view_cloud_data',
-  showCloudData: 'view_cloud_data',
-  historySearchInput: 'history_search',
-  openServiceStatus: 'connection_service',
-  saveMarket: 'manual_market_update'
-};
-// Always re-check against Supabase so an Owner's OFF change is not hidden by a stale client cache.
-// The action guards are outside the UI IIFE; expose only the non-secret helpers they need.
-function eucClient(){return typeof window.getEditorSupabase==='function'?window.getEditorSupabase():null;}
-const EUC_WORKSPACE_ID='0287285c-044b-4a08-9ed5-314b40fde0e8';
-const EUC_OWNER_FEATURES=[
- ['new_entry','+ New'],['excel_mode','Excel Mode'],['history_search','History Search'],
- ['notification_full_page','Notification — Full Page'],
- ['viewer_app_command','Viewer App Command'],['view_cloud_data','View Cloud Data'],['change_app_pin','App PIN / Password Change'],
- ['edit_delete','Edit / Delete'],['share_app_link','Share App Link'],['section_lock','Section Lock'],
- ['connection_service','Connection Service'],['less_history','Less History'],['manual_market_update','Manual Market Update']
-];
-async function featureAllowed(feature) {
-  try {
-    const c=eucClient();
-    if(!c) return false;
-    const sessionResult=await c.auth.getSession();
-    const user=sessionResult&&sessionResult.data&&sessionResult.data.session&&sessionResult.data.session.user;
-    if(!user) return false;
-    const ownerResult=await c.from('workspaces').select('owner_id').eq('id',EUC_WORKSPACE_ID).maybeSingle();
-    if(ownerResult.error) throw ownerResult.error;
-    if(ownerResult.data&&ownerResult.data.owner_id===user.id) return true;
-    const result=await c.rpc('workspace_feature_enabled',{p_workspace_id:EUC_WORKSPACE_ID,p_feature:feature});
-    if(result.error) throw result.error;
-    const allowed=result.data===true;
-    return allowed;
-  } catch(err) {
-    console.warn('Permission check failed closed:',feature,err);
-    return false;
-  }
+async function featureAllowed(feature){
+ try{
+  const c=client();if(!c)return false;
+  const s=await c.auth.getSession();
+  const user=s&&s.data&&s.data.session&&s.data.session.user;
+  if(!user)return false;
+  const w=await c.from('workspaces').select('owner_id').eq('id',WORKSPACE_ID).maybeSingle();
+  if(w.error)throw w.error;
+  if(!w.data||!w.data.owner_id)throw new Error('Workspace owner missing; fail closed');
+  if(w.data.owner_id===user.id)return true;
+  const m=await c.from('workspace_members').select('user_id').eq('workspace_id',WORKSPACE_ID).eq('user_id',user.id).maybeSingle();
+  if(m.error)throw m.error;
+  if(!m.data)return false;
+  const p=await c.from('workspace_member_permissions').select('approved,permissions').eq('workspace_id',WORKSPACE_ID).eq('user_id',user.id).maybeSingle();
+  if(p.error)throw p.error;
+  if(!p.data||p.data.approved!==true)return false;
+  return !!(p.data.permissions&&p.data.permissions[feature]===true);
+ }catch(err){console.warn('Permission check failed closed:',feature,err);return false}
 }
-function denyFeature(feature) {
-  const labels=Object.fromEntries(EUC_OWNER_FEATURES);
-  alert('Owner ne is feature ki permission enable nahi ki hai: '+(labels[feature]||feature));
+const FEATURE_LABELS=Object.fromEntries(OWNER_FEATURES);
+function denyFeature(feature){alert('Owner ne is feature ki permission enable nahi ki hai: '+(FEATURE_LABELS[feature]||feature))}
+function gate(feature,action){
+ return async function(){
+  const self=this,args=arguments;
+  if(await featureAllowed(feature))return action.apply(self,args);
+  denyFeature(feature);return false;
+ };
 }
-function installActionGuards() {
-  Object.entries(FEATURE_ACTIONS).forEach(([name,feature])=>{
-    const originalAction=window[name];
-    if(typeof originalAction!=='function'||originalAction.__eucGuarded) return;
-    const guarded=function() {
-      const self=this,args=arguments,event=args[0];
-      // Stop the original click synchronously while permission is checked.
-      if(event&&typeof event.preventDefault==='function')event.preventDefault();
-      if(event&&typeof event.stopPropagation==='function')event.stopPropagation();
-      featureAllowed(feature).then(allowed=>{
-        if(!allowed){denyFeature(feature);return;}
-        originalAction.apply(self,args);
-      });
-    };
-    guarded.__eucGuarded=true;
-    window[name]=guarded;
-  });
-  if(typeof window.showSection==='function'&&!window.showSection.__eucGuarded){
-    const originalShowSection=window.showSection;
-    const guardedShowSection=function(view){
-      const feature=view==='notification'?'notification_full_page':view==='history'?'history_search':null;
-      if(!feature){return originalShowSection.apply(this,arguments);}
-      const args=arguments,self=this,event=args[1];
-      if(event&&typeof event.preventDefault==='function')event.preventDefault();
-      if(event&&typeof event.stopPropagation==='function')event.stopPropagation();
-      featureAllowed(feature).then(allowed=>{
-        if(!allowed){denyFeature(feature);return;}
-        originalShowSection.apply(self,args);
-      });
-    };
-    guardedShowSection.__eucGuarded=true;
-    window.showSection=guardedShowSection;
-  }
+function guardGlobal(name,feature){
+ const original=window[name];
+ if(typeof original!=='function'||original.__eucGuarded)return;
+ const guarded=gate(feature,original);guarded.__eucGuarded=true;guarded.__eucOriginal=original;window[name]=guarded;
 }
-// Install permission checks as soon as the script loads.
+function installActionGuards(){
+ const map={
+  openNewConverter:'new_entry',
+  shareWhatsApp:'share_app_link',
+  openSectionLock:'section_lock',
+  saveSectionLock:'section_lock',
+  openEntryPercentLess:'less_history',
+  saveEntryPercentLess:'less_history',
+  toggleEntryLessApply:'less_history',
+  openServiceStatus:'connection_service',
+  checkServiceStatus:'connection_service',
+  openViewerCommandFolder:'viewer_app_command',
+  openViewerPpmSettings:'viewer_app_command',
+  saveViewerPpmSettings:'viewer_app_command',
+  toggleViewerMarketSource:'viewer_app_command',
+  toggleViewerHistoryLess:'viewer_app_command',
+  editSelected:'edit_delete',
+  deleteSelected:'edit_delete',
+  cloudDataButtonClick:'view_cloud_data',
+  guardedCloudDataClick:'view_cloud_data',
+  openProtectedCloudData:'view_cloud_data',
+  showCloudData:'view_cloud_data',
+  saveMarket:'manual_market_update'
+ };
+ Object.entries(map).forEach(([name,feature])=>guardGlobal(name,feature));
+ // Deliberately do not wrap showSection or any Notification/Refine/Refine Settings/
+ // History/View PPM/Excel Mode handlers: those six features are unprotected by decision.
+}
 installActionGuards();
-const originalShowProtectedForGuards=window.showProtectedMainMenu;
-if(typeof originalShowProtectedForGuards==='function'&&!originalShowProtectedForGuards.__eucGuarded){
-  const guardedMenu=function(){
-    const result=originalShowProtectedForGuards.apply(this,arguments);
-    setTimeout(()=>{installActionGuards();},0);
-    return result;
-  };
-  guardedMenu.__eucGuarded=true;
-  window.showProtectedMainMenu=guardedMenu;
+const guardedMenuOriginal=window.showProtectedMainMenu;
+if(typeof guardedMenuOriginal==='function'&&!guardedMenuOriginal.__eucGuarded){
+ const guardedMenu=function(){const r=guardedMenuOriginal.apply(this,arguments);setTimeout(installActionGuards,0);return r};
+ guardedMenu.__eucGuarded=true;window.showProtectedMainMenu=guardedMenu;
 }
-
+})();
