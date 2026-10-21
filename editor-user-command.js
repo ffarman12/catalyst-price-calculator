@@ -100,7 +100,9 @@ const FEATURE_ACTIONS = {
   openSectionLock: 'section_lock',
   shareWhatsApp: 'share_app_link',
   openViewerCommandFolder: 'viewer_app_command',
-  openLessSettings: 'excel_mode'
+  openLessSettings: 'excel_mode',
+  openEntryPercentLess: 'less_history',
+  openPasswordSettings: 'change_app_pin'
 };
 const permissionCache = new Map();
 async function featureAllowed(feature) {
