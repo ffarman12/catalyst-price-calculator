@@ -167,7 +167,7 @@ function installActionGuards() {
   if(typeof window.showSection==='function'&&!window.showSection.__eucGuarded){
     const originalShowSection=window.showSection;
     const guardedShowSection=function(view){
-      const feature=view==='refine'?'refine_full_page':view==='notification'?'notification_full_page':view==='history'?'history_search':null;
+      const feature=view==='refine'?'refine_full_page':view==='refineSettings'?'refine_settings':view==='notification'?'notification_full_page':view==='history'?'history_search':null;
       if(!feature){return originalShowSection.apply(this,arguments);}
       const args=arguments,self=this,event=args[1];
       if(event&&typeof event.preventDefault==='function')event.preventDefault();
