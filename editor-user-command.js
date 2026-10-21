@@ -30,7 +30,8 @@ function ensureModal(){
  document.body.appendChild(modal);$('eucClose').onclick=()=>modal.style.display='none';return modal;
 }
 function renderUser(m){
- const p=m.permissions&&typeof m.permissions==='object'?m.permissions:{};
+ const defaults=Object.fromEntries(OWNER_FEATURES.map(([key,i])=>[key,i<7]));
+ const p={...defaults,...(m.permissions&&typeof m.permissions==='object'?m.permissions:{})};
  const features=OWNER_FEATURES.map(([key,label])=>'<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #8883;font-size:13px"><span>'+esc(label)+'</span><input type="checkbox" data-permission="'+key+'" '+(p[key]===true?'checked':'')+' style="width:20px;height:20px"></label>').join('');
  return '<article data-user="'+esc(m.user_id)+'" style="border:1px solid #8885;border-radius:12px;padding:12px;margin:10px 0"><div style="font-weight:800;overflow-wrap:anywhere">'+esc(m.user_id)+'</div><div style="font-size:12px;opacity:.7;margin:3px 0 8px">Role: '+esc(m.role||'member')+' · '+(m.approved?'Approved':'Pending / Rejected')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn primary" type="button" data-action="approve">Approve</button><button class="btn danger" type="button" data-action="reject">Reject</button><button class="btn secondary" type="button" data-action="save">Save Permissions</button></div><details><summary style="cursor:pointer;font-weight:700;padding:6px 0">16 permissions</summary>'+features+'</details></article>';
 }
@@ -136,7 +137,10 @@ function installActionGuards() {
     const originalAction=window[name];
     if(typeof originalAction!=='function'||originalAction.__eucGuarded) return;
     const guarded=function() {
-      const self=this,args=arguments;
+      const self=this,args=arguments,event=args[0];
+      // Stop the original click synchronously while permission is checked.
+      if(event&&typeof event.preventDefault==='function')event.preventDefault();
+      if(event&&typeof event.stopPropagation==='function')event.stopPropagation();
       featureAllowed(feature).then(allowed=>{
         if(!allowed){denyFeature(feature);return;}
         originalAction.apply(self,args);
@@ -150,7 +154,9 @@ function installActionGuards() {
     const guardedShowSection=function(view){
       const feature=view==='refine'?'refine_full_page':view==='notification'?'notification_full_page':view==='history'?'history_search':null;
       if(!feature){return originalShowSection.apply(this,arguments);}
-      const args=arguments,self=this;
+      const args=arguments,self=this,event=args[1];
+      if(event&&typeof event.preventDefault==='function')event.preventDefault();
+      if(event&&typeof event.stopPropagation==='function')event.stopPropagation();
       featureAllowed(feature).then(allowed=>{
         if(!allowed){denyFeature(feature);return;}
         originalShowSection.apply(self,args);
