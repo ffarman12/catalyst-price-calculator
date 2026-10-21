@@ -133,6 +133,19 @@ async function featureAllowed(feature){
 const FEATURE_LABELS=Object.fromEntries(OWNER_FEATURES);
 function denyFeature(feature){alert('Owner ne is feature ki permission enable nahi ki hai: '+(FEATURE_LABELS[feature]||feature))}
 function gate(feature,action){
+ // A trusted browser share must be launched synchronously from the original click.
+ // Do not await a permission network round-trip inside navigator.share(), because
+ // browsers may reject it after transient user activation has expired.
+ if(feature==='share_app_link'){
+  return function(){
+   const self=this,args=arguments;
+   featureAllowed(feature).then(allowed=>{
+    if(!allowed){denyFeature(feature);return}
+    action.apply(self,args);
+   }).catch(()=>denyFeature(feature));
+   return false;
+  };
+ }
  return async function(){
   const self=this,args=arguments;
   if(await featureAllowed(feature))return action.apply(self,args);
@@ -148,6 +161,7 @@ function installActionGuards(){
  const map={
   openNewConverter:'new_entry',
   shareWhatsApp:'share_app_link',
+  performShareWhatsApp:'share_app_link',
   openSectionLock:'section_lock',
   saveSectionLock:'section_lock',
   openEntryPercentLess:'less_history',
@@ -166,6 +180,7 @@ function installActionGuards(){
   guardedCloudDataClick:'view_cloud_data',
   openProtectedCloudData:'view_cloud_data',
   showCloudData:'view_cloud_data',
+  toggleCloudDataView:'view_cloud_data',
   saveMarket:'manual_market_update'
  };
  Object.entries(map).forEach(([name,feature])=>guardGlobal(name,feature));
