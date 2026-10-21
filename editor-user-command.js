@@ -3,8 +3,8 @@
 'use strict';
 const WORKSPACE_ID='0287285c-044b-4a08-9ed5-314b40fde0e8';
 const OWNER_FEATURES=[
- ['new_entry','+ New'],['excel_mode','Excel Mode'],['view_ppm','View PPM'],['history_search','History Search'],
- ['refine_full_page','Refine Page — Full Page'],['refine_settings','Settings inside Refine Page'],['notification_full_page','Notification — Full Page'],
+ ['new_entry','+ New'],['excel_mode','Excel Mode'],['history_search','History Search'],
+ ['notification_full_page','Notification — Full Page'],
  ['viewer_app_command','Viewer App Command'],['view_cloud_data','View Cloud Data'],['change_app_pin','App PIN / Password Change'],
  ['edit_delete','Edit / Delete'],['share_app_link','Share App Link'],['section_lock','Section Lock'],
  ['connection_service','Connection Service'],['less_history','Less History'],['manual_market_update','Manual Market Update']
@@ -30,7 +30,7 @@ function ensureModal(){
  document.body.appendChild(modal);$('eucClose').onclick=()=>modal.style.display='none';return modal;
 }
 function renderUser(m){
- const defaults=Object.fromEntries(OWNER_FEATURES.map(([key],i)=>[key,i>0&&i<7]));
+ const defaults=Object.fromEntries(OWNER_FEATURES.map(([key])=>[key,['excel_mode','history_search','notification_full_page'].includes(key)]));
  const p={...defaults,...(m.permissions&&typeof m.permissions==='object'?m.permissions:{})};
  const features=OWNER_FEATURES.map(([key,label])=>'<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #8883;font-size:13px"><span>'+esc(label)+'</span><input type="checkbox" data-permission="'+key+'" '+(p[key]===true?'checked':'')+' style="width:20px;height:20px"></label>').join('');
  return '<article data-user="'+esc(m.user_id)+'" style="border:1px solid #8885;border-radius:12px;padding:12px;margin:10px 0"><div style="font-weight:800;overflow-wrap:anywhere">'+esc(m.user_id)+'</div><div style="font-size:12px;opacity:.7;margin:3px 0 8px">Role: '+esc(m.role||'member')+' · '+(m.approved?'Approved':'Pending / Rejected')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn primary" type="button" data-action="approve">Approve</button><button class="btn danger" type="button" data-action="reject">Reject</button><button class="btn secondary" type="button" data-action="save">Save Permissions</button></div><details><summary style="cursor:pointer;font-weight:700;padding:6px 0">16 permissions</summary>'+features+'</details></article>';
@@ -62,7 +62,7 @@ async function saveUser(uid,patch,card){
   if(!await verifyOwner())throw new Error('Owner verification failed');
   const current=await c.from('workspace_member_permissions').select('approved,permissions').eq('workspace_id',WORKSPACE_ID).eq('user_id',uid).maybeSingle();
   if(current.error)throw current.error;
-  const defaults=Object.fromEntries(OWNER_FEATURES.map(([k],i)=>[k,i>0&&i<7]));
+  const defaults=Object.fromEntries(OWNER_FEATURES.map(([k])=>[k,['excel_mode','history_search','notification_full_page'].includes(k)]));
   const permissions={...defaults,...(current.data&&current.data.permissions||{}),...(patch.permissions||{})};
   const approved=typeof patch.approved==='boolean'?patch.approved:!!(current.data&&current.data.approved);
   const payload={workspace_id:WORKSPACE_ID,user_id:uid,approved,permissions,approved_by:ownerId,approved_at:approved?new Date().toISOString():null,updated_at:new Date().toISOString()};
@@ -95,8 +95,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 // Enforce permissions at the Editor UI action boundary as well as in the database.
 const FEATURE_ACTIONS = {
   openNewConverter: 'new_entry',
-  showPPM: 'view_ppm',
-  showDetailPPM: 'view_ppm',
   editSelected: 'edit_delete',
   deleteSelected: 'edit_delete',
   openSectionLock: 'section_lock',
@@ -113,8 +111,6 @@ const FEATURE_ACTIONS = {
   saveEntryPercentLess: 'less_history',
   toggleEntryLessApply: 'less_history',
   openPasswordSettings: 'change_app_pin',
-  openRefineCalculatorSettings: 'refine_settings',
-  saveRefineCalculatorSettings: 'refine_settings',
   cloudDataButtonClick: 'view_cloud_data',
   guardedCloudDataClick: 'view_cloud_data',
   openProtectedCloudData: 'view_cloud_data',
@@ -128,8 +124,8 @@ const FEATURE_ACTIONS = {
 function eucClient(){return typeof window.getEditorSupabase==='function'?window.getEditorSupabase():null;}
 const EUC_WORKSPACE_ID='0287285c-044b-4a08-9ed5-314b40fde0e8';
 const EUC_OWNER_FEATURES=[
- ['new_entry','+ New'],['excel_mode','Excel Mode'],['view_ppm','View PPM'],['history_search','History Search'],
- ['refine_full_page','Refine Page — Full Page'],['refine_settings','Settings inside Refine Page'],['notification_full_page','Notification — Full Page'],
+ ['new_entry','+ New'],['excel_mode','Excel Mode'],['history_search','History Search'],
+ ['notification_full_page','Notification — Full Page'],
  ['viewer_app_command','Viewer App Command'],['view_cloud_data','View Cloud Data'],['change_app_pin','App PIN / Password Change'],
  ['edit_delete','Edit / Delete'],['share_app_link','Share App Link'],['section_lock','Section Lock'],
  ['connection_service','Connection Service'],['less_history','Less History'],['manual_market_update','Manual Market Update']
@@ -177,7 +173,7 @@ function installActionGuards() {
   if(typeof window.showSection==='function'&&!window.showSection.__eucGuarded){
     const originalShowSection=window.showSection;
     const guardedShowSection=function(view){
-      const feature=view==='refine'?'refine_full_page':view==='refineSettings'?'refine_settings':view==='notification'?'notification_full_page':view==='history'?'history_search':null;
+      const feature=view==='notification'?'notification_full_page':view==='history'?'history_search':null;
       if(!feature){return originalShowSection.apply(this,arguments);}
       const args=arguments,self=this,event=args[1];
       if(event&&typeof event.preventDefault==='function')event.preventDefault();
