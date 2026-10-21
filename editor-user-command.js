@@ -90,3 +90,83 @@ if(typeof original==='function'){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{});
 })();
+
+// Enforce permissions at the Editor UI action boundary as well as in the database.
+const FEATURE_ACTIONS = {
+  openNewConverter: 'new_entry',
+  showPPM: 'view_ppm',
+  editSelected: 'edit_delete',
+  deleteSelected: 'edit_delete',
+  openSectionLock: 'section_lock',
+  shareWhatsApp: 'share_app_link',
+  openViewerCommandFolder: 'viewer_app_command',
+  openLessSettings: 'excel_mode'
+};
+const permissionCache = new Map();
+async function featureAllowed(feature) {
+  try {
+    const c=client();
+    if(!c) return false;
+    const sessionResult=await c.auth.getSession();
+    const user=sessionResult&&sessionResult.data&&sessionResult.data.session&&sessionResult.data.session.user;
+    if(!user) return false;
+    const ownerResult=await c.from('workspaces').select('owner_id').eq('id',WORKSPACE_ID).maybeSingle();
+    if(ownerResult.error) throw ownerResult.error;
+    if(ownerResult.data&&ownerResult.data.owner_id===user.id) return true;
+    const cacheKey=user.id+':'+feature;
+    if(permissionCache.has(cacheKey)) return permissionCache.get(cacheKey);
+    const result=await c.rpc('workspace_feature_enabled',{p_workspace_id:WORKSPACE_ID,p_feature:feature});
+    if(result.error) throw result.error;
+    const allowed=result.data===true;
+    permissionCache.set(cacheKey,allowed);
+    return allowed;
+  } catch(err) {
+    console.warn('Permission check failed closed:',feature,err);
+    return false;
+  }
+}
+function denyFeature(feature) {
+  const labels=Object.fromEntries(OWNER_FEATURES);
+  alert('Owner ne is feature ki permission enable nahi ki hai: '+(labels[feature]||feature));
+}
+function installActionGuards() {
+  Object.entries(FEATURE_ACTIONS).forEach(([name,feature])=>{
+    const originalAction=window[name];
+    if(typeof originalAction!=='function'||originalAction.__eucGuarded) return;
+    const guarded=function() {
+      const self=this,args=arguments;
+      featureAllowed(feature).then(allowed=>{
+        if(!allowed){denyFeature(feature);return;}
+        originalAction.apply(self,args);
+      });
+    };
+    guarded.__eucGuarded=true;
+    window[name]=guarded;
+  });
+  if(typeof window.showSection==='function'&&!window.showSection.__eucGuarded){
+    const originalShowSection=window.showSection;
+    const guardedShowSection=function(view){
+      const feature=view==='refine'?'refine_full_page':view==='notification'?'notification_full_page':view==='history'?'history_search':null;
+      if(!feature){return originalShowSection.apply(this,arguments);}
+      const args=arguments,self=this;
+      featureAllowed(feature).then(allowed=>{
+        if(!allowed){denyFeature(feature);return;}
+        originalShowSection.apply(self,args);
+      });
+    };
+    guardedShowSection.__eucGuarded=true;
+    window.showSection=guardedShowSection;
+  }
+}
+const originalShowProtectedForGuards=window.showProtectedMainMenu;
+if(typeof originalShowProtectedForGuards==='function'&&!originalShowProtectedForGuards.__eucGuarded){
+  const guardedMenu=function(){
+    const result=originalShowProtectedForGuards.apply(this,arguments);
+    permissionCache.clear();
+    setTimeout(()=>{installActionGuards();},0);
+    return result;
+  };
+  guardedMenu.__eucGuarded=true;
+  window.showProtectedMainMenu=guardedMenu;
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')permissionCache.clear();});
