@@ -147,10 +147,36 @@ function guardGlobal(name,feature){
  if(typeof original!=='function'||original.__eucGuarded)return;
  const guarded=gate(feature,original);guarded.__eucGuarded=true;guarded.__eucOriginal=original;window[name]=guarded;
 }
+function guardCalculate(){
+ const original=window.calculate;
+ if(typeof original!=='function'||original.__eucGuarded)return;
+ const guarded=async function(){
+  const editMode=(typeof editingIndex!=='undefined'&&editingIndex!==null)||
+   (typeof editingCloudId!=='undefined'&&!!editingCloudId);
+  const feature=editMode?'edit_delete':'new_entry';
+  if(!(await featureAllowed(feature))){denyFeature(feature);return false;}
+  return original.apply(this,arguments);
+ };
+ guarded.__eucGuarded=true;guarded.__eucOriginal=original;window.calculate=guarded;
+}
+function guardHistoryAction(){
+ const original=window.requestHistoryAction;
+ if(typeof original!=='function'||original.__eucGuarded)return;
+ const guarded=async function(action){
+  // History PPM/detail stays unprotected; only Edit/Delete requires permission.
+  if(action!=='edit'&&action!=='delete')return original.apply(this,arguments);
+  if(!(await featureAllowed('edit_delete'))){denyFeature('edit_delete');return false;}
+  return original.apply(this,arguments);
+ };
+ guarded.__eucGuarded=true;guarded.__eucOriginal=original;window.requestHistoryAction=guarded;
+}
 function installActionGuards(){
+ // Saving a new record and saving an edit are different permissions.
+ // The original calculate handler is context-aware in this wrapper.
+ guardCalculate();
+ guardHistoryAction();
  const map={
   openNewConverter:'new_entry',
-  calculate:'new_entry',
   shareWhatsApp:'share_app_link',
   performShareWhatsApp:'share_app_link',
   openSectionLock:'section_lock',
