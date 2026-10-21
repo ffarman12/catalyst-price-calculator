@@ -77,12 +77,12 @@ window.openEditorUserCommand=async function(e){
  await loadUsers();
 };
 function addOwnerButton(){
- const menu=$('topNewMenu');if(!menu||!menu.querySelector('button[onclick="showProtectedMainMenu()"]'))return;
+ const menu=$('topNewMenu');if(!menu||!menu.querySelector('button[onclick="openViewerCommandFolder(event)"]'))return;
  if(menu.querySelector('#editorUserCommandBtn'))return;
  const b=document.createElement('button');b.id='editorUserCommandBtn';b.type='button';b.textContent='🛡 Editor User Command';b.onclick=window.openEditorUserCommand;
  const sep=document.createElement('div');sep.className='menuSep';
- const back=menu.querySelector('button[onclick="showProtectedMainMenu()"]');
- if(back)menu.insertBefore(sep,back),menu.insertBefore(b,sep);
+ const viewer=menu.querySelector('button[onclick="openViewerCommandFolder(event)"]');
+ if(viewer)menu.insertBefore(sep,viewer.nextSibling),menu.insertBefore(b,sep);
 }
 const original=window.showProtectedMainMenu;
 if(typeof original==='function'){
