@@ -36,10 +36,9 @@ as $$
   end
 $$;
 
--- Keep app_settings write policies unchanged for now: that row also stores Viewer App
--- controls. A table-level RLS rule cannot safely distinguish those JSON keys, and
--- changing it here could break existing Viewer App behavior. Refine settings need a
--- separately designed field-level enforcement before this migration is production-ready.
+-- The app_settings row also contains Viewer-specific controls and existing shared settings.
+-- Do not put any of those settings behind Owner Permission in this migration.
+-- UI-gate only the Section Lock settings screen; leave unrelated settings persistence untouched.
 
 -- History is explicitly outside Owner Permission. Keep its current membership-based
 -- SELECT policies untouched; no history_search permission check is added here.
