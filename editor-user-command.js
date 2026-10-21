@@ -189,6 +189,14 @@ function installActionGuards(){
  // History/View PPM/Excel Mode handlers: those six features are unprotected by decision.
 }
 installActionGuards();
+// index.html may assign compatibility wrappers after this external script is evaluated.
+// Re-install action guards once the current task's inline scripts have completed, and
+// after the protected menu is rebuilt. This only wraps the nine feature handlers.
+if(document.readyState==='loading'){
+ document.addEventListener('DOMContentLoaded',()=>setTimeout(installActionGuards,0),{once:true});
+}else{
+ setTimeout(installActionGuards,0);
+}
 const guardedMenuOriginal=window.showProtectedMainMenu;
 if(typeof guardedMenuOriginal==='function'&&!guardedMenuOriginal.__eucGuarded){
  const guardedMenu=function(){const r=guardedMenuOriginal.apply(this,arguments);setTimeout(installActionGuards,0);return r};
