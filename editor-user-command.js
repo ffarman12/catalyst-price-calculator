@@ -123,7 +123,7 @@ async function featureAllowed(feature) {
     const sessionResult=await c.auth.getSession();
     const user=sessionResult&&sessionResult.data&&sessionResult.data.session&&sessionResult.data.session.user;
     if(!user) return false;
-    const ownerResult=await c.from('workspaces').select('owner_id').eq('id',WORKSPACE_ID).maybeSingle();
+    const ownerResult=await c.from('workspaces').select('owner_id').eq('id',EUC_WORKSPACE_ID).maybeSingle();
     if(ownerResult.error) throw ownerResult.error;
     if(ownerResult.data&&ownerResult.data.owner_id===user.id) return true;
     const cacheKey=user.id+':'+feature;
