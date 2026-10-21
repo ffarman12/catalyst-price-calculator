@@ -105,9 +105,11 @@ const FEATURE_ACTIONS = {
   toggleViewerMarketSource: 'viewer_app_command',
   toggleViewerHistoryLess: 'viewer_app_command',
   openLessSettings: 'excel_mode',
+  saveLessSettings: 'excel_mode',
   openEntryPercentLess: 'less_history',
   openPasswordSettings: 'change_app_pin',
   openRefineCalculatorSettings: 'refine_settings',
+  saveRefineCalculatorSettings: 'refine_settings',
   cloudDataButtonClick: 'view_cloud_data',
   openServiceStatus: 'connection_service',
   saveMarket: 'manual_market_update'
