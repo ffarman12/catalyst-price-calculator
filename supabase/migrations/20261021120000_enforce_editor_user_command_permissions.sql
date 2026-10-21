@@ -41,6 +41,14 @@ $$;
 -- changing it here could break existing Viewer App behavior. Refine settings need a
 -- separately designed field-level enforcement before this migration is production-ready.
 
+-- Restrict History reads to approved members whose History Search permission is enabled.
+-- Drop all overlapping permissive SELECT policies; PostgreSQL ORs permissive policies.
+drop policy if exists "members read" on public.converter_entries;
+drop policy if exists "members_read_converter_entries" on public.converter_entries;
+create policy "approved_permission_read_converter_entries"
+  on public.converter_entries for select to authenticated
+  using (public.workspace_feature_enabled(workspace_id, 'history_search'));
+
 drop policy if exists "editors delete" on public.converter_entries;
 drop policy if exists "editors insert" on public.converter_entries;
 drop policy if exists "editors update" on public.converter_entries;
@@ -58,6 +66,17 @@ create policy "approved_permission_update_converter_entries"
 create policy "approved_permission_delete_converter_entries"
   on public.converter_entries for delete to authenticated
   using (public.workspace_feature_enabled(workspace_id, 'edit_delete'));
+
+-- Photo reads follow the parent entry's History Search permission.
+drop policy if exists "members read photos" on public.converter_photos;
+drop policy if exists "members_read_converter_photos" on public.converter_photos;
+create policy "approved_permission_read_converter_photos"
+  on public.converter_photos for select to authenticated
+  using (exists (
+    select 1 from public.converter_entries ce
+    where ce.id = converter_photos.entry_id
+      and public.workspace_feature_enabled(ce.workspace_id, 'history_search')
+  ));
 
 drop policy if exists "editors delete photos" on public.converter_photos;
 drop policy if exists "editors insert photos" on public.converter_photos;
