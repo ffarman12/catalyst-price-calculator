@@ -43,6 +43,8 @@ $$;
 -- History is explicitly outside Owner Permission. Keep its current membership-based
 -- SELECT policies untouched; no history_search permission check is added here.
 
+-- Remove all currently known permissive Editor write policy variants. Any surviving
+-- permissive policy would OR with these policies and bypass a disabled permission.
 drop policy if exists "editors delete" on public.converter_entries;
 drop policy if exists "editors insert" on public.converter_entries;
 drop policy if exists "editors update" on public.converter_entries;
@@ -64,6 +66,8 @@ create policy "approved_permission_delete_converter_entries"
 -- History photos stay readable under the existing membership-based photo policies.
 -- Do not attach History photo reads to the Owner Permission system.
 
+-- Remove the legacy and current Editor write policy variants together so the
+-- approved permission policies are the only permissive write policies remaining.
 drop policy if exists "editors delete photos" on public.converter_photos;
 drop policy if exists "editors insert photos" on public.converter_photos;
 drop policy if exists "editors update photos" on public.converter_photos;
