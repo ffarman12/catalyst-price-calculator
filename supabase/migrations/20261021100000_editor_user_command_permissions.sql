@@ -6,7 +6,7 @@ create table if not exists public.workspace_member_permissions (
   user_id uuid not null references auth.users(id) on delete cascade,
   approved boolean not null default false,
   permissions jsonb not null default jsonb_build_object(
-    'new_entry', false,
+    'new_entry', true,
     'excel_mode', true,
     'view_ppm', true,
     'history_search', true,
