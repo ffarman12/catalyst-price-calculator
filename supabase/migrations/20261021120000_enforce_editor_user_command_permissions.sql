@@ -125,37 +125,53 @@ create policy "approved_permission_delete_section_lock_secrets"
   using (public.workspace_feature_enabled(workspace_id, 'section_lock'));
 
 
--- Storage paths are workspace-id-prefixed. Enforce the same granular permissions
--- for photo uploads and mutations; preserve the existing read policy.
+-- Storage paths are workspace-id-prefixed. Enforce granular permissions for photo writes.
 drop policy if exists "editors_delete_converter_photos_storage" on storage.objects;
 drop policy if exists "editors_upload_converter_photos_storage" on storage.objects;
 drop policy if exists "editors_update_converter_photos_storage" on storage.objects;
+drop policy if exists "approved_permission_upload_converter_photos_storage" on storage.objects;
+drop policy if exists "approved_permission_update_converter_photos_storage" on storage.objects;
+drop policy if exists "approved_permission_delete_converter_photos_storage" on storage.objects;
 
 create policy "approved_permission_upload_converter_photos_storage"
   on storage.objects for insert to authenticated
   with check (
     bucket_id = 'converter-photos'
     and case
-      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'new_entry')
+      else false
+    end
   );
+
 create policy "approved_permission_update_converter_photos_storage"
   on storage.objects for update to authenticated
   using (
     bucket_id = 'converter-photos'
     and case
-      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+      else false
+    end
   )
   with check (
     bucket_id = 'converter-photos'
-    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+    and case
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+      else false
+    end
   );
+
 create policy "approved_permission_delete_converter_photos_storage"
   on storage.objects for delete to authenticated
   using (
     bucket_id = 'converter-photos'
-    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+    and case
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+      else false
+    end
   );
 
 revoke all on function public.workspace_feature_enabled(uuid, text, uuid) from public, anon;
