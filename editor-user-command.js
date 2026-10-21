@@ -160,6 +160,7 @@ function guardGlobal(name,feature){
 function installActionGuards(){
  const map={
   openNewConverter:'new_entry',
+  calculate:'new_entry',
   shareWhatsApp:'share_app_link',
   performShareWhatsApp:'share_app_link',
   openSectionLock:'section_lock',
