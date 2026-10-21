@@ -1163,7 +1163,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       $('pinModal').style.display='none';
       if(actionKind==='historyMenu'){
         const m=$('actionMenu');
-        m.innerHTML='<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'edit\\','+entryIndex+');">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'delete\\','+entryIndex+');">Delete</button>';
+        m.innerHTML='<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\'edit\','+entryIndex+');">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\'delete\','+entryIndex+');">Delete</button>';
         m.style.display='block';m.style.position='fixed';m.style.zIndex='99999';
         const vw=window.innerWidth||360,vh=window.innerHeight||640,x=Number(pendingMenuX)||vw/2,y=Number(pendingMenuY)||vh/2;
         m.style.left=Math.max(8,Math.min(vw-150,x-120))+'px';m.style.top=Math.max(8,Math.min(vh-130,y-70))+'px';
