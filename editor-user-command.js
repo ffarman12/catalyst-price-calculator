@@ -101,9 +101,14 @@ const FEATURE_ACTIONS = {
   openSectionLock: 'section_lock',
   shareWhatsApp: 'share_app_link',
   openViewerCommandFolder: 'viewer_app_command',
+  toggleViewerMarketSource: 'viewer_app_command',
   openLessSettings: 'excel_mode',
   openEntryPercentLess: 'less_history',
-  openPasswordSettings: 'change_app_pin'
+  openPasswordSettings: 'change_app_pin',
+  openRefineCalculatorSettings: 'refine_settings',
+  cloudDataButtonClick: 'view_cloud_data',
+  openServiceStatus: 'connection_service',
+  saveMarket: 'manual_market_update'
 };
 const permissionCache = new Map();
 // The action guards are outside the UI IIFE; expose only the non-secret helpers they need.
