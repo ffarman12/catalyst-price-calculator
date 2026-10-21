@@ -41,13 +41,8 @@ $$;
 -- changing it here could break existing Viewer App behavior. Refine settings need a
 -- separately designed field-level enforcement before this migration is production-ready.
 
--- Restrict History reads to approved members whose History Search permission is enabled.
--- Drop all overlapping permissive SELECT policies; PostgreSQL ORs permissive policies.
-drop policy if exists "members read" on public.converter_entries;
-drop policy if exists "members_read_converter_entries" on public.converter_entries;
-create policy "approved_permission_read_converter_entries"
-  on public.converter_entries for select to authenticated
-  using (public.workspace_feature_enabled(workspace_id, 'history_search'));
+-- History is explicitly outside Owner Permission. Keep its current membership-based
+-- SELECT policies untouched; no history_search permission check is added here.
 
 drop policy if exists "editors delete" on public.converter_entries;
 drop policy if exists "editors insert" on public.converter_entries;
@@ -67,16 +62,8 @@ create policy "approved_permission_delete_converter_entries"
   on public.converter_entries for delete to authenticated
   using (public.workspace_feature_enabled(workspace_id, 'edit_delete'));
 
--- Photo reads follow the parent entry's History Search permission.
-drop policy if exists "members read photos" on public.converter_photos;
-drop policy if exists "members_read_converter_photos" on public.converter_photos;
-create policy "approved_permission_read_converter_photos"
-  on public.converter_photos for select to authenticated
-  using (exists (
-    select 1 from public.converter_entries ce
-    where ce.id = converter_photos.entry_id
-      and public.workspace_feature_enabled(ce.workspace_id, 'history_search')
-  ));
+-- History photos stay readable under the existing membership-based photo policies.
+-- Do not attach History photo reads to the Owner Permission system.
 
 drop policy if exists "editors delete photos" on public.converter_photos;
 drop policy if exists "editors insert photos" on public.converter_photos;
@@ -148,19 +135,8 @@ create policy "approved_permission_delete_section_lock_secrets"
   using (public.workspace_feature_enabled(workspace_id, 'section_lock'));
 
 
--- Storage paths are workspace-id-prefixed. Enforce History Search for photo reads
--- and granular permissions for photo writes. Remove the old membership-only read policy.
-drop policy if exists "members_read_converter_photos_storage" on storage.objects;
-create policy "approved_permission_read_converter_photos_storage"
-  on storage.objects for select to authenticated
-  using (
-    bucket_id = 'converter-photos'
-    and case
-      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'history_search')
-      else false
-    end
-  );
+-- Storage photo READ policy remains membership-based. Only upload/update/delete
+-- are subject to + New and Edit/Delete permissions in this feature.
 
 drop policy if exists "editors_delete_converter_photos_storage" on storage.objects;
 drop policy if exists "editors_upload_converter_photos_storage" on storage.objects;
