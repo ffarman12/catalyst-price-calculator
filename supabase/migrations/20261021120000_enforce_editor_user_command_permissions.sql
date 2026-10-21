@@ -129,9 +129,13 @@ create policy "approved_permission_update_manual_market"
     id = 1 and public.workspace_feature_enabled('0287285c-044b-4a08-9ed5-314b40fde0e8'::uuid, 'manual_market_update')
   );
 
+drop policy if exists "section_lock_secrets_editor_select" on public.section_lock_secrets;
 drop policy if exists "section_lock_secrets_editor_delete" on public.section_lock_secrets;
 drop policy if exists "section_lock_secrets_editor_insert" on public.section_lock_secrets;
 drop policy if exists "section_lock_secrets_editor_update" on public.section_lock_secrets;
+create policy "approved_permission_select_section_lock_secrets"
+  on public.section_lock_secrets for select to authenticated
+  using (public.workspace_feature_enabled(workspace_id, 'section_lock'));
 create policy "approved_permission_insert_section_lock_secrets"
   on public.section_lock_secrets for insert to authenticated
   with check (public.workspace_feature_enabled(workspace_id, 'section_lock'));
@@ -144,7 +148,73 @@ create policy "approved_permission_delete_section_lock_secrets"
   using (public.workspace_feature_enabled(workspace_id, 'section_lock'));
 
 
--- Storage paths are workspace-id-prefixed. Enforce granular permissions for photo writes.
+-- Storage paths are workspace-id-prefixed. Enforce History Search for photo reads
+-- and granular permissions for photo writes. Remove the old membership-only read policy.
+drop policy if exists "members_read_converter_photos_storage" on storage.objects;
+create policy "approved_permission_read_converter_photos_storage"
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'converter-photos'
+    and case
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+drop policy if exists "editors_upload_converter_photos_storage" on storage.objects;
+drop policy if exists "editors_update_converter_photos_storage" on storage.objects;
+drop policy if exists "approved_permission_upload_converter_photos_storage" on storage.objects;
+drop policy if exists "approved_permission_update_converter_photos_storage" on storage.objects;
+drop policy if exists "approved_permission_delete_converter_photos_storage" on storage.objects;
+
+create policy "approved_permission_upload_converter_photos_storage"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'converter-photos'
+    and case
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'new_entry')
+      else false
+    end
+  );
+
+create policy "approved_permission_update_converter_photos_storage"
+  on storage.objects for update to authenticated
+  using (
+    bucket_id = 'converter-photos'
+    and case
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+      else false
+    end
+  )
+  with check (
+    bucket_id = 'converter-photos'
+    and case
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+      else false
+    end
+  );
+
+create policy "approved_permission_delete_converter_photos_storage"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'converter-photos'
+    and case
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+      else false
+    end
+  );
+
+revoke all on function public.workspace_feature_enabled(uuid, text, uuid) from public, anon;
+grant execute on function public.workspace_feature_enabled(uuid, text, uuid) to authenticated;
+
+comment on function public.workspace_feature_enabled(uuid, text, uuid) is
+  'Owner bypass; otherwise requires workspace membership, approval, and the named permission. Non-owners may only query their own feature status.';
+
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'history_search')
+      else false
+    end
+  );
+
 drop policy if exists "editors_delete_converter_photos_storage" on storage.objects;
 drop policy if exists "editors_upload_converter_photos_storage" on storage.objects;
 drop policy if exists "editors_update_converter_photos_storage" on storage.objects;
