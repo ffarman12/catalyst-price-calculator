@@ -17,7 +17,7 @@ async function verifyOwner(){
  const c=client(); if(!c)return false;
  const ses=await c.auth.getSession(), user=ses&&ses.data&&ses.data.session&&ses.data.session.user;
  if(!user)return false;
- const q=await c.from('workspaces').select('owner_id').eq('id',WORKSPACE_ID).maybeSingle();
+ const q=await c.from('workspaces').select('owner_id').eq('id',EUC_WORKSPACE_ID).maybeSingle();
  if(q.error)throw q.error;
  ownerId=q.data&&q.data.owner_id||null; ownerReady=!!ownerId&&ownerId===user.id;
  return ownerReady;
@@ -106,9 +106,19 @@ const FEATURE_ACTIONS = {
   openPasswordSettings: 'change_app_pin'
 };
 const permissionCache = new Map();
+// The action guards are outside the UI IIFE; expose only the non-secret helpers they need.
+function eucClient(){return typeof window.getEditorSupabase==='function'?window.getEditorSupabase():null;}
+const EUC_WORKSPACE_ID='0287285c-044b-4a08-9ed5-314b40fde0e8';
+const EUC_OWNER_FEATURES=[
+ ['new_entry','+ New'],['excel_mode','Excel Mode'],['view_ppm','View PPM'],['history_search','History Search'],
+ ['refine_full_page','Refine Page — Full Page'],['refine_settings','Settings inside Refine Page'],['notification_full_page','Notification — Full Page'],
+ ['viewer_app_command','Viewer App Command'],['view_cloud_data','View Cloud Data'],['change_app_pin','App PIN / Password Change'],
+ ['edit_delete','Edit / Delete'],['share_app_link','Share App Link'],['section_lock','Section Lock'],
+ ['connection_service','Connection Service'],['less_history','Less History'],['manual_market_update','Manual Market Update']
+];
 async function featureAllowed(feature) {
   try {
-    const c=client();
+    const c=eucClient();
     if(!c) return false;
     const sessionResult=await c.auth.getSession();
     const user=sessionResult&&sessionResult.data&&sessionResult.data.session&&sessionResult.data.session.user;
@@ -118,7 +128,7 @@ async function featureAllowed(feature) {
     if(ownerResult.data&&ownerResult.data.owner_id===user.id) return true;
     const cacheKey=user.id+':'+feature;
     if(permissionCache.has(cacheKey)) return permissionCache.get(cacheKey);
-    const result=await c.rpc('workspace_feature_enabled',{p_workspace_id:WORKSPACE_ID,p_feature:feature});
+    const result=await c.rpc('workspace_feature_enabled',{p_workspace_id:EUC_WORKSPACE_ID,p_feature:feature});
     if(result.error) throw result.error;
     const allowed=result.data===true;
     permissionCache.set(cacheKey,allowed);
@@ -129,7 +139,7 @@ async function featureAllowed(feature) {
   }
 }
 function denyFeature(feature) {
-  const labels=Object.fromEntries(OWNER_FEATURES);
+  const labels=Object.fromEntries(EUC_OWNER_FEATURES);
   alert('Owner ne is feature ki permission enable nahi ki hai: '+(labels[feature]||feature));
 }
 function installActionGuards() {
