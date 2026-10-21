@@ -170,6 +170,25 @@ function guardHistoryAction(){
  };
  guarded.__eucGuarded=true;guarded.__eucOriginal=original;window.requestHistoryAction=guarded;
 }
+function guardShareAction(){
+ const original=window.performShareWhatsApp;
+ if(typeof original!=='function'||original.__eucGuarded)return;
+ const guarded=function(){
+  const self=this,args=Array.from(arguments);
+  // Reserve a tab synchronously while the click still has browser user activation.
+  // Only navigate it to WhatsApp after the live permission check succeeds.
+  let pending=null;
+  try{pending=window.open('about:blank','_blank');if(pending)pending.opener=null}catch(_){}
+  return (async()=>{
+   if(!(await featureAllowed('share_app_link'))){
+    if(pending&&!pending.closed)pending.close();
+    denyFeature('share_app_link');return false;
+   }
+   return original.apply(self,args.concat(pending));
+  })();
+ };
+ guarded.__eucGuarded=true;guarded.__eucOriginal=original;window.performShareWhatsApp=guarded;
+}
 function installActionGuards(){
  // Saving a new record and saving an edit are different permissions.
  // The original calculate handler is context-aware in this wrapper.
@@ -178,7 +197,6 @@ function installActionGuards(){
  const map={
   openNewConverter:'new_entry',
   shareWhatsApp:'share_app_link',
-  performShareWhatsApp:'share_app_link',
   openSectionLock:'section_lock',
   saveSectionLock:'section_lock',
   openEntryPercentLess:'less_history',
