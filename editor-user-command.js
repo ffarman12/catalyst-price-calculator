@@ -181,6 +181,8 @@ function installActionGuards() {
     window.showSection=guardedShowSection;
   }
 }
+// Install permission checks as soon as the script loads.
+installActionGuards();
 const originalShowProtectedForGuards=window.showProtectedMainMenu;
 if(typeof originalShowProtectedForGuards==='function'&&!originalShowProtectedForGuards.__eucGuarded){
   const guardedMenu=function(){
