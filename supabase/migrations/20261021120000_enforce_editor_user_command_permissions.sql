@@ -36,23 +36,10 @@ as $$
   end
 $$;
 
--- Remove overlapping permissive write policies; PostgreSQL ORs permissive policies,
--- so leaving even one legacy editor-write policy would bypass granular permissions.
-drop policy if exists "editors update settings" on public.app_settings;
-drop policy if exists "editors_delete_app_settings" on public.app_settings;
-drop policy if exists "editors_insert_app_settings" on public.app_settings;
-drop policy if exists "editors_update_app_settings" on public.app_settings;
-
-create policy "approved_permission_insert_app_settings"
-  on public.app_settings for insert to authenticated
-  with check (public.workspace_feature_enabled(workspace_id, 'refine_settings'));
-create policy "approved_permission_update_app_settings"
-  on public.app_settings for update to authenticated
-  using (public.workspace_feature_enabled(workspace_id, 'refine_settings'))
-  with check (public.workspace_feature_enabled(workspace_id, 'refine_settings'));
-create policy "approved_permission_delete_app_settings"
-  on public.app_settings for delete to authenticated
-  using (public.workspace_feature_enabled(workspace_id, 'refine_settings'));
+-- Keep app_settings write policies unchanged for now: that row also stores Viewer App
+-- controls. A table-level RLS rule cannot safely distinguish those JSON keys, and
+-- changing it here could break existing Viewer App behavior. Refine settings need a
+-- separately designed field-level enforcement before this migration is production-ready.
 
 drop policy if exists "editors delete" on public.converter_entries;
 drop policy if exists "editors insert" on public.converter_entries;
@@ -81,25 +68,47 @@ drop policy if exists "editors_update_converter_photos" on public.converter_phot
 
 create policy "approved_permission_insert_converter_photos"
   on public.converter_photos for insert to authenticated
-  with check (public.workspace_feature_enabled(workspace_id, 'new_entry'));
+  with check (exists (
+    select 1 from public.converter_entries ce
+    where ce.id = converter_photos.entry_id
+      and public.workspace_feature_enabled(ce.workspace_id, 'new_entry')
+  ));
 create policy "approved_permission_update_converter_photos"
   on public.converter_photos for update to authenticated
-  using (public.workspace_feature_enabled(workspace_id, 'edit_delete'))
-  with check (public.workspace_feature_enabled(workspace_id, 'edit_delete'));
+  using (exists (
+    select 1 from public.converter_entries ce
+    where ce.id = converter_photos.entry_id
+      and public.workspace_feature_enabled(ce.workspace_id, 'edit_delete')
+  ))
+  with check (exists (
+    select 1 from public.converter_entries ce
+    where ce.id = converter_photos.entry_id
+      and public.workspace_feature_enabled(ce.workspace_id, 'edit_delete')
+  ));
 create policy "approved_permission_delete_converter_photos"
   on public.converter_photos for delete to authenticated
-  using (public.workspace_feature_enabled(workspace_id, 'edit_delete'));
+  using (exists (
+    select 1 from public.converter_entries ce
+    where ce.id = converter_photos.entry_id
+      and public.workspace_feature_enabled(ce.workspace_id, 'edit_delete')
+  ));
 
 drop policy if exists "market_manual_state_editor_insert" on public.market_manual_state;
 drop policy if exists "market_manual_state_editor_update" on public.market_manual_state;
 
 create policy "approved_permission_insert_manual_market"
   on public.market_manual_state for insert to authenticated
-  with check (public.workspace_feature_enabled(workspace_id, 'manual_market_update'));
+  with check (
+    id = 1 and public.workspace_feature_enabled('0287285c-044b-4a08-9ed5-314b40fde0e8'::uuid, 'manual_market_update')
+  );
 create policy "approved_permission_update_manual_market"
   on public.market_manual_state for update to authenticated
-  using (public.workspace_feature_enabled(workspace_id, 'manual_market_update'))
-  with check (public.workspace_feature_enabled(workspace_id, 'manual_market_update'));
+  using (
+    id = 1 and public.workspace_feature_enabled('0287285c-044b-4a08-9ed5-314b40fde0e8'::uuid, 'manual_market_update')
+  )
+  with check (
+    id = 1 and public.workspace_feature_enabled('0287285c-044b-4a08-9ed5-314b40fde0e8'::uuid, 'manual_market_update')
+  );
 
 drop policy if exists "section_lock_secrets_editor_delete" on public.section_lock_secrets;
 drop policy if exists "section_lock_secrets_editor_insert" on public.section_lock_secrets;
@@ -114,6 +123,40 @@ create policy "approved_permission_update_section_lock_secrets"
 create policy "approved_permission_delete_section_lock_secrets"
   on public.section_lock_secrets for delete to authenticated
   using (public.workspace_feature_enabled(workspace_id, 'section_lock'));
+
+
+-- Storage paths are workspace-id-prefixed. Enforce the same granular permissions
+-- for photo uploads and mutations; preserve the existing read policy.
+drop policy if exists "editors_delete_converter_photos_storage" on storage.objects;
+drop policy if exists "editors_upload_converter_photos_storage" on storage.objects;
+drop policy if exists "editors_update_converter_photos_storage" on storage.objects;
+
+create policy "approved_permission_upload_converter_photos_storage"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'converter-photos'
+    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'new_entry')
+  );
+create policy "approved_permission_update_converter_photos_storage"
+  on storage.objects for update to authenticated
+  using (
+    bucket_id = 'converter-photos'
+    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+  )
+  with check (
+    bucket_id = 'converter-photos'
+    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+  );
+create policy "approved_permission_delete_converter_photos_storage"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'converter-photos'
+    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+  );
 
 revoke all on function public.workspace_feature_enabled(uuid, text, uuid) from public, anon;
 grant execute on function public.workspace_feature_enabled(uuid, text, uuid) to authenticated;
