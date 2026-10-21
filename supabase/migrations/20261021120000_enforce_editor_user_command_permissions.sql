@@ -194,3 +194,42 @@ grant execute on function public.workspace_feature_enabled(uuid, text, uuid) to 
 
 comment on function public.workspace_feature_enabled(uuid, text, uuid) is
   'Owner bypass; otherwise requires workspace membership, approval, and the named permission. Non-owners may only query their own feature status.';
+
+
+-- Enforce feature permissions for protected fields inside the shared app_settings row
+-- without changing authorization for unrelated settings, History reads, Refine, or Excel.
+create or replace function public.enforce_editor_settings_feature_permissions()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  -- Trusted backend maintenance remains possible; user requests are checked below.
+  if coalesce(auth.role(), '') = 'service_role' then
+    return new;
+  end if;
+
+  if old.settings -> 'lessHistory' is distinct from new.settings -> 'lessHistory'
+     or old.settings -> 'historyLessRates' is distinct from new.settings -> 'historyLessRates' then
+    if not public.workspace_feature_enabled(new.workspace_id, 'less_history') then
+      raise exception 'Owner permission required: less_history' using errcode = '42501';
+    end if;
+  end if;
+
+  if old.settings -> 'sectionLocks' is distinct from new.settings -> 'sectionLocks' then
+    if not public.workspace_feature_enabled(new.workspace_id, 'section_lock') then
+      raise exception 'Owner permission required: section_lock' using errcode = '42501';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists enforce_editor_settings_feature_permissions on public.app_settings;
+create trigger enforce_editor_settings_feature_permissions
+before update of settings on public.app_settings
+for each row
+execute function public.enforce_editor_settings_feature_permissions();
+
