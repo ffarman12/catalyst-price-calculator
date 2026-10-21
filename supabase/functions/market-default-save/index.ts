@@ -28,11 +28,6 @@ Deno.serve(async (req: Request) => {
   const keys = ["pt", "pd", "rh", "usd"] as const;
   const dbHeaders = { apikey: serviceKey, Authorization: "Bearer " + serviceKey };
 
-  if (req.method === "POST") {
-    const authz = await authorizeEditorFeature(req, "manual_market_update");
-    if (!authz.ok) return reply({ error: authz.error }, authz.status);
-  }
-
   if (req.method === "GET") {
     try {
       const response = await fetch(rest + "?id=eq.1&select=id,pt,pd,rh,usd,updated_at", {
@@ -53,6 +48,36 @@ Deno.serve(async (req: Request) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return reply({ error: "Invalid JSON body" }, 400); }
+
+  // Direct manual writes require Owner Permission. Preserve the existing automatic
+  // live-market sync path only when submitted values match the current server-saved
+  // live market (allowing Rh to use the already-saved Manual Market Rh fallback).
+  const authz = await authorizeEditorFeature(req, "manual_market_update");
+  if (!authz.ok) {
+    try {
+      const liveResponse = await fetch(
+        url.replace(/\/$/, "") + "/rest/v1/market_live_state?id=eq.1&select=pt,pd,rh,usd",
+        { headers: dbHeaders, signal: AbortSignal.timeout(8000), cache: "no-store" },
+      );
+      const manualResponse = await fetch(
+        url.replace(/\/$/, "") + "/rest/v1/market_manual_state?id=eq.1&select=rh",
+        { headers: dbHeaders, signal: AbortSignal.timeout(8000), cache: "no-store" },
+      );
+      if (!liveResponse.ok || !manualResponse.ok) return reply({ error: authz.error }, authz.status);
+      const liveRows = await liveResponse.json();
+      const manualRows = await manualResponse.json();
+      const live = Array.isArray(liveRows) ? liveRows[0] : null;
+      const manual = Array.isArray(manualRows) ? manualRows[0] : null;
+      const same = !!live &&
+        Number(body.pt) === Number(live.pt) &&
+        Number(body.pd) === Number(live.pd) &&
+        Number(body.usd) === Number(live.usd) &&
+        (Number(body.rh) === Number(live.rh) || (manual && Number(body.rh) === Number(manual.rh)));
+      if (!same) return reply({ error: authz.error }, authz.status);
+    } catch (_error) {
+      return reply({ error: authz.error }, authz.status);
+    }
+  }
   const values: Record<string, number> = {};
   for (const key of keys) {
     const value = Number(body[key]);
