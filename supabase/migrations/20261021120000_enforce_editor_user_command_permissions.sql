@@ -135,8 +135,91 @@ create policy "approved_permission_upload_converter_photos_storage"
   on storage.objects for insert to authenticated
   with check (
     bucket_id = 'converter-photos'
+    and case
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+create policy "approved_permission_update_converter_photos_storage"
+  on storage.objects for update to authenticated
+  using (
+    bucket_id = 'converter-photos'
+    and case
+      when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  )
+  with check (
+    bucket_id = 'converter-photos'
     and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'new_entry')
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+  );
+create policy "approved_permission_delete_converter_photos_storage"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'converter-photos'
+    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+  );
+
+revoke all on function public.workspace_feature_enabled(uuid, text, uuid) from public, anon;
+grant execute on function public.workspace_feature_enabled(uuid, text, uuid) to authenticated;
+
+comment on function public.workspace_feature_enabled(uuid, text, uuid) is
+  'Owner bypass; otherwise requires workspace membership, approval, and the named permission. Non-owners may only query their own feature status.';
+
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'new_entry')
+      else false
+    end
+  );
+create policy "approved_permission_update_converter_photos_storage"
+  on storage.objects for update to authenticated
+  using (
+    bucket_id = 'converter-photos'
+    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+  )
+  with check (
+    bucket_id = 'converter-photos'
+    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+  );
+create policy "approved_permission_delete_converter_photos_storage"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'converter-photos'
+    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+  );
+
+revoke all on function public.workspace_feature_enabled(uuid, text, uuid) from public, anon;
+grant execute on function public.workspace_feature_enabled(uuid, text, uuid) to authenticated;
+
+comment on function public.workspace_feature_enabled(uuid, text, uuid) is
+  'Owner bypass; otherwise requires workspace membership, approval, and the named permission. Non-owners may only query their own feature status.';
+
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+      else false
+    end
+  )
+  with check (
+    bucket_id = 'converter-photos'
+    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+  );
+create policy "approved_permission_delete_converter_photos_storage"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'converter-photos'
+    and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'edit_delete')
+  );
+
+revoke all on function public.workspace_feature_enabled(uuid, text, uuid) from public, anon;
+grant execute on function public.workspace_feature_enabled(uuid, text, uuid) to authenticated;
+
+comment on function public.workspace_feature_enabled(uuid, text, uuid) is
+  'Owner bypass; otherwise requires workspace membership, approval, and the named permission. Non-owners may only query their own feature status.';
+
+      then public.workspace_feature_enabled(split_part(name, '/', 1)::uuid, 'new_entry')
+      else false
+    end
   );
 create policy "approved_permission_update_converter_photos_storage"
   on storage.objects for update to authenticated
