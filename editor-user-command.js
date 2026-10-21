@@ -133,19 +133,9 @@ async function featureAllowed(feature){
 const FEATURE_LABELS=Object.fromEntries(OWNER_FEATURES);
 function denyFeature(feature){alert('Owner ne is feature ki permission enable nahi ki hai: '+(FEATURE_LABELS[feature]||feature))}
 function gate(feature,action){
- // A trusted browser share must be launched synchronously from the original click.
- // Do not await a permission network round-trip inside navigator.share(), because
- // browsers may reject it after transient user activation has expired.
- if(feature==='share_app_link'){
-  return function(){
-   const self=this,args=arguments;
-   featureAllowed(feature).then(allowed=>{
-    if(!allowed){denyFeature(feature);return}
-    action.apply(self,args);
-   }).catch(()=>denyFeature(feature));
-   return false;
-  };
- }
+ // Check permission before invoking any protected action. For browser share APIs,
+ // opening the action only after the async check may lose transient user activation;
+ // we fail closed rather than running a share action without verified permission.
  return async function(){
   const self=this,args=arguments;
   if(await featureAllowed(feature))return action.apply(self,args);
