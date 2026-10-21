@@ -110,7 +110,7 @@ const FEATURE_ACTIONS = {
   openServiceStatus: 'connection_service',
   saveMarket: 'manual_market_update'
 };
-const permissionCache = new Map();
+// Always re-check against Supabase so an Owner's OFF change is not hidden by a stale client cache.
 // The action guards are outside the UI IIFE; expose only the non-secret helpers they need.
 function eucClient(){return typeof window.getEditorSupabase==='function'?window.getEditorSupabase():null;}
 const EUC_WORKSPACE_ID='0287285c-044b-4a08-9ed5-314b40fde0e8';
@@ -131,12 +131,9 @@ async function featureAllowed(feature) {
     const ownerResult=await c.from('workspaces').select('owner_id').eq('id',EUC_WORKSPACE_ID).maybeSingle();
     if(ownerResult.error) throw ownerResult.error;
     if(ownerResult.data&&ownerResult.data.owner_id===user.id) return true;
-    const cacheKey=user.id+':'+feature;
-    if(permissionCache.has(cacheKey)) return permissionCache.get(cacheKey);
     const result=await c.rpc('workspace_feature_enabled',{p_workspace_id:EUC_WORKSPACE_ID,p_feature:feature});
     if(result.error) throw result.error;
     const allowed=result.data===true;
-    permissionCache.set(cacheKey,allowed);
     return allowed;
   } catch(err) {
     console.warn('Permission check failed closed:',feature,err);
@@ -187,11 +184,10 @@ const originalShowProtectedForGuards=window.showProtectedMainMenu;
 if(typeof originalShowProtectedForGuards==='function'&&!originalShowProtectedForGuards.__eucGuarded){
   const guardedMenu=function(){
     const result=originalShowProtectedForGuards.apply(this,arguments);
-    permissionCache.clear();
     setTimeout(()=>{installActionGuards();},0);
     return result;
   };
   guardedMenu.__eucGuarded=true;
   window.showProtectedMainMenu=guardedMenu;
 }
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')permissionCache.clear();});
+
