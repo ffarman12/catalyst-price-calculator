@@ -3022,33 +3022,16 @@ async function showCloudData(){
       if(!q.data)return null;
       const cloudSettings=q.data.settings&&typeof q.data.settings==='object'?q.data.settings:{};
       const cloudLocks=cloudSettings.sectionLocks&&typeof cloudSettings.sectionLocks==='object'?{...cloudSettings.sectionLocks}:{};
-      try{
-        const secret=await c.from('section_lock_secrets').select('pin').eq('workspace_id',WORKSPACE_ID).maybeSingle();
-        if(!secret.error)cloudLocks.pin=secret.data&&typeof secret.data.pin==='string'?secret.data.pin:'';
-        else console.warn('Section Lock PIN read failed; keeping local PIN if present',secret.error);
-      }catch(secretError){console.warn('Section Lock PIN read failed; keeping local PIN if present',secretError)}
+      // PIN secrets are server-only. Never fetch them into browser settings/local state.
+      delete cloudLocks.pin;
       return {...q.data,settings:{...cloudSettings,sectionLocks:cloudLocks}};
     }catch(e){console.warn('Persistent settings read failed',e);return null}
   }
   async function persistSectionLockPin(pin){
-    const c=await getClient();if(!c)return false;
-    try{
-      const auth=await c.auth.getSession();
-      const session=auth&&auth.data&&auth.data.session;
-      if(!session||!session.user)return false;
-      const value=String(pin||'');
-      if(value){
-        if(!/^\d{4}$/.test(value))return false;
-        const saved=await c.from('section_lock_secrets').upsert({workspace_id:WORKSPACE_ID,pin:value,updated_by:session.user.id,updated_at:new Date().toISOString()},{onConflict:'workspace_id'});
-        if(saved.error){console.warn('Section Lock PIN cloud save failed',saved.error);return false}
-        const verify=await c.from('section_lock_secrets').select('pin').eq('workspace_id',WORKSPACE_ID).maybeSingle();
-        return !verify.error&&!!verify.data&&verify.data.pin===value;
-      }
-      const removed=await c.from('section_lock_secrets').delete().eq('workspace_id',WORKSPACE_ID);
-      if(removed.error){console.warn('Section Lock PIN cloud clear failed',removed.error);return false}
-      const verify=await c.from('section_lock_secrets').select('pin').eq('workspace_id',WORKSPACE_ID).maybeSingle();
-      return !verify.error&&!verify.data;
-    }catch(e){console.warn('Section Lock PIN cloud save failed',e);return false}
+    // Shared Section Lock secrets must only be changed by a server-side,
+    // owner-authorized flow. Do not allow any browser account to overwrite/delete it.
+    console.warn('Section Lock PIN cloud change blocked: owner-authorized server flow is required.');
+    return false;
   }
   window.__persistSectionLockPin=persistSectionLockPin;
   async function writeCloud(state){
