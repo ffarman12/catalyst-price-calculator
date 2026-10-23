@@ -3852,3 +3852,76 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
   flex:0 0 auto!important;
 }
 </style>
+
+<script>
+<!-- FINAL SECTION LOCK SERVER VERIFICATION OVERRIDE -->
+(function(){
+  // This final handler intentionally runs after all legacy confirmPin overrides.
+  // Every Section Lock protected action must use the same server-side verifier.
+  const priorConfirmPin = window.confirmPin || (typeof confirmPin === 'function' ? confirmPin : null);
+  async function finalConfirmPin(){
+    const input=document.getElementById('pinInput');
+    const pin=String(input&&input.value||'');
+    const appPin=String(localStorage.getItem('cat_pin')||'1234');
+    const protectedActions=['sectionUnlock','sectionLockSettings','historyMenu','historyAction','cloudDataUnlock'];
+    if(protectedActions.includes(window.pendingAction)){
+      if(!/^\\d{4}$/.test(pin)){alert('4 digit Section Lock PIN enter karein');return false;}
+      const ok=await window.verifySectionLockPin(pin,appPin);
+      if(!ok){alert('Section Lock PIN verify nahi ho paya. Connection/session ya saved PIN verification mein dikkat hai.');return false;}
+      if(window.pendingAction==='historyMenu'){
+        const i=window.pendingIndex,x=Number(window.pendingMenuX)||((window.innerWidth||360)/2),y=Number(window.pendingMenuY)||((window.innerHeight||640)/2);
+        window.pendingAction=null;window.pendingIndex=null;
+        const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
+        const m=document.getElementById('actionMenu');
+        if(m){
+          m.innerHTML='<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\'edit\','+i+');">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\'delete\','+i+');">Delete</button>';
+          m.style.display='block';m.style.position='fixed';m.style.zIndex='99999';
+          const vw=window.innerWidth||360,vh=window.innerHeight||640;
+          m.style.left=Math.max(8,Math.min(vw-150,x-120))+'px';m.style.top=Math.max(8,Math.min(vh-130,y-70))+'px';
+        }
+        return false;
+      }
+      if(window.pendingAction==='historyAction'){
+        const action=window.pendingHistoryAction,i=window.pendingIndex;
+        window.pendingAction=null;window.pendingIndex=null;
+        const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
+        if(typeof window.runHistoryAction==='function')window.runHistoryAction(action,i);
+        else if(typeof runHistoryAction==='function')runHistoryAction(action,i);
+        return false;
+      }
+      if(window.pendingAction==='sectionLockSettings'){
+        window.pendingAction=null;window.pendingIndex=null;window.sectionUnlockCallback=null;
+        const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
+        const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','viewerCommand','historyActions','share'];
+        keys.forEach(k=>{const el=document.getElementById('lock'+k.charAt(0).toUpperCase()+k.slice(1));if(el)el.checked=!!window.sectionLocks[k];});
+        const pinField=document.getElementById('sectionLockPin');if(pinField)pinField.value='';
+        const lockModal=document.getElementById('sectionLockModal');if(lockModal)lockModal.style.display='flex';
+        return false;
+      }
+      const cb=window.pendingAction==='cloudDataUnlock'?window.__cloudDataUnlockCallback:window.sectionUnlockCallback;
+      if(window.pendingAction==='cloudDataUnlock')window.__cloudDataUnlockCallback=null;
+      else window.sectionUnlockCallback=null;
+      window.pendingAction=null;window.pendingIndex=null;
+      const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
+      if(typeof cb==='function')cb();
+      return false;
+    }
+    if(typeof priorConfirmPin==='function')return priorConfirmPin();
+    return false;
+  }
+  window.confirmPin=finalConfirmPin;
+  try{confirmPin=finalConfirmPin;}catch(_){}
+  window.confirmTopMenuPin=function(){
+    if(window.pendingAction==='topMenu'){
+      const pin=String((document.getElementById('pinInput')||{}).value||'');
+      if(pin!=='549936'){alert('Wrong PIN');return false;}
+      if(typeof window.isLoggedIn==='function'&&window.isLoggedIn())window.menuUnlocked=true;else window.menuAccessPendingLogin=true;
+      window.pendingAction=null;window.pendingIndex=null;
+      const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
+      if(typeof window.showProtectedMainMenu==='function')window.showProtectedMainMenu();
+      return false;
+    }
+    return finalConfirmPin();
+  };
+})();
+</script>
