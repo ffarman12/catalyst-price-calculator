@@ -2289,13 +2289,13 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   });
 }
 </script>
-<script>(function(){const previousConfirmPin=confirmPin;confirmPin=function(){
+<script>(function(){const previousConfirmPin=confirmPin;confirmPin=async function(){
   const pin=String(($('pinInput')&&$('pinInput').value)||'');
   const sectionPin=String(sectionLocks.pin||'');
   const appPin=String(localStorage.getItem('cat_pin')||'1234');
   const validSectionPin=sectionPin && (pin===sectionPin || pin===appPin);
   if(pendingAction==='historyMenu'){
-    if(!validSectionPin){alert('Wrong Section Lock PIN');return false}
+    if(!(await verifySectionLockPin(pin,appPin))){alert('Wrong Section Lock PIN');return false}
     const i=pendingIndex,x=Number(pendingMenuX)||((window.innerWidth||360)/2),y=Number(pendingMenuY)||((window.innerHeight||640)/2);
     pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';
     const m=$('actionMenu');
@@ -2306,12 +2306,12 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     return false;
   }
   if(pendingAction==='historyAction'){
-    if(!validSectionPin){alert('Wrong PIN');return false}
+    if(!(await verifySectionLockPin(pin,appPin))){alert('Wrong PIN');return false}
     const action=pendingHistoryAction,i=pendingIndex;pendingAction=null;pendingIndex=null;$('pinModal').style.display='none';
     runHistoryAction(action,i);return false;
   }
   if(pendingAction==='sectionLockSettings'){
-    if(!validSectionPin){alert('Wrong Section Lock PIN');return false}
+    if(!(await verifySectionLockPin(pin,appPin))){alert('Wrong Section Lock PIN');return false}
     pendingAction=null;pendingIndex=null;sectionUnlockCallback=null;
     $('pinModal').style.display='none';
     const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','viewerCommand','historyActions','share'];
@@ -2321,14 +2321,14 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     return false;
   }
   if(pendingAction==='sectionUnlock'){
-    if(!validSectionPin){alert('Wrong Section Lock PIN');return false}
+    if(!(await verifySectionLockPin(pin,appPin))){alert('Wrong Section Lock PIN');return false}
     const cb=sectionUnlockCallback;sectionUnlockCallback=null;pendingAction=null;pendingIndex=null;
     $('pinModal').style.display='none';
     if(typeof cb==='function')cb();
     return false;
   }
   if(pendingAction==='cloudDataUnlock'){
-    if(!validSectionPin){alert('Wrong Section Lock PIN');return false}
+    if(!(await verifySectionLockPin(pin,appPin))){alert('Wrong Section Lock PIN');return false}
     const cb=window.__cloudDataUnlockCallback;window.__cloudDataUnlockCallback=null;pendingAction=null;pendingIndex=null;
     $('pinModal').style.display='none';
     if(typeof cb==='function')cb();
