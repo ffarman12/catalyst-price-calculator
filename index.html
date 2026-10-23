@@ -1,6 +1,26 @@
 <!doctype html>
 <html lang="en">
 <head>
+<!-- ACCOUNT-SCOPED PROFILE STORAGE FIX -->
+<script>
+(function(){
+  function profileAccountId(){
+    const email=String(localStorage.getItem('cat_login_user')||'').trim().toLowerCase();
+    return email ? encodeURIComponent(email) : 'unassigned';
+  }
+  window.getAccountProfile=function(field){
+    const key='cat_profile_'+profileAccountId()+'_'+field;
+    const value=localStorage.getItem(key);
+    if(value!==null)return value;
+    // Do not expose another account's legacy shared profile values.
+    return '';
+  };
+  window.setAccountProfile=function(field,value){
+    localStorage.setItem('cat_profile_'+profileAccountId()+'_'+field,String(value??''));
+  };
+})();
+</script>
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=overlays-content">
 <title>Cat-Logic</title>
@@ -4014,22 +4034,4 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
   saveSectionLock=finalSaveSectionLock;
 </script>
 
-<!-- ACCOUNT-SCOPED PROFILE STORAGE FIX -->
-<script>
-(function(){
-  function profileAccountId(){
-    const email=String(localStorage.getItem('cat_login_user')||'').trim().toLowerCase();
-    return email ? encodeURIComponent(email) : 'unassigned';
-  }
-  window.getAccountProfile=function(field){
-    const key='cat_profile_'+profileAccountId()+'_'+field;
-    const value=localStorage.getItem(key);
-    if(value!==null)return value;
-    // Do not expose another account's legacy shared profile values.
-    return '';
-  };
-  window.setAccountProfile=function(field,value){
-    localStorage.setItem('cat_profile_'+profileAccountId()+'_'+field,String(value??''));
-  };
-})();
-</script>
+
