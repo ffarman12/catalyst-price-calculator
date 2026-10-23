@@ -3886,14 +3886,35 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
     const input=document.getElementById('pinInput');
     const pin=String(input&&input.value||'');
     const appPin=String(localStorage.getItem('cat_pin')||'1234');
-    // Let the existing server-verifying handler own History menu/action routing.
     if(pendingAction==='historyMenu'||pendingAction==='historyAction'){
       return priorConfirmPin ? priorConfirmPin() : false;
     }
     if(['sectionUnlock','sectionLockSettings','cloudDataUnlock'].includes(pendingAction)){
       if(!/^\d{4}$/.test(pin)){alert('4 digit Section Lock PIN enter karein');return false;}
-      const ok=await verifySectionLockPin(pin,appPin);
-      if(!ok){alert('Section Lock PIN verification failed. Server response/session/saved PIN check needed.');return false;}
+      const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+      if(!c){alert('PIN check nahi ho saka: Supabase client unavailable.');return false;}
+      try{
+        const auth=await c.auth.getSession();
+        const session=auth&&auth.data&&auth.data.session;
+        if(auth&&auth.error){console.error('Section Lock auth session error',auth.error);alert('PIN check nahi ho saka: login session error. Dobara login karein.');return false;}
+        if(!session){alert('PIN check nahi ho saka: login session missing. Dobara login karein.');return false;}
+        const result=await c.functions.invoke('verify-section-lock-pin',{body:{pin,workspace_id:WORKSPACE_ID}});
+        if(result.error){
+          console.error('Section Lock function error',result.error);
+          const status=result.error.context&&result.error.context.status;
+          alert('PIN server check fail hua'+(status?' (HTTP '+status+')':'')+'. Owner aur user dono ke liye server request/auth check karein.');
+          return false;
+        }
+        if(!result.data||result.data.valid!==true){
+          console.warn('Section Lock verification rejected',result.data);
+          alert(result.data&&result.data.error?'PIN server check: '+result.data.error:'PIN server ne match nahi kiya. Saved PIN aur entered PIN alag hain.');
+          return false;
+        }
+      }catch(err){
+        console.error('Section Lock verification exception',err);
+        alert('PIN check network/session error. Internet aur login session check karein.');
+        return false;
+      }
       if(pendingAction==='sectionLockSettings'){
         pendingAction=null;pendingIndex=null;sectionUnlockCallback=null;
         const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
