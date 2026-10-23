@@ -821,7 +821,7 @@ function openEntryPercentLess(e){
 function resetTopMenu(){const m=$('topNewMenu');const logged=isLoggedIn(),name=String(localStorage.getItem('cat_profile_name')||'').trim();m.innerHTML='<div class="menuLabel">ACCOUNT</div>'+(logged?'<button type="button" id="loginMenuBtn" onclick="toggleAccountNameMenu(event)">👤 '+(name||'Account')+' ▾</button><button type="button" id="accountLogoutBtn" style="display:none!important" onclick="toggleLogin(event)">⇥ Logout</button><button type="button" onclick="openProfileSettings(event)">👤 Profile</button><button type="button" onclick="openPasswordSettings(event)">🔒 Password Settings</button><div class="menuSep"></div><button type="button" onclick="openNewConverter(event)">+New</button><button type="button" onclick="openSectionLock(event)">🔐 Section Lock</button><button type="button" onclick="openSettingsFolder(event)">⚙ Settings</button>':'<button type="button" id="loginMenuBtn" onclick="openSupabaseLogin(event)">⇄ Login</button><button type="button" onclick="openProfileSettings(event)">👤 Profile</button><div class="menuSep"></div><button type="button" onclick="openNewConverter(event)">+New</button><button type="button" onclick="openSettingsFolder(event)">⚙ Settings</button>');m.style.display='none';applyAccessUI()}
 function openSectionLock(e){if(e){e.preventDefault();e.stopPropagation()}const menu=$('topNewMenu');if(menu)menu.style.display='none';sectionLocks=safeStoreGet('cat_section_locks',sectionLocks)||sectionLocks;const open=()=>{const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','viewerCommand','historyActions','share'];keys.forEach(k=>{const el=$('lock'+k.charAt(0).toUpperCase()+k.slice(1));if(el)el.checked=!!sectionLocks[k]});$('sectionLockPin').value=String(sectionLocks.pin||'');$('sectionLockModal').style.display='flex'};const hasLock=Object.keys(sectionLocks).some(k=>k!=='pin'&&sectionLocks[k]);if(hasLock){sectionUnlockCallback=open;pendingAction='sectionLockSettings';pendingIndex=null;$('pinTitle').textContent='Section Lock PIN';$('pinInput').value='';$('pinModal').style.display='flex';setTimeout(()=>$('pinInput').focus(),50)}else{open()}}
 function closeSectionLock(){$('sectionLockModal').style.display='none';resetTopMenu()}
-function saveSectionLock(e){
+async function saveSectionLock(e){
   if(e){e.preventDefault();e.stopPropagation()}
   const pin=String($('sectionLockPin').value||'').trim();
   const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','viewerCommand','historyActions','share'];
@@ -829,6 +829,31 @@ function saveSectionLock(e){
   const anyLocked=Object.values(next).some(Boolean);
   if(anyLocked&&!/^\d{4}$/.test(pin)){window.__sectionLockError&&window.__sectionLockError('4 digit PIN enter karein.');return false}
   if(pin&&!/^\d{4}$/.test(pin)){window.__sectionLockError&&window.__sectionLockError('PIN 4 digits ka hona chahiye.');return false}
+  // Save the shared PIN first, and only through the authenticated owner-only server action.
+  if(anyLocked&&pin){
+    const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+    if(!c){window.__sectionLockError&&window.__sectionLockError('Server connection nahi mila. PIN save nahi hua.');return false}
+    try{
+      const auth=await c.auth.getSession();
+      const user=auth&&auth.data&&auth.data.session&&auth.data.session.user;
+      if(!user){window.__sectionLockError&&window.__sectionLockError('Login session nahi mila. PIN save nahi hua.');return false}
+      if(user.id==='7026de35-0d41-4c25-9e9c-673d072e5ada'){
+        const result=await c.functions.invoke('verify-section-lock-pin',{body:{action:'set',pin,workspace_id:WORKSPACE_ID}});
+        if(result.error||!result.data||result.data.saved!==true){
+          console.error('Section Lock PIN save failed',result.error||result.data);
+          window.__sectionLockError&&window.__sectionLockError('Server par PIN save nahi hua. Purana PIN badla nahi gaya; dobara koshish karein.');
+          return false;
+        }
+      }else{
+        window.__sectionLockError&&window.__sectionLockError('Shared Section Lock PIN sirf Owner account badal sakta hai. PIN aur lock settings save nahi ki gayi.');
+        return false;
+      }
+    }catch(err){
+      console.error('Section Lock PIN save failed',err);
+      window.__sectionLockError&&window.__sectionLockError('Server par PIN save nahi hua. Purana PIN badla nahi gaya; dobara koshish karein.');
+      return false;
+    }
+  }
   sectionLocks={...next,pin:anyLocked?pin:''};
   try{
     localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks));
