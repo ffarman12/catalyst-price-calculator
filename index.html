@@ -3956,8 +3956,8 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
     const next={};
     keys.forEach(k=>{const el=document.getElementById('lock'+k.charAt(0).toUpperCase()+k.slice(1));next[k]=!!(el&&el.checked);});
     const anyLocked=Object.values(next).some(Boolean);
-    if(anyLocked&&!/^\\d{4}$/.test(pin)){alert('4 digit PIN enter karein. Section Lock settings save nahi hui.');return false;}
-    if(pin&&!/^\\d{4}$/.test(pin)){alert('PIN 4 digits ka hona chahiye. Settings save nahi hui.');return false;}
+    if(anyLocked&&!/^\d{4}$/.test(pin)){alert('4 digit PIN enter karein. Section Lock settings save nahi hui.');return false;}
+    if(pin&&!/^\d{4}$/.test(pin)){alert('PIN 4 digits ka hona chahiye. Settings save nahi hui.');return false;}
     if(anyLocked){
       const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
       if(!c){alert('Supabase connection nahi mila. Section Lock settings save nahi hui.');return false;}
