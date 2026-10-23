@@ -3857,36 +3857,19 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
 <!-- FINAL SECTION LOCK SERVER VERIFICATION OVERRIDE -->
 <script>
 (function(){
-  // Keep this as the last confirmPin handler so legacy local comparisons cannot override it.
   const priorConfirmPin = typeof confirmPin === 'function' ? confirmPin : null;
   async function finalConfirmPin(){
     const input=document.getElementById('pinInput');
     const pin=String(input&&input.value||'');
     const appPin=String(localStorage.getItem('cat_pin')||'1234');
-    const protectedActions=['sectionUnlock','sectionLockSettings','historyMenu','historyAction','cloudDataUnlock'];
-    if(protectedActions.includes(pendingAction)){
-      if(!/^\\d{4}$/.test(pin)){alert('4 digit Section Lock PIN enter karein');return false;}
+    // Let the existing server-verifying handler own History menu/action routing.
+    if(pendingAction==='historyMenu'||pendingAction==='historyAction'){
+      return priorConfirmPin ? priorConfirmPin() : false;
+    }
+    if(['sectionUnlock','sectionLockSettings','cloudDataUnlock'].includes(pendingAction)){
+      if(!/^\d{4}$/.test(pin)){alert('4 digit Section Lock PIN enter karein');return false;}
       const ok=await verifySectionLockPin(pin,appPin);
       if(!ok){alert('Section Lock PIN verification failed. Server response/session/saved PIN check needed.');return false;}
-      if(pendingAction==='historyMenu'){
-        const i=pendingIndex,x=Number(pendingMenuX)||((window.innerWidth||360)/2),y=Number(pendingMenuY)||((window.innerHeight||640)/2);
-        pendingAction=null;pendingIndex=null;
-        const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
-        const m=document.getElementById('actionMenu');
-        if(m){
-          m.innerHTML='<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'edit\\','+i+');">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'delete\\','+i+');">Delete</button>';
-          m.style.display='block';m.style.position='fixed';m.style.zIndex='99999';
-          const vw=window.innerWidth||360,vh=window.innerHeight||640;
-          m.style.left=Math.max(8,Math.min(vw-150,x-120))+'px';m.style.top=Math.max(8,Math.min(vh-130,y-70))+'px';
-        }
-        return false;
-      }
-      if(pendingAction==='historyAction'){
-        const action=pendingHistoryAction,i=pendingIndex;
-        pendingAction=null;pendingIndex=null;
-        const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
-        runHistoryAction(action,i);return false;
-      }
       if(pendingAction==='sectionLockSettings'){
         pendingAction=null;pendingIndex=null;sectionUnlockCallback=null;
         const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
@@ -3904,8 +3887,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
       if(typeof cb==='function')cb();
       return false;
     }
-    if(priorConfirmPin)return priorConfirmPin();
-    return false;
+    return priorConfirmPin ? priorConfirmPin() : false;
   }
   window.confirmPin=finalConfirmPin;
   confirmPin=finalConfirmPin;
