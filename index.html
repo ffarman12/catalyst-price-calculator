@@ -3217,8 +3217,9 @@ async function showCloudData(){
         if(needsPrefsSeed){
           const seeded=await writeCloud({...local,sectionLocks:cloudLocks,viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||local.lessHistory||{},lessHistoryRates:settings.historyLessRates||settings.lessHistoryRates||local.lessHistoryRates||{},sharedPreferences:mergedPrefs});
           if(!seeded){
-            console.warn('Some local preferences could not be seeded to cloud; retrying sync instead of marking it complete');
-            return false;
+            /* Read-only Viewer accounts must still apply authoritative Cloud locks/settings.
+               A failed optional preference seed must not block Owner Section Lock enforcement. */
+            console.warn('Local preference seed unavailable; continuing to apply authoritative Cloud settings in read-only mode');
           }
         }
         applyState({sectionLocks:cloudLocks,viewerPpmEnabled:!!cloud.viewer_ppm_enabled,excelModeEnabled:!!cloud.excel_mode_enabled,lessHistory:settings.lessHistory||{},lessHistoryRates:settings.historyLessRates||settings.lessHistoryRates||settings.lessHistory||{},sharedPreferences:mergedPrefs});
