@@ -3948,4 +3948,68 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
     return finalConfirmPin();
   };
 })();
+
+  async function finalSaveSectionLock(e){
+    if(e){e.preventDefault();e.stopPropagation();}
+    const pin=String((document.getElementById('sectionLockPin')||{}).value||'').trim();
+    const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','viewerCommand','historyActions','share'];
+    const next={};
+    keys.forEach(k=>{const el=document.getElementById('lock'+k.charAt(0).toUpperCase()+k.slice(1));next[k]=!!(el&&el.checked);});
+    const anyLocked=Object.values(next).some(Boolean);
+    if(anyLocked&&!/^\\d{4}$/.test(pin)){alert('4 digit PIN enter karein. Section Lock settings save nahi hui.');return false;}
+    if(pin&&!/^\\d{4}$/.test(pin)){alert('PIN 4 digits ka hona chahiye. Settings save nahi hui.');return false;}
+    if(anyLocked){
+      const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+      if(!c){alert('Supabase connection nahi mila. Section Lock settings save nahi hui.');return false;}
+      try{
+        const auth=await c.auth.getSession();
+        if(auth&&auth.error){console.error('Section Lock save session error',auth.error);alert('Login session check fail hua. Settings save nahi hui.');return false;}
+        const session=auth&&auth.data&&auth.data.session;
+        if(!session||!session.user){alert('Login session nahi mila. Settings save nahi hui.');return false;}
+        if(session.user.id==='7026de35-0d41-4c25-9e9c-673d072e5ada'){
+          const result=await c.functions.invoke('verify-section-lock-pin',{body:{action:'set',pin,workspace_id:WORKSPACE_ID}});
+          if(result.error||!result.data||result.data.saved!==true){
+            console.error('Section Lock server PIN save failed',result.error||result.data);
+            const status=result.error&&result.error.context&&result.error.context.status;
+            alert('Owner PIN server par save nahi hua'+(status?' (HTTP '+status+')':'')+'. Purana PIN aur settings nahi badle.');
+            return false;
+          }
+        }else{
+          const result=await c.functions.invoke('verify-section-lock-pin',{body:{pin,workspace_id:WORKSPACE_ID}});
+          if(result.error||!result.data||result.data.valid!==true){
+            console.error('Section Lock server PIN verify failed',result.error||result.data);
+            alert('PIN server se verify nahi hua. Sirf Owner shared PIN badal sakta hai. Settings save nahi hui.');
+            return false;
+          }
+        }
+      }catch(err){
+        console.error('Section Lock server save exception',err);
+        alert('Server/session error. Section Lock settings save nahi hui.');
+        return false;
+      }
+    }
+    const previousPin=String((typeof sectionLocks==='object'&&sectionLocks&&sectionLocks.pin)||'');
+    sectionLocks={...next,pin:anyLocked?(pin||previousPin):''};
+    try{
+      localStorage.setItem('cat_section_locks',JSON.stringify(sectionLocks));
+      localStorage.setItem('cat_cloud_data_lock',sectionLocks.cloudData?'1':'0');
+    }catch(err){
+      console.error('Section Lock local save failed',err);
+      alert('Device par settings save nahi ho sakin.');
+      return false;
+    }
+    try{
+      if(typeof window.__persistSettingsToCloud==='function'){
+        const cloudOK=await window.__persistSettingsToCloud();
+        if(!cloudOK)console.warn('Section Lock settings cloud sync was not confirmed');
+      }
+    }catch(err){console.warn('Section Lock settings cloud sync failed',err);}
+    const status=document.getElementById('status');
+    if(status)status.textContent=anyLocked?'Section locks ON':'Section locks OFF';
+    if(typeof closeSectionLock==='function')closeSectionLock();
+    else {const modal=document.getElementById('sectionLockModal');if(modal)modal.style.display='none';}
+    return false;
+  }
+  window.saveSectionLock=finalSaveSectionLock;
+  saveSectionLock=finalSaveSectionLock;
 </script>
