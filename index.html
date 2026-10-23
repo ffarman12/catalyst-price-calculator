@@ -2235,19 +2235,7 @@ body.catLogicAndroidWebView .top{margin-top:28px!important}
 })();
 </script>
 </body></html>
-<script>
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  window.addEventListener('load', function(){
-    const SW_UPDATE_KEY='cata_sw_v104_history_search_controller'; let reloaded=false;
-    navigator.serviceWorker.addEventListener('controllerchange', function(){
-      if(reloaded)return; reloaded=true;
-      try{if(sessionStorage.getItem(SW_UPDATE_KEY)==='1')return;sessionStorage.setItem(SW_UPDATE_KEY,'1')}catch(e){}
-      location.reload();
-    });
-    navigator.serviceWorker.register('./sw.js?v=138-alert-save-close',{updateViaCache:'none'}).then(function(reg){return reg.update()}).catch(function(){});
-  });
-}
-</script>
+
 <script>(function(){const previousConfirmPin=confirmPin;confirmPin=async function(){
   const pin=String(($('pinInput')&&$('pinInput').value)||'');
   const sectionPin=String(sectionLocks.pin||'');
