@@ -3914,6 +3914,9 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
       if(!/^\d{4}$/.test(pin)){alert('4 digit Section Lock PIN enter karein');return false;}
       const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
       if(!c){alert('PIN check nahi ho saka: Supabase client unavailable.');return false;}
+      const continueBtn=document.querySelector('#pinModal button.primary');
+      const continueBtnText=continueBtn?continueBtn.textContent:'';
+      if(continueBtn){continueBtn.disabled=true;continueBtn.textContent='Checking PIN…';continueBtn.style.opacity='.75';}
       try{
         const auth=await c.auth.getSession();
         const session=auth&&auth.data&&auth.data.session;
@@ -3944,6 +3947,8 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
         console.error('Section Lock verification exception',err);
         alert('PIN check fail: '+(err&&err.message?err.message:'Network/session error')+'. Login session aur server request check karein.');
         return false;
+      }finally{
+        if(continueBtn){continueBtn.disabled=false;continueBtn.textContent=continueBtnText||'Continue';continueBtn.style.opacity='';}
       }
       if(pendingAction==='sectionLockSettings'){
         pendingAction=null;pendingIndex=null;sectionUnlockCallback=null;
