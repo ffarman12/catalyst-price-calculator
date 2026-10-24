@@ -3919,7 +3919,16 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
         const session=auth&&auth.data&&auth.data.session;
         if(auth&&auth.error){console.error('Section Lock auth session error',auth.error);alert('PIN check nahi ho saka: login session error. Dobara login karein.');return false;}
         if(!session){alert('PIN check nahi ho saka: login session missing. Dobara login karein.');return false;}
-        const result=await c.functions.invoke('verify-section-lock-pin',{body:{pin,workspace_id:WORKSPACE_ID}});
+        const response=await fetch(SUPABASE_URL+'/functions/v1/verify-section-lock-pin',{
+          method:'POST',
+          mode:'cors',
+          cache:'no-store',
+          headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+session.access_token},
+          body:JSON.stringify({pin,workspace_id:WORKSPACE_ID})
+        });
+        const resultData=await response.json().catch(()=>null);
+        const result={data:resultData,error:response.ok?null:{context:{status:response.status},message:(resultData&&resultData.error)||response.statusText||'Request failed'}};
+
         if(result.error){
           console.error('Section Lock function error',result.error);
           const status=result.error.context&&result.error.context.status;
@@ -3933,7 +3942,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
         }
       }catch(err){
         console.error('Section Lock verification exception',err);
-        alert('PIN check network/session error. Internet aur login session check karein.');
+        alert('PIN check fail: '+(err&&err.message?err.message:'Network/session error')+'. Login session aur server request check karein.');
         return false;
       }
       if(pendingAction==='sectionLockSettings'){
@@ -3996,7 +4005,16 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
             return false;
           }
         }else{
-          const result=await c.functions.invoke('verify-section-lock-pin',{body:{pin,workspace_id:WORKSPACE_ID}});
+          const response=await fetch(SUPABASE_URL+'/functions/v1/verify-section-lock-pin',{
+          method:'POST',
+          mode:'cors',
+          cache:'no-store',
+          headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+session.access_token},
+          body:JSON.stringify({pin,workspace_id:WORKSPACE_ID})
+        });
+        const resultData=await response.json().catch(()=>null);
+        const result={data:resultData,error:response.ok?null:{context:{status:response.status},message:(resultData&&resultData.error)||response.statusText||'Request failed'}};
+
           if(result.error||!result.data||result.data.valid!==true){
             console.error('Section Lock server PIN verify failed',result.error||result.data);
             alert('PIN server se verify nahi hua. Sirf Owner shared PIN badal sakta hai. Settings save nahi hui.');
