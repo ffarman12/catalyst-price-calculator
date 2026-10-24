@@ -3924,7 +3924,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
           mode:'cors',
           cache:'no-store',
           headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+session.access_token},
-          body:JSON.stringify({pin,workspace_id:WORKSPACE_ID})
+          body:JSON.stringify({pin,workspace_id:'0287285c-044b-4a08-9ed5-314b40fde0e8'})
         });
         const resultData=await response.json().catch(()=>null);
         const result={data:resultData,error:response.ok?null:{context:{status:response.status},message:(resultData&&resultData.error)||response.statusText||'Request failed'}};
@@ -3997,7 +3997,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
         const session=auth&&auth.data&&auth.data.session;
         if(!session||!session.user){alert('Login session nahi mila. Settings save nahi hui.');return false;}
         if(session.user.id==='7026de35-0d41-4c25-9e9c-673d072e5ada'){
-          const result=await c.functions.invoke('verify-section-lock-pin',{body:{action:'set',pin,workspace_id:WORKSPACE_ID}});
+          const result=await c.functions.invoke('verify-section-lock-pin',{body:{action:'set',pin,workspace_id:'0287285c-044b-4a08-9ed5-314b40fde0e8'}});
           if(result.error||!result.data||result.data.saved!==true){
             console.error('Section Lock server PIN save failed',result.error||result.data);
             const status=result.error&&result.error.context&&result.error.context.status;
@@ -4010,7 +4010,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
           mode:'cors',
           cache:'no-store',
           headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+session.access_token},
-          body:JSON.stringify({pin,workspace_id:WORKSPACE_ID})
+          body:JSON.stringify({pin,workspace_id:'0287285c-044b-4a08-9ed5-314b40fde0e8'})
         });
         const resultData=await response.json().catch(()=>null);
         const result={data:resultData,error:response.ok?null:{context:{status:response.status},message:(resultData&&resultData.error)||response.statusText||'Request failed'}};
