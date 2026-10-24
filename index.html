@@ -3957,8 +3957,9 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
         const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
         const keys=['home','history','cloudData','market','settings','settingsPanel','lessHistory','lessRefine','view','viewerCommand','historyActions','share'];
         keys.forEach(k=>{const el=document.getElementById('lock'+k.charAt(0).toUpperCase()+k.slice(1));if(el)el.checked=!!sectionLocks[k];});
-        const pinField=document.getElementById('sectionLockPin');if(pinField)pinField.value='';
+        const pinField=document.getElementById('sectionLockPin');if(pinField)pinField.value=String(sectionLocks.pin||'');
         const lockModal=document.getElementById('sectionLockModal');if(lockModal)lockModal.style.display='flex';
+        if(typeof loadOwnerSectionLockPin==='function')void loadOwnerSectionLockPin();
         return false;
       }
       const cb=pendingAction==='cloudDataUnlock'?window.__cloudDataUnlockCallback:sectionUnlockCallback;
