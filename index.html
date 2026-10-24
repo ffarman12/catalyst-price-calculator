@@ -3907,6 +3907,34 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
     const pin=String(input&&input.value||'');
     const appPin=String(localStorage.getItem('cat_pin')||'1234');
     if(pendingAction==='historyMenu'||pendingAction==='historyAction'){
+      // Use the same server-side verification path as every other Section Lock action.
+      const action=pendingAction;
+      if(!/^\\d{4}$/.test(pin)){alert('4 digit Section Lock PIN enter karein');return false;}
+      const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+      if(!c){alert('PIN check nahi ho saka: Supabase client unavailable.');return false;}
+      try{
+        const auth=await c.auth.getSession();
+        if(auth&&auth.error)throw new Error('Login session error: '+auth.error.message);
+        const session=auth&&auth.data&&auth.data.session;
+        if(!session||!session.access_token)throw new Error('Login session missing. Dobara login karein.');
+        const result=await c.functions.invoke('verify-section-lock-pin',{body:{pin,workspace_id:WORKSPACE_ID}});
+        if(result.error)throw new Error('Server request failed'+(result.error.context&&result.error.context.status?' (HTTP '+result.error.context.status+')':'')+': '+(result.error.message||'unknown error'));
+        if(!result.data||result.data.valid!==true){alert(result.data&&result.data.error?'PIN server check: '+result.data.error:'PIN server ne match nahi kiya.');return false;}
+      }catch(err){console.error('Section Lock verification failed',err);alert('PIN verification fail: '+(err&&err.message?err.message:'Network/session error'));return false;}
+      if(action==='historyAction'){
+        const historyAction=typeof pendingHistoryAction!=='undefined'?pendingHistoryAction:'';
+        const idx=typeof pendingIndex!=='undefined'?pendingIndex:null;
+        pendingAction=null;pendingIndex=null;
+        const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
+        if(historyAction==='ppm'||historyAction==='detailPpm'){
+          const el=document.getElementById('ppm-'+idx);if(el)el.style.display='block';
+        }else if(priorConfirmPin){
+          // Keep existing non-PPM history actions on their established action handler after successful verification.
+          pendingAction='historyAction';
+          return priorConfirmPin();
+        }
+        return false;
+      }
       return priorConfirmPin ? priorConfirmPin() : false;
     }
     if(['sectionUnlock','sectionLockSettings','cloudDataUnlock'].includes(pendingAction)){
