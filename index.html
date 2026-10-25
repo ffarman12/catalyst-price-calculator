@@ -3954,7 +3954,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
         const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
         const m=document.getElementById('actionMenu');
         if(m){
-          m.innerHTML='<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'edit\\','+i+');">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'delete\\','+i+');">Delete</button>';
+          m.innerHTML=`<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction('edit',${i});">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction('delete',${i});">Delete</button>`;
           m.style.display='block';m.style.position='fixed';m.style.zIndex='99999';
           const vw=window.innerWidth||360,vh=window.innerHeight||640;
           m.style.left=Math.max(8,Math.min(vw-150,x-120))+'px';m.style.top=Math.max(8,Math.min(vh-130,y-70))+'px';
