@@ -4088,6 +4088,30 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
 <!-- Pages refresh trigger: Section Lock saved PIN loader 3c9ab22 -->
 
 
+<!-- OWNER MANUAL MARKET LIVE SYNC: update user accounts without page refresh; keep owner editing fields untouched. -->
+<script>
+(function(){
+  let marketSyncBusy=false;
+  async function syncOwnerManualMarketToUser(){
+    if(marketSyncBusy||document.visibilityState!=='visible')return;
+    try{
+      const client=typeof getEditorSupabase==='function'?getEditorSupabase():null;
+      if(!client||!client.auth||!client.auth.getSession)return;
+      const auth=await client.auth.getSession();
+      const session=auth&&auth.data&&auth.data.session;
+      if(!session||!session.user)return;
+      // The owner is the source of truth and must not have in-progress manual inputs overwritten.
+      if(session.user.id==='7026de35-0d41-4c25-9e9c-673d072e5ada')return;
+      marketSyncBusy=true;
+      await loadCloudManualMarket();
+    }catch(err){console.warn('Owner Manual Market live sync failed',err)}
+    finally{marketSyncBusy=false}
+  }
+  setInterval(syncOwnerManualMarketToUser,5000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOwnerManualMarketToUser()});
+})();
+</script>
+
 <!-- TARGETED USER ACCOUNT SECTION LOCK ROUTING FIX -->
 <script>
 (function(){
