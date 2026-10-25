@@ -4115,7 +4115,10 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
       // Preserve the owner's in-progress Manual Market edits when the owner is signed in.
       if(session&&session.user&&session.user.id==='7026de35-0d41-4c25-9e9c-673d072e5ada')return;
       // Market read endpoints use the public publishable key, so refresh also works while logged out.
-      await Promise.all([loadCloudManualMarket(),loadCloudDefaultMarket()]);
+      await loadCloudManualMarket();
+      await loadCloudDefaultMarket();
+      // Re-apply the latest Cloud Manual Market after both reads finish so the Default Market refresh cannot leave stale manual inputs visible.
+      syncMarket();
     }catch(err){console.warn('Owner Manual/Default Market live sync failed',err)}
     finally{marketSyncBusy=false}
   }
