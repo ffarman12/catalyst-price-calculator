@@ -4097,7 +4097,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
   const priorOpenHistoryDetails = window.openHistoryDetails;
   window.openHistoryDetails = openHistoryDetails = function(i){
     if(!isLoggedIn()) return;
-    requestSectionUnlock('history', function(){
+    requestSectionUnlock('historyActions', function(){
       if(typeof priorOpenHistoryDetails === 'function') priorOpenHistoryDetails(i);
     });
   };
