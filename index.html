@@ -4088,27 +4088,31 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
 <!-- Pages refresh trigger: Section Lock saved PIN loader 3c9ab22 -->
 
 
-<!-- OWNER MANUAL MARKET LIVE SYNC: update user accounts without page refresh; keep owner editing fields untouched. -->
+<!-- OWNER MARKET LIVE SYNC: refresh Manual and Default market values every 5 seconds for logged-in and logged-out user sessions; never overwrite the owner's active editor while signed in. -->
 <script>
 (function(){
   let marketSyncBusy=false;
-  async function syncOwnerManualMarketToUser(){
+  async function syncOwnerMarketToUser(){
     if(marketSyncBusy||document.visibilityState!=='visible')return;
+    marketSyncBusy=true;
     try{
+      let session=null;
       const client=typeof getEditorSupabase==='function'?getEditorSupabase():null;
-      if(!client||!client.auth||!client.auth.getSession)return;
-      const auth=await client.auth.getSession();
-      const session=auth&&auth.data&&auth.data.session;
-      if(!session||!session.user)return;
-      // The owner is the source of truth and must not have in-progress manual inputs overwritten.
-      if(session.user.id==='7026de35-0d41-4c25-9e9c-673d072e5ada')return;
-      marketSyncBusy=true;
-      await loadCloudManualMarket();
-    }catch(err){console.warn('Owner Manual Market live sync failed',err)}
+      if(client&&client.auth&&client.auth.getSession){
+        try{
+          const auth=await client.auth.getSession();
+          session=auth&&auth.data&&auth.data.session||null;
+        }catch(err){console.warn('Market live sync session lookup failed; using public market reads',err)}
+      }
+      // Preserve the owner's in-progress Manual Market edits when the owner is signed in.
+      if(session&&session.user&&session.user.id==='7026de35-0d41-4c25-9e9c-673d072e5ada')return;
+      // Market read endpoints use the public publishable key, so refresh also works while logged out.
+      await Promise.all([loadCloudManualMarket(),loadCloudDefaultMarket()]);
+    }catch(err){console.warn('Owner Manual/Default Market live sync failed',err)}
     finally{marketSyncBusy=false}
   }
-  setInterval(syncOwnerManualMarketToUser,5000);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOwnerManualMarketToUser()});
+  setInterval(syncOwnerMarketToUser,5000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOwnerMarketToUser()});
 })();
 </script>
 
