@@ -4067,4 +4067,41 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
 
 <!-- Pages refresh trigger: Section Lock saved PIN loader 3c9ab22 -->
 
+
+<!-- TARGETED USER ACCOUNT SECTION LOCK ROUTING FIX -->
+<script>
+(function(){
+  // Keep existing behavior when Cloud Data is not locked; route locked reveal through the shared server-verified PIN modal.
+  const priorCloudDataButtonClick = window.cloudDataButtonClick;
+  window.cloudDataButtonClick = cloudDataButtonClick = function(){
+    try{
+      sectionLocks = safeStoreGet('cat_section_locks', sectionLocks) || sectionLocks;
+      const el = document.getElementById('cloudEntryCount');
+      const visible = !!(el && el.style.display !== 'none' && String(el.textContent || '').trim());
+      if(visible){
+        hideCloudEntryCount();
+        if(typeof cloudStatus === 'function') cloudStatus('Cloud data count hidden');
+        return false;
+      }
+      const locked = sectionLocks.cloudData === true || localStorage.getItem('cat_cloud_data_lock') === '1';
+      if(!locked) return priorCloudDataButtonClick ? priorCloudDataButtonClick() : false;
+      requestSectionUnlock('cloudData', function(){
+        refreshCloudEntryCount(true);
+        if(typeof cloudStatus === 'function') cloudStatus('Cloud data count updated');
+      });
+      return false;
+    }catch(err){ console.error('Cloud Data section unlock error', err); return false; }
+  };
+
+  // The details page follows the existing History section lock and opens only after the shared PIN flow succeeds.
+  const priorOpenHistoryDetails = window.openHistoryDetails;
+  window.openHistoryDetails = openHistoryDetails = function(i){
+    if(!isLoggedIn()) return;
+    requestSectionUnlock('history', function(){
+      if(typeof priorOpenHistoryDetails === 'function') priorOpenHistoryDetails(i);
+    });
+  };
+})();
+</script>
+
 <!-- Pages refresh trigger: Section Lock saved PIN loader final retry -->
