@@ -3908,11 +3908,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
     const input=document.getElementById('pinInput');
     const pin=String(input&&input.value||'');
     const appPin=String(localStorage.getItem('cat_pin')||'1234');
-    if(pendingAction==='historyMenu'||pendingAction==='historyAction'){
-      return priorConfirmPin ? priorConfirmPin() : false;
-    }
-
-    if(['sectionUnlock','sectionLockSettings','cloudDataUnlock'].includes(pendingAction)){
+    if(['sectionUnlock','sectionLockSettings','cloudDataUnlock','historyMenu','historyAction'].includes(pendingAction)){
       if(!/^\d{4}$/.test(pin)){alert('4 digit Section Lock PIN enter karein');return false;}
       const c=typeof getEditorSupabase==='function'?getEditorSupabase():null;
       if(!c){alert('PIN check nahi ho saka: Supabase client unavailable.');return false;}
@@ -3951,6 +3947,26 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
         return false;
       }finally{
         if(continueBtn){continueBtn.disabled=false;continueBtn.textContent=continueBtnText||'Continue';continueBtn.style.opacity='';}
+      }
+      if(pendingAction==='historyMenu'){
+        const i=pendingIndex,x=Number(pendingMenuX)||((window.innerWidth||360)/2),y=Number(pendingMenuY)||((window.innerHeight||640)/2);
+        pendingAction=null;pendingIndex=null;
+        const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
+        const m=document.getElementById('actionMenu');
+        if(m){
+          m.innerHTML='<button type="button" class="btn secondary" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'edit\\','+i+');">Edit</button><button type="button" class="btn danger" style="margin-top:6px" onclick="event.preventDefault();event.stopPropagation();closeMenu();requestHistoryAction(\\'delete\\','+i+');">Delete</button>';
+          m.style.display='block';m.style.position='fixed';m.style.zIndex='99999';
+          const vw=window.innerWidth||360,vh=window.innerHeight||640;
+          m.style.left=Math.max(8,Math.min(vw-150,x-120))+'px';m.style.top=Math.max(8,Math.min(vh-130,y-70))+'px';
+        }
+        return false;
+      }
+      if(pendingAction==='historyAction'){
+        const action=pendingHistoryAction,i=pendingIndex;
+        pendingAction=null;pendingIndex=null;
+        const modal=document.getElementById('pinModal');if(modal)modal.style.display='none';
+        runHistoryAction(action,i);
+        return false;
       }
       if(pendingAction==='sectionLockSettings'){
         pendingAction=null;pendingIndex=null;sectionUnlockCallback=null;
@@ -4093,14 +4109,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
     }catch(err){ console.error('Cloud Data section unlock error', err); return false; }
   };
 
-  // The details page follows the existing History section lock and opens only after the shared PIN flow succeeds.
-  const priorOpenHistoryDetails = window.openHistoryDetails;
-  window.openHistoryDetails = openHistoryDetails = function(i){
-    if(!isLoggedIn()) return;
-    requestSectionUnlock('historyActions', function(){
-      if(typeof priorOpenHistoryDetails === 'function') priorOpenHistoryDetails(i);
-    });
-  };
+  // Opening a History search result is not itself a locked action; protected controls inside Details keep their own PIN checks.
 })();
 </script>
 
