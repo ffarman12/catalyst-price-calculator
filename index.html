@@ -487,6 +487,7 @@ let history=[];
 let market=safeStoreGet('cat_market',null)||{...defaults};
 /* Keep manual-entry rates separate from live rates. */
 let manualMarket=safeStoreGet('cat_manual_market',null)||{pt:1696,pd:1153,rh:8650,usd:96};
+let manualMarketSaveInProgress=false,manualMarketRevision=0;
 let settings=safeStoreGet('cat_settings',null)||{...defaults};
 const REFINE_CALC_DEFAULTS={unit:'kg',returnPt:80,returnPd:80,returnRh:80,minPt:0,minPd:0,minRh:0,treatment:0,refinePt:0,refinePd:0,refineRh:0,days:120,interest:5,ptPrice:0,pdPrice:0,rhPrice:0};
 let refineCalcSettings={...REFINE_CALC_DEFAULTS,...(safeStoreGet('cat_refine_calc_settings',null)||{})};if(!['kg','lb'].includes(refineCalcSettings.unit))refineCalcSettings.unit='kg';
@@ -545,6 +546,7 @@ function repairSavedPrices(){try{
     }localStorage.setItem('cat_history',JSON.stringify(history));localStorage.setItem('cat_history_formula_v2','6')}
 function syncMarket(){['pt','pd','rh'].forEach(k=>{ $('m'+k).value=Number(manualMarket[k]).toFixed(2); $('m'+k+'used').textContent=Number(market[k]).toFixed(2) });$('musd').value=Number(manualMarket.usd).toFixed(2);$('musdused').textContent=Number(market.usd-3).toFixed(2);if($('rptppm')&&$('rw'))refineCalc()}
 async function loadCloudManualMarket(){
+  const loadRevision=manualMarketRevision;
   try{
     const response=await fetch(SUPABASE_URL+'/functions/v1/market-manual-save',{
       method:'GET',
@@ -556,6 +558,8 @@ async function loadCloudManualMarket(){
     const saved=result.saved;
     const next={pt:Number(saved.pt),pd:Number(saved.pd),rh:Number(saved.rh),usd:Number(saved.usd)};
     if(![next.pt,next.pd,next.rh,next.usd].every(v=>Number.isFinite(v)&&v>0))throw new Error('Cloud Manual Market values are invalid');
+    // Ignore a read that started before/during an owner save; it must not restore stale rates over the new values.
+    if(manualMarketSaveInProgress||loadRevision!==manualMarketRevision)return false;
     manualMarket=next;
     localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));
     syncMarket();
@@ -589,6 +593,8 @@ async function loadCloudDefaultMarket(){
 function adjustLiveMarket(key,delta){const current=Number(market[key])||0;market={...market,[key]:Math.max(0,current+delta)};localStorage.setItem('cat_market',JSON.stringify(market));repairSavedPrices();syncMarket();if($('m'+key+'live'))$('m'+key+'live').textContent=Number(market[key]).toFixed(2);$('marketStatus').textContent='Adjusted Market';if($('rptppm')&&$('rw'))refineCalc();renderHistory()}
 function syncSettings(){Object.keys(settings).forEach(k=>{if($(k))$(k).value=settings[k]})}
 async function saveMarket(){
+  manualMarketSaveInProgress=true;
+  manualMarketRevision++;
   manualMarket={pt:+$('mpt').value||defaults.pt,pd:+$('mpd').value||defaults.pd,rh:+$('mrh').value||defaults.rh,usd:+$('musd').value||defaults.usd};
   localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));
   let cloudSaved=false,cloudError='',defaultCloudSaved=false,defaultCloudError='';
@@ -641,6 +647,8 @@ async function saveMarket(){
   if(lastLive){$('marketStatus').textContent=lastLive.rh===null||lastLive.rh===undefined?'Partial Live Market — Rh Manual':'Live Market';}
   else{$('marketStatus').textContent='Manual Market';}
   if($('rptppm')&&$('rw'))refineCalc();
+  manualMarketSaveInProgress=false;
+  manualMarketRevision++;
 }
 function saveSettings(){['spt','spd','srh','days','interest','treatment','rpt','rpd','rrh'].forEach(id=>{settings[{spt:'spt',spd:'spd',srh:'srh',days:'days',interest:'interest',treatment:'treatment',rpt:'rpt',rpd:'rpd',rrh:'rrh'}[id]]=$(id).value});settings.spt=+$('spt').value;settings.spd=+$('spd').value;settings.srh=+$('srh').value;settings.days=+$('days').value;settings.interest=+$('interest').value;settings.treatment=+$('treatment').value;settings.rpt=+$('rpt').value;settings.rpd=+$('rpd').value;settings.rrh=+$('rrh').value;localStorage.setItem('cat_settings',JSON.stringify(settings));repairSavedPrices();renderHistory();if($('rptppm')&&$('rw'))refineCalc();$('status').textContent='Settings saved';document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('market').classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='market'))}
 let bgRemovalModulePromise=null;
