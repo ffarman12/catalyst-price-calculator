@@ -4122,7 +4122,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
     }catch(err){console.warn('Owner Manual/Default Market live sync failed',err)}
     finally{marketSyncBusy=false}
   }
-  setInterval(syncOwnerMarketToUser,15000);
+  setInterval(syncOwnerMarketToUser,20000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOwnerMarketToUser()});
 })();
 </script>
