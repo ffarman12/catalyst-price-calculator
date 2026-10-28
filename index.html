@@ -553,7 +553,7 @@ function repairSavedPrices(){try{
       console.warn('History search price refresh failed; keeping Cloud result',priceError);
       history=history.map(x=>({...x,price:Number(x.price)||0}));
     }localStorage.setItem('cat_history',JSON.stringify(history));localStorage.setItem('cat_history_formula_v2','6')}
-function syncMarket(){['pt','pd','rh'].forEach(k=>{ $('m'+k).value=String(Number(manualMarket[k])); $('m'+k+'used').textContent=Number(market[k]).toFixed(2) });$('musd').value=Number(manualMarket.usd).toFixed(2);$('musdused').textContent=Number(market.usd-3).toFixed(2);if($('rptppm')&&$('rw'))refineCalc()}
+function syncMarket(){['pt','pd','rh'].forEach(k=>{ $('m'+k).value=String(Math.round(Number(manualMarket[k]))); $('m'+k+'used').textContent=Number(market[k]).toFixed(2) });$('musd').value=Number(manualMarket.usd).toFixed(2);$('musdused').textContent=Number(market.usd-3).toFixed(2);if($('rptppm')&&$('rw'))refineCalc()}
 async function loadCloudManualMarket(){
   const loadRevision=manualMarketRevision;
   try{
@@ -565,7 +565,7 @@ async function loadCloudManualMarket(){
     const result=await response.json();
     if(!response.ok||!result||result.ok!==true||!result.saved)throw new Error((result&&result.error)||'Cloud Manual Market read failed');
     const saved=result.saved;
-    const next={pt:Number(saved.pt),pd:Number(saved.pd),rh:Number(saved.rh),usd:Number(saved.usd)};
+    const next={pt:Math.round(Number(saved.pt)),pd:Math.round(Number(saved.pd)),rh:Math.round(Number(saved.rh)),usd:Number(saved.usd)};
     if(![next.pt,next.pd,next.rh,next.usd].every(v=>Number.isFinite(v)&&v>0))throw new Error('Cloud Manual Market values are invalid');
     // Ignore a read that started before/during an owner save; it must not restore stale rates over the new values.
     if(manualMarketSaveInProgress||loadRevision!==manualMarketRevision)return false;
