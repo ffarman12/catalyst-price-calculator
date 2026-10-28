@@ -46,7 +46,7 @@ function permissionsForDisplay(saved){
 function renderUser(m){
  const p=permissionsForDisplay(m.permissions);
  const features=OWNER_FEATURES.map(([key,label])=>'<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #8883;font-size:13px"><span>'+esc(label)+'</span><input type="checkbox" data-permission="'+key+'" '+(p[key]?'checked':'')+' style="width:20px;height:20px"></label>').join('');
- return '<article data-user="'+esc(m.user_id)+'" style="border:1px solid #8885;border-radius:12px;padding:12px;margin:10px 0"><div style="font-weight:800;overflow-wrap:anywhere">'+esc(m.user_id)+'</div><div style="font-size:12px;opacity:.7;margin:3px 0 8px">Role: '+esc(m.role||'member')+' · '+(m.approved?'Approved':'Not approved')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn primary" type="button" data-action="approve">Approve</button><button class="btn danger" type="button" data-action="reject">Reject</button><button class="btn secondary" type="button" data-action="save">Save Permissions</button></div><details><summary style="cursor:pointer;font-weight:700;padding:6px 0">9 protected features</summary>'+features+'</details></article>';
+ return '<article data-user="'+esc(m.user_id)+'" style="border:1px solid #8885;border-radius:12px;padding:12px;margin:10px 0"><div style="font-weight:800;overflow-wrap:anywhere">'+esc(m.email||'Email unavailable')+'</div><div style="font-size:11px;opacity:.7;overflow-wrap:anywhere">User ID: '+esc(m.user_id)+'</div><div style="font-size:12px;opacity:.7;margin:3px 0 8px">Role: '+esc(m.role||'member')+' · '+(m.approved?'Approved':'Not approved')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn primary" type="button" data-action="approve">Approve</button><button class="btn danger" type="button" data-action="reject">Reject</button><button class="btn secondary" type="button" data-action="save">Save Permissions</button></div><details><summary style="cursor:pointer;font-weight:700;padding:6px 0">9 protected features</summary>'+features+'</details></article>';
 }
 async function loadUsers(){
  const c=client(),status=$('eucStatus'),list=$('eucUsers');
@@ -54,12 +54,20 @@ async function loadUsers(){
  try{
   const user=await verifiedUser();
   if(!user||user.id!==ownerId){status.textContent='Owner account required. No changes made.';return}
-  const members=await c.from('workspace_members').select('user_id,role').eq('workspace_id',WORKSPACE_ID);
-  if(members.error)throw members.error;
+  const sessionResult=await c.auth.getSession();
+  const accessToken=sessionResult&&sessionResult.data&&sessionResult.data.session&&sessionResult.data.session.access_token;
+  if(!accessToken)throw new Error('Please login again.');
+  const directoryResponse=await fetch(SUPABASE_URL+'/functions/v1/editor-user-command-users',{
+   method:'GET',
+   headers:{'apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+accessToken},
+   cache:'no-store'
+  });
+  const directoryResult=await directoryResponse.json();
+  if(!directoryResponse.ok||!directoryResult||directoryResult.ok!==true||!Array.isArray(directoryResult.users))throw new Error((directoryResult&&directoryResult.error)||'Could not load Editor account list');
   const perms=await c.from('workspace_member_permissions').select('user_id,approved,permissions,approved_at').eq('workspace_id',WORKSPACE_ID);
   if(perms.error)throw perms.error;
   const byId=new Map((perms.data||[]).map(x=>[x.user_id,x]));
-  const users=(members.data||[]).filter(x=>x.user_id!==ownerId).map(m=>({...m,...(byId.get(m.user_id)||{approved:false,permissions:{}})}));
+  const users=directoryResult.users.filter(x=>x.user_id!==ownerId).map(m=>({...m,...(byId.get(m.user_id)||{approved:false,permissions:{}})}));
   list.innerHTML=users.length?users.map(renderUser).join(''):'<p>No other workspace members found.</p>';
   status.textContent='Owner verified · '+users.length+' member(s).';
   list.querySelectorAll('article[data-user]').forEach(card=>{
@@ -91,8 +99,9 @@ async function saveUser(uid,patch){
   const payload={workspace_id:WORKSPACE_ID,user_id:uid,approved,permissions,approved_by:ownerId,approved_at:approved?new Date().toISOString():null,updated_at:new Date().toISOString()};
   const saved=await c.from('workspace_member_permissions').upsert(payload,{onConflict:'workspace_id,user_id'});
   if(saved.error)throw saved.error;
-  status.textContent=typeof patch.approved==='boolean'?(approved?'User approved.':'User access disabled; existing History/data was not deleted.'):(approved?'Permissions saved. User remains approved.':'Permissions saved. User is still not approved; press Approve to enable the account.');
+  const resultMessage=typeof patch.approved==='boolean'?(approved?'User approved.':'User access disabled; existing History/data was not deleted.'):(approved?'Permissions saved. User remains approved.':'Permissions saved. User is still not approved; press Approve to enable the account.');
   await loadUsers();
+  status.textContent=resultMessage;
  }catch(e){status.textContent='Save failed: '+String(e&&e.message||e)+'. No success assumed.'}
 }
 window.openEditorUserCommand=async function(e){
