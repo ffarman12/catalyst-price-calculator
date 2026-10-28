@@ -63,7 +63,7 @@ Deno.serve(async (req: Request) => {
     const emailById = new Map(authUsers.map((u: { id?: string; email?: string }) => [u.id, u.email || ""]));
     return reply({
       ok: true,
-      users: members.map((m: { user_id: string; role: string }) => ({
+      users: members.filter((m: { user_id: string; role: string }) => m.role === "editor").map((m: { user_id: string; role: string }) => ({
         user_id: m.user_id,
         role: m.role,
         email: emailById.get(m.user_id) || "",
