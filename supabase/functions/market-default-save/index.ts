@@ -54,6 +54,7 @@ Deno.serve(async (req: Request) => {
   // live market (allowing Rh to use the already-saved Manual Market Rh fallback).
   const authz = await authorizeEditorFeature(req, "manual_market_update");
   if (!authz.ok) {
+    if (authz.error === "Editor account membership required") return reply({ error: authz.error }, authz.status);
     try {
       const liveResponse = await fetch(
         url.replace(/\/$/, "") + "/rest/v1/market_live_state?id=eq.1&select=pt,pd,rh,usd",
