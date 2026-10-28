@@ -437,7 +437,7 @@ function initIndexedDBStorage(){if(!window.indexedDB){clearDeviceHistoryCopies()
     market=safeStoreGet('cat_market',null)||market;settings=safeStoreGet('cat_settings',null)||settings;lessSettings=safeStoreGet('cat_less_settings',null)||lessSettings;entryPercentLess=safeStoreGet('cat_entry_percent_less',null)||entryPercentLess;sectionLocks=safeStoreGet('cat_section_locks',null)||sectionLocks;
     repairSavedPrices();syncMarket();syncSettings();
     /* Cloud Manual Market is authoritative across devices; reapply after local storage hydration. */
-    loadCloudManualMarket();loadCloudDefaultMarket();loadCloudLiveMarket();
+    // Market cloud reads run after IndexedDB hydration below to avoid racing startup reads.
     /* Do not repopulate the visible History screen from local storage after
        the user has opened History but before a reference-code search. */
     const historyView=document.getElementById('history');
@@ -477,8 +477,7 @@ initIndexedDBStorage();
     try{if(typeof applyAccessUI==='function')applyAccessUI();}catch(e){}
   },250);
 })();
-/* Also load Cloud Manual Market when IndexedDB is unavailable or its hydration fails. */
-loadCloudManualMarket();loadCloudDefaultMarket();
+/* Market cloud reads run once after storage hydration; avoid competing requests. */
 /* Cloud settings sync is authenticated after explicit login; refresh itself logs the user out. */
 const defaults={pt:1770,pd:1250,rh:8600,usd:92, rpt:1,rpd:1,rrh:1,treatment:1,spt:80,spd:80,srh:80,days:120,interest:5};
 function safeStoreGet(key,fallback){try{if(key==='cat_history'||key==='cat_history_backup')return fallback;const v=localStorage.getItem(key);return v===null?fallback:JSON.parse(v)}catch(e){return fallback}}
