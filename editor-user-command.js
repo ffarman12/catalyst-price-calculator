@@ -124,7 +124,17 @@ function addOwnerButton(){
 }
 const firstMenu=window.showProtectedMainMenu;
 if(typeof firstMenu==='function'){
- window.showProtectedMainMenu=function(){const r=firstMenu.apply(this,arguments);setTimeout(async()=>{try{if(await isOwner())addOwnerButton()}catch(e){console.warn('Owner command unavailable',e)}},0);return r};
+ window.showProtectedMainMenu=function(){
+  const r=firstMenu.apply(this,arguments);
+  setTimeout(async()=>{
+   try{
+    const c=client();
+    const ses=c&&await c.auth.getSession();
+    if(ses&&ses.data&&ses.data.session&&ses.data.session.user)addOwnerButton();
+   }catch(e){console.warn('Editor User Command menu unavailable',e)}
+  },0);
+  return r;
+ };
 }
 async function featureAllowed(feature){
  try{
