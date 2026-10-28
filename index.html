@@ -571,6 +571,12 @@ async function loadCloudManualMarket(){
     if(manualMarketSaveInProgress||loadRevision!==manualMarketRevision)return false;
     manualMarket=next;
     localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));
+    // Keep the shared manual input fields aligned with the verified cloud record,
+    // including when the app starts logged out; never leave startup defaults visible.
+    if($('mpt'))$('mpt').value=String(Math.round(next.pt));
+    if($('mpd'))$('mpd').value=String(Math.round(next.pd));
+    if($('mrh'))$('mrh').value=String(Math.round(next.rh));
+    if($('musd'))$('musd').value=Number(next.usd).toFixed(2);
     syncMarket();
     return true;
   }catch(e){
