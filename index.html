@@ -578,6 +578,27 @@ async function loadCloudManualMarket(){
     return false;
   }
 }
+async function loadCloudLiveMarket(){
+  try{
+    const response=await fetch(SUPABASE_URL+'/functions/v1/market-live-save',{
+      method:'GET',headers:{'apikey':SUPABASE_PUBLISHABLE_KEY},cache:'no-store'
+    });
+    const result=await response.json();
+    if(!response.ok||!result||result.ok!==true||!result.saved)throw new Error((result&&result.error)||'Cloud Live Market read failed');
+    const saved=result.saved;
+    const next={pt:Number(saved.pt),pd:Number(saved.pd),usd:Number(saved.usd),rh:saved.rh==null?null:Number(saved.rh)};
+    if(![next.pt,next.pd,next.usd].every(v=>Number.isFinite(v)&&v>0)||(next.rh!==null&&(!Number.isFinite(next.rh)||next.rh<=0)))throw new Error('Cloud Live Market values are invalid');
+    if($('mptlive'))$('mptlive').textContent=next.pt.toFixed(2);
+    if($('mpdlive'))$('mpdlive').textContent=next.pd.toFixed(2);
+    if($('mrhlive'))$('mrhlive').textContent=next.rh===null?'Manual':next.rh.toFixed(2);
+    if($('musdlive'))$('musdlive').textContent=next.usd.toFixed(2);
+    if($('marketStatus'))$('marketStatus').textContent=next.rh===null?'Partial Live Market — Rh Manual':'Live Market — Cloud Synced';
+    return true;
+  }catch(e){
+    console.warn('Cloud Live Market load failed; retaining displayed values',e);
+    return false;
+  }
+}
 async function loadCloudDefaultMarket(){
   try{
     const response=await fetch(SUPABASE_URL+'/functions/v1/market-default-save',{
@@ -4126,6 +4147,7 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
       // Market read endpoints use the public publishable key, so refresh also works while logged out.
       await loadCloudManualMarket();
       await loadCloudDefaultMarket();
+      await loadCloudLiveMarket();
       // Re-apply the latest Cloud Manual Market after both reads finish so the Default Market refresh cannot leave stale manual inputs visible.
       syncMarket();
     }catch(err){console.warn('Owner Manual/Default Market live sync failed',err)}
