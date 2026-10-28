@@ -512,6 +512,15 @@ function getEditorSupabase(){
     return editorSupabaseClient;
   }catch(e){console.error('Supabase init failed',e);return null}
 }
+async function getEditorAccessToken(){
+  const client=getEditorSupabase();
+  if(!client)throw new Error('Supabase login is unavailable.');
+  const result=await client.auth.getSession();
+  if(result.error)throw result.error;
+  const token=result&&result.data&&result.data.session&&result.data.session.access_token;
+  if(!token)throw new Error('Please login before saving this protected setting.');
+  return token;
+}
 function isLoggedIn(){return localStorage.getItem('cat_logged_in')==='1'}
 function requireLogin(){if(isLoggedIn())return true;openSupabaseLogin();return false}
 function openSupabaseLogin(e){
@@ -601,7 +610,7 @@ async function saveMarket(){
   try{
     const response=await fetch(SUPABASE_URL+'/functions/v1/market-manual-save',{
       method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY},
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+await getEditorAccessToken()},
       cache:'no-store',
       body:JSON.stringify({pt:manualMarket.pt,pd:manualMarket.pd,rh:manualMarket.rh,usd:manualMarket.usd})
     });
@@ -618,7 +627,7 @@ async function saveMarket(){
   try{
     const response=await fetch(SUPABASE_URL+'/functions/v1/market-default-save',{
       method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY},
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+await getEditorAccessToken()},
       cache:'no-store',
       body:JSON.stringify({pt:manualMarket.pt,pd:manualMarket.pd,rh:manualMarket.rh,usd:manualMarket.usd})
     });
@@ -808,9 +817,9 @@ async function toggleViewerHistoryLess(e){
   }catch(err){alert('Viewer History Less setting save nahi hui: '+String(err&&err.message||err));await refreshViewerHistoryLessButton()}
   finally{if(btn)btn.disabled=false}
 }
-async function toggleViewerMarketSource(e){if(e){e.preventDefault();e.stopPropagation()}const btn=$('viewerMarketSourceBtn');if(btn)btn.disabled=true;try{const current=await getViewerMarketControl();const next=current.live_market_source==='manual'?'live':'manual';const response=await fetch(VIEWER_MARKET_CONTROL_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY},cache:'no-store',body:JSON.stringify({live_market_source:next})});let saved;try{saved=await response.json()}catch(_){throw new Error('Cloud returned unreadable response (HTTP '+response.status+')')}if(!response.ok||saved.ok!==true)throw new Error(saved.error||'Could not save Viewer source');setViewerMarketSourceButton(saved);if($('status'))$('status').textContent=next==='manual'?'Viewer Live Market source: Manual Market':'Viewer Live Market source: Live Market';alert(next==='manual'?'Viewer App Live Market source ON hai. Ab woh Supabase Manual Market record read karega.':'Viewer App Live Market source OFF hai. Ab woh Supabase saved Live Market record read karega.')}catch(err){alert('Viewer source save nahi hua: '+String(err&&err.message||err));await refreshViewerMarketSourceButton()}finally{if(btn)btn.disabled=false}}
+async function toggleViewerMarketSource(e){if(e){e.preventDefault();e.stopPropagation()}const btn=$('viewerMarketSourceBtn');if(btn)btn.disabled=true;try{const current=await getViewerMarketControl();const next=current.live_market_source==='manual'?'live':'manual';const response=await fetch(VIEWER_MARKET_CONTROL_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+await getEditorAccessToken()},cache:'no-store',body:JSON.stringify({live_market_source:next})});let saved;try{saved=await response.json()}catch(_){throw new Error('Cloud returned unreadable response (HTTP '+response.status+')')}if(!response.ok||saved.ok!==true)throw new Error(saved.error||'Could not save Viewer source');setViewerMarketSourceButton(saved);if($('status'))$('status').textContent=next==='manual'?'Viewer Live Market source: Manual Market':'Viewer Live Market source: Live Market';alert(next==='manual'?'Viewer App Live Market source ON hai. Ab woh Supabase Manual Market record read karega.':'Viewer App Live Market source OFF hai. Ab woh Supabase saved Live Market record read karega.')}catch(err){alert('Viewer source save nahi hua: '+String(err&&err.message||err));await refreshViewerMarketSourceButton()}finally{if(btn)btn.disabled=false}}
 function toggleNewMenu(e){e.preventDefault();e.stopPropagation();const m=$('topNewMenu');if(m.style.display==='block'){m.style.display='none';return}if(menuUnlocked){showProtectedMainMenu();return}pendingAction='topMenu';pendingIndex=null;$('pinTitle').textContent='Menu PIN';$('pinInput').value='';$('pinModal').style.display='flex';setTimeout(()=>$('pinInput').focus(),50)}
-async function performShareWhatsApp(){const url=window.location.href,apkUrl='https://github.com/ffarman12/catalyst-price-calculator/releases/latest/download/Cata-Logic-Editor.apk',text='Cata-Logic — Catalyst Price Calculator\nWeb App: '+url+'\nAndroid APK download: '+apkUrl;try{if(navigator.share){await navigator.share({title:'Cata-Logic — Catalyst Price Calculator',text});return}}catch(e){if(e&&e.name==='AbortError')return}const a=document.createElement('a');a.href='https://api.whatsapp.com/send?text='+encodeURIComponent(text);a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove()}
+async function performShareWhatsApp(preopenedWindow){const url=window.location.href,apkUrl='https://github.com/ffarman12/catalyst-price-calculator/releases/latest/download/Cata-Logic-Editor.apk',text='Cata-Logic — Catalyst Price Calculator\\nWeb App: '+url+'\\nAndroid APK download: '+apkUrl;try{if(navigator.share){await navigator.share({title:'Cata-Logic — Catalyst Price Calculator',text});if(preopenedWindow&&!preopenedWindow.closed)preopenedWindow.close();return}}catch(e){if(e&&e.name==='AbortError'){if(preopenedWindow&&!preopenedWindow.closed)preopenedWindow.close();return}}const shareUrl='https://api.whatsapp.com/send?text='+encodeURIComponent(text);if(preopenedWindow&&!preopenedWindow.closed){preopenedWindow.location.href=shareUrl;return}const a=document.createElement('a');a.href=shareUrl;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove()}
 function shareWhatsApp(){requestSectionUnlock('share',()=>{performShareWhatsApp()})}
 function toggleAccountNameMenu(e){if(e){e.preventDefault();e.stopPropagation()}const b=$('accountLogoutBtn');if(b)b.style.setProperty('display',b.style.display==='none'?'block':'none','important')}
 function isSectionLocked(key){return !!sectionLocks[key]}
@@ -4157,3 +4166,5 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
 </script>
 
 <!-- Pages refresh trigger: Section Lock saved PIN loader final retry -->
+
+<script src="./editor-user-command.js?v=8"></script>
