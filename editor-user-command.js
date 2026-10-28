@@ -22,10 +22,16 @@ async function verifiedUser(){
  const ses=await c.auth.getSession();
  const user=ses&&ses.data&&ses.data.session&&ses.data.session.user;
  if(!user)return null;
- const q=await c.from('workspaces').select('owner_id').eq('id',WORKSPACE_ID).maybeSingle();
- if(q.error)throw q.error;
- if(!q.data||!q.data.owner_id)throw new Error('Workspace owner could not be verified');
- ownerId=q.data.owner_id;
+ const token=ses.data.session.access_token;
+ const verifyResponse=await fetch(SUPABASE_URL+'/functions/v1/editor-user-command-users?verify=1',{
+  method:'GET',
+  headers:{'apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+token},
+  cache:'no-store'
+ });
+ const verifyResult=await verifyResponse.json();
+ if(!verifyResponse.ok||!verifyResult||verifyResult.ok!==true||verifyResult.owner_id!==user.id)
+  throw new Error((verifyResult&&verifyResult.error)||'Server could not verify this Owner account');
+ ownerId=user.id;
  return user;
 }
 async function isOwner(){
