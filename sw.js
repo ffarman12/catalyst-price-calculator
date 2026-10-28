@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v241-session-reopen';
+const CACHE='catalyst-calculator-v242-cloud-market-fix';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
