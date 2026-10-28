@@ -67,7 +67,7 @@ async function loadUsers(){
   const perms=await c.from('workspace_member_permissions').select('user_id,approved,permissions,approved_at').eq('workspace_id',WORKSPACE_ID);
   if(perms.error)throw perms.error;
   const byId=new Map((perms.data||[]).map(x=>[x.user_id,x]));
-  const users=directoryResult.users.filter(x=>x.user_id!==ownerId).map(m=>({...m,...(byId.get(m.user_id)||{approved:false,permissions:{}})}));
+  const users=directoryResult.users.filter(x=>x.user_id!==ownerId&&x.role==="editor").map(m=>({...m,...(byId.get(m.user_id)||{approved:false,permissions:{}})}));
   list.innerHTML=users.length?users.map(renderUser).join(''):'<p>No other workspace members found.</p>';
   status.textContent='Owner verified · '+users.length+' member(s).';
   list.querySelectorAll('article[data-user]').forEach(card=>{
