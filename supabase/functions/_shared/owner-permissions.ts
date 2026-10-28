@@ -49,13 +49,13 @@ export async function authorizeEditorFeature(req: Request, feature: string): Pro
 
     const membershipResponse = await fetch(
       baseUrl + "/rest/v1/workspace_members?workspace_id=eq." + encodeURIComponent(WORKSPACE_ID) +
-        "&user_id=eq." + encodeURIComponent(user.id) + "&select=user_id",
+        "&user_id=eq." + encodeURIComponent(user.id) + "&role=eq.editor&select=user_id",
       { headers: serviceHeaders, signal: AbortSignal.timeout(8000), cache: "no-store" },
     );
     if (!membershipResponse.ok) return { ok: false, status: 503, error: "Could not verify workspace membership" };
     const memberships = await membershipResponse.json();
     if (!Array.isArray(memberships) || memberships.length === 0) {
-      return { ok: false, status: 403, error: "Workspace membership required" };
+      return { ok: false, status: 403, error: "Editor account membership required" };
     }
 
     const permissionResponse = await fetch(
