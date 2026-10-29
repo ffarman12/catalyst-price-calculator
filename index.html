@@ -591,8 +591,26 @@ async function loadCloudLiveMarket(){
     const result=await response.json();
     if(!response.ok||!result||result.ok!==true||!result.saved)throw new Error((result&&result.error)||'Cloud Live Market read failed');
     const saved=result.saved;
-    const next={pt:Number(saved.pt),pd:Number(saved.pd),usd:Number(saved.usd),rh:saved.rh==null?null:Number(saved.rh)};
+    const savedUsd=Number(saved.usd);
+    // Repair legacy cloud snapshots saved as INR-per-USD reciprocal (e.g. 0.0105).
+    const normalizedUsd=savedUsd>0&&savedUsd<1?1/savedUsd:savedUsd;
+    const next={pt:Number(saved.pt),pd:Number(saved.pd),usd:normalizedUsd,rh:saved.rh==null?null:Number(saved.rh)};
     if(![next.pt,next.pd,next.usd].every(v=>Number.isFinite(v)&&v>0)||(next.rh!==null&&(!Number.isFinite(next.rh)||next.rh<=0)))throw new Error('Cloud Live Market values are invalid');
+    // Repair a legacy bad cloud value once; keep the original metal rates unchanged.
+    if(savedUsd>0&&savedUsd<1){
+      try{
+        await fetch(SUPABASE_URL+'/functions/v1/market-live-save',{
+          method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY},
+          cache:'no-store',body:JSON.stringify({pt:next.pt,pd:next.pd,rh:next.rh,usd:next.usd})
+        });
+      }catch(repairError){console.warn('Could not repair legacy cloud USD/INR value',repairError);}
+    }
+    // Repair only clearly invalid local reciprocal values; preserve valid user-entered rates.
+    if(Number(manualMarket.usd)>0&&Number(manualMarket.usd)<1){
+      manualMarket={...manualMarket,usd:next.usd};
+      localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket));
+      if($('musd'))$('musd').value=next.usd.toFixed(2);
+    }
     // Persist the last confirmed cloud snapshot locally so the card survives refresh.
     localStorage.setItem('cat_last_live_rates',JSON.stringify({pt:next.pt,pd:next.pd,rh:next.rh,usd:next.usd}));
     if($('mptlive'))$('mptlive').textContent=String(Math.round(next.pt));
