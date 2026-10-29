@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v244-usdinr-display-fix';
+const CACHE='catalyst-calculator-v245-manual-cloud-sync';;
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
