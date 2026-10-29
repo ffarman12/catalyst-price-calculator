@@ -552,7 +552,7 @@ function repairSavedPrices(){try{
       console.warn('History search price refresh failed; keeping Cloud result',priceError);
       history=history.map(x=>({...x,price:Number(x.price)||0}));
     }localStorage.setItem('cat_history',JSON.stringify(history));localStorage.setItem('cat_history_formula_v2','6')}
-function syncMarket(){['pt','pd','rh'].forEach(k=>{ $('m'+k).value=String(Math.round(Number(manualMarket[k]))); $('m'+k+'used').textContent=Number(market[k]).toFixed(2) });$('musd').value=Number(manualMarket.usd).toFixed(2);$('musdused').textContent=Number(market.usd-3).toFixed(2);if($('rptppm')&&$('rw'))refineCalc()}
+function syncMarket(){if(Number(market.usd)>0&&Number(market.usd)<1){market.usd=1/Number(market.usd);localStorage.setItem('cat_market',JSON.stringify(market))}if(Number(manualMarket.usd)>0&&Number(manualMarket.usd)<1){manualMarket.usd=1/Number(manualMarket.usd);localStorage.setItem('cat_manual_market',JSON.stringify(manualMarket))}['pt','pd','rh'].forEach(k=>{ $('m'+k).value=String(Math.round(Number(manualMarket[k]))); $('m'+k+'used').textContent=Number(market[k]).toFixed(2) });$('musd').value=Number(manualMarket.usd).toFixed(2);$('musdused').textContent=Number(market.usd-3).toFixed(2);if($('rptppm')&&$('rw'))refineCalc()}
 async function loadCloudManualMarket(){
   const loadRevision=manualMarketRevision;
   try{
