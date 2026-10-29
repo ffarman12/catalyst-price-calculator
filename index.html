@@ -289,7 +289,7 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
       <div class="cataMarketGraphRanges"><button type="button" class="active" data-range="7" onclick="setCataGraphRange(7,this)">1 Week</button><button type="button" data-range="90" onclick="setCataGraphRange(90,this)">3 Months</button><button type="button" data-range="365" onclick="setCataGraphRange(365,this)">1 Year</button></div>
       <div id="cataGraphStatus" class="cataGraphStatus">Recording schedule: 10:00 · 14:00 · 18:00 · 22:00 IST</div>
     </div>
-    <div class="card marketDefaultsCard"><div class="sectionTitle">Market Rates</div><div class="market"><div class="head">Metal / FX</div><div class="head">Manual</div><div class="head">Default</div>
+    <div class="card marketDefaultsCard" style="visibility:hidden"><div class="sectionTitle">Market Rates</div><div class="market"><div class="head">Metal / FX</div><div class="head">Manual</div><div class="head">Default</div>
       <div>Pt $/oz</div><div><input id="mpt" type="number" value="1770"></div><div class="used" id="mptused">1770</div>
       <div>Pd $/oz</div><div><input id="mpd" type="number" value="1250"></div><div class="used" id="mpdused">1250</div>
       <div>Rh $/oz</div><div><input id="mrh" type="number" value="8600"></div><div class="used" id="mrhused">8600</div>
@@ -4190,8 +4190,10 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
       // Re-apply the latest Cloud Manual Market after both reads finish so the Default Market refresh cannot leave stale manual inputs visible.
       syncMarket();
     }catch(err){console.warn('Owner Manual/Default Market live sync failed',err)}
-    finally{marketSyncBusy=false}
+    finally{marketSyncBusy=false;const card=document.querySelector('.marketDefaultsCard');if(card)card.style.visibility='visible'}
   }
+  // Run cloud synchronization immediately on page load; do not wait for the 20-second background interval.
+  syncOwnerMarketToUser();
   setInterval(syncOwnerMarketToUser,20000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOwnerMarketToUser()});
 })();
