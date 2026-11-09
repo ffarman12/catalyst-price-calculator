@@ -221,9 +221,9 @@ body.loggedOut #historyDetailContent>div:nth-child(2){display:none!important}
       <div class="field full"><label>Converter Code</label><input id="code" placeholder="e.g. 69L-C01"></div>
       <div id="ceramicFields" style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="field"><label>Ceramic Weight (g)</label><input id="weight" type="number" inputmode="decimal" placeholder="450"></div>
-        <div class="field"><label>Pt (ppm)</label><input id="pt" type="number" inputmode="decimal" placeholder="310" autocomplete="off"></div>
-        <div class="field"><label>Pd (ppm)</label><input id="pd" type="number" inputmode="decimal" placeholder="2250" autocomplete="off"></div>
-        <div class="field"><label>Rh (ppm)</label><input id="rh" type="number" inputmode="decimal" placeholder="250" autocomplete="off"></div>
+        <div class="field"><label>Pt (ppm)</label><input id="pt" name="cat-new-pt-ppm" type="number" inputmode="decimal" placeholder="310" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')"></div>
+        <div class="field"><label>Pd (ppm)</label><input id="pd" name="cat-new-pd-ppm" type="number" inputmode="decimal" placeholder="2250" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')"></div>
+        <div class="field"><label>Rh (ppm)</label><input id="rh" name="cat-new-rh-ppm" type="number" inputmode="decimal" placeholder="250" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')"></div>
       </div>
       <div class="field full"><button type="button" class="btn secondary" id="dpfToggle" onclick="toggleDpfFields()">+ DPF Details</button></div>
       <div id="dpfFields" style="display:none;grid-column:1/-1;grid-template-columns:1fr 1fr;gap:12px">
