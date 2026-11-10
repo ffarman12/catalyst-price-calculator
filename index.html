@@ -646,7 +646,7 @@ async function loadCloudDefaultMarket(){
   }
 }
 function adjustLiveMarket(key,delta){const current=Number(market[key])||0;market={...market,[key]:Math.max(0,current+delta)};localStorage.setItem('cat_market',JSON.stringify(market));repairSavedPrices();syncMarket();if($('m'+key+'live'))$('m'+key+'live').textContent=Number(market[key]).toFixed(2);$('marketStatus').textContent='Adjusted Market';if($('rptppm')&&$('rw'))refineCalc();renderHistory()}
-function syncSettings(){Object.keys(settings).forEach(k=>{if($(k))$(k).value=settings[k]})}
+function syncSettings(){Object.keys(settings).forEach(k=>{if(k==='pt'||k==='pd'||k==='rh')return;if($(k))$(k).value=settings[k]})}
 async function saveMarket(){
   manualMarketSaveInProgress=true;
   manualMarketRevision++;
