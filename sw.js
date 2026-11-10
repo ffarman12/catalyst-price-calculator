@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v247-new-ppm-fix';;;
+const CACHE='catalyst-calculator-v248-shared-manual-market-sync';;;
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
