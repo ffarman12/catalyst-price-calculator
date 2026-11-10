@@ -4171,12 +4171,14 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
 <!-- Pages refresh trigger: Section Lock saved PIN loader 3c9ab22 -->
 
 
-<!-- OWNER MARKET LIVE SYNC: refresh Manual and Default market values every 5 seconds for logged-in and logged-out user sessions; never overwrite the owner's active editor while signed in. -->
+<!-- OWNER MARKET LIVE SYNC: refresh Manual and Default market values every 20 seconds; never overwrite an active Manual Market edit or save. -->
 <script>
 (function(){
   let marketSyncBusy=false;
   async function syncOwnerMarketToUser(){
-    if(marketSyncBusy||document.visibilityState!=='visible')return;
+    const active=document.activeElement;
+    const editingManualMarket=active&&['mpt','mpd','mrh','musd'].includes(active.id);
+    if(marketSyncBusy||document.visibilityState!=='visible'||editingManualMarket||manualMarketSaveInProgress)return;
     marketSyncBusy=true;
     try{
       let session=null;
