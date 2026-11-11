@@ -8,6 +8,7 @@ on:
     paths:
       - "package.json"
       - "index.html"
+      - "editor-user-command.js"
       - "capacitor.config.json"
       - "assets/cat-logic-editor-icon.svg"
       - ".github/workflows/build-editor-apk.yml"
