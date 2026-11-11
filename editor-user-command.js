@@ -174,7 +174,33 @@ function gate(feature,action){
 function guardGlobal(name,feature){
  const original=window[name];
  if(typeof original!=='function'||original.__eucGuarded)return;
- const guarded=gate(feature,original);guarded.__eucGuarded=true;guarded.__eucOriginal=original;window[name]=guarded;
+ // Android WebView can leave the +New permission request pending. Bound only
+ // this action's wait; never run it unless the server-side permission check passes.
+ let guarded;
+ if(name==='openNewConverter'){
+  guarded=async function(){
+   const self=this,args=arguments;
+   let timer;
+   const check=Promise.resolve().then(()=>featureAllowed(feature)).catch(err=>{
+    console.warn('Permission check failed closed:',feature,err);return false;
+   });
+   const allowed=await Promise.race([
+    check,
+    new Promise(resolve=>{timer=setTimeout(()=>resolve(null),12000)})
+   ]);
+   if(timer)clearTimeout(timer);
+   if(allowed===true)return original.apply(self,args);
+   if(allowed===null){
+    console.warn('Permission check timed out; +New remains closed.');
+    alert('Owner permission check ka response nahi mila. Internet connection check karke dobara try karein.');
+    return false;
+   }
+   denyFeature(feature);return false;
+  };
+ }else{
+  guarded=gate(feature,original);
+ }
+ guarded.__eucGuarded=true;guarded.__eucOriginal=original;window[name]=guarded;
 }
 function guardCalculate(){
  const original=window.calculate;
