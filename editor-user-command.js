@@ -140,8 +140,31 @@ async function featureAllowed(feature){
  try{
   const c=client();if(!c)return false;
   const s=await c.auth.getSession();
-  const user=s&&s.data&&s.data.session&&s.data.session.user;
+  const session=s&&s.data&&s.data.session;
+  const user=session&&session.user;
   if(!user)return false;
+  // Verify Owner directly with the existing server-side Owner verification endpoint.
+  // This avoids making the Owner wait on workspace/member permission table reads in APK.
+  try{
+   const controller=typeof AbortController!=='undefined'?new AbortController():null;
+   const timeout=controller?setTimeout(()=>controller.abort(),8000):null;
+   let response;
+   try{
+    response=await fetch(SUPABASE_URL+'/functions/v1/editor-user-command-users?verify=1',{
+     method:'GET',
+     headers:{'apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+session.access_token},
+     cache:'no-store',
+     ...(controller?{signal:controller.signal}:{})
+    });
+   }finally{if(timeout)clearTimeout(timeout)}
+   const verified=await response.json();
+   if(response.ok&&verified&&verified.ok===true&&verified.owner_id===user.id){
+    ownerId=user.id;
+    return true;
+   }
+  }catch(ownerCheckError){
+   console.warn('Fast Owner verification unavailable; continuing standard permission check:',ownerCheckError);
+  }
   const w=await c.from('workspaces').select('owner_id').eq('id',WORKSPACE_ID).maybeSingle();
   if(w.error)throw w.error;
   if(!w.data||!w.data.owner_id)throw new Error('Workspace owner missing; fail closed');
