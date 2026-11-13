@@ -4290,3 +4290,19 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
   }
 })();
 </script>
+
+<script>
+/* Temporary page-version proof only; pointer-events:none so app controls remain usable. */
+(function(){
+  function showPageProof(){
+    if(document.getElementById('catLogicPageProof'))return;
+    var proof=document.createElement('div');
+    proof.id='catLogicPageProof';
+    proof.textContent='CAT-LOGIC PAGE CHECK: 2026-11-13 / f1c7cb0';
+    proof.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;padding:7px 10px;border:2px solid #b45309;border-radius:8px;background:#fff7ed;color:#7c2d12;font:700 12px/1.3 Arial,sans-serif;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.22);pointer-events:none';
+    (document.body||document.documentElement).appendChild(proof);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',showPageProof,{once:true});
+  else showPageProof();
+})();
+</script>
