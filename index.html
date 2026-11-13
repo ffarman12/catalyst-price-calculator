@@ -4240,3 +4240,53 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
 <!-- Pages refresh trigger: Section Lock saved PIN loader final retry -->
 
 <script src="./editor-user-command.js?v=14"></script>
+
+<script>
+/* Temporary +New APK diagnostic only. Does not change permissions or app behavior. */
+(function(){
+  function report(message){
+    var menu=document.getElementById('topNewMenu');
+    if(!menu)return;
+    var box=document.getElementById('newButtonDiagnosticStatus');
+    if(!box){
+      box=document.createElement('div');
+      box.id='newButtonDiagnosticStatus';
+      box.style.cssText='margin:8px 4px 4px;padding:8px;border:1px solid #d97706;border-radius:8px;background:#fff7ed;color:#7c2d12;font-size:12px;line-height:1.4;white-space:normal';
+      var button=document.getElementById('topNewMenuNewButton');
+      if(button&&button.parentNode===menu)button.insertAdjacentElement('afterend',box);
+      else menu.appendChild(box);
+    }
+    box.textContent=' +New DIAGNOSTIC: '+message;
+  }
+  document.addEventListener('click',function(event){
+    var button=event.target&&event.target.closest?event.target.closest('#topNewMenuNewButton'):null;
+    if(!button)return;
+    report('Tap event document tak pahunch gaya. Handler: '+(typeof window.openNewConverter)+
+      '; permission wrapper: '+(window.openNewConverter&&window.openNewConverter.__eucGuarded?'installed':'not detected')+
+      '. Ab handler execution check ho raha hai…');
+  },true);
+  if(typeof window.openNewConverter==='function'&&!window.openNewConverter.__newButtonDiagnostic){
+    var original=window.openNewConverter;
+    var diagnosticWrapper=function(){
+      report('HANDLER ENTERED. Permission check / action chal raha hai…');
+      try{
+        var result=original.apply(this,arguments);
+        if(result&&typeof result.then==='function'){
+          result.then(function(){report('HANDLER COMPLETED. Menu/action ka result check karein.')})
+                .catch(function(error){report('HANDLER ERROR: '+String(error&&error.message||error))});
+        }else{
+          report('HANDLER CALLED. Return: '+String(result));
+        }
+        return result;
+      }catch(error){
+        report('HANDLER ERROR: '+String(error&&error.message||error));
+        throw error;
+      }
+    };
+    diagnosticWrapper.__newButtonDiagnostic=true;
+    diagnosticWrapper.__eucGuarded=!!original.__eucGuarded;
+    diagnosticWrapper.__eucOriginal=original;
+    window.openNewConverter=diagnosticWrapper;
+  }
+})();
+</script>
