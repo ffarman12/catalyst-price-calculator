@@ -4306,3 +4306,48 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
   else showPageProof();
 })();
 </script>
+
+<script>
+/* Temporary pointer/touch diagnostics for APK +New; no app behavior changes. */
+(function(){
+  function describe(node){
+    if(!node)return 'none';
+    var name=String(node.tagName||'node').toLowerCase();
+    if(node.id)name+='#'+node.id;
+    if(node.className&&typeof node.className==='string')name+='.'+node.className.trim().replace(/\s+/g,'.');
+    return name;
+  }
+  function panel(){
+    var p=document.getElementById('catLogicTouchProof');
+    if(!p){
+      p=document.createElement('div');p.id='catLogicTouchProof';
+      p.style.cssText='position:fixed;left:8px;right:8px;bottom:72px;z-index:2147483646;padding:8px 10px;border:2px solid #7c3aed;border-radius:8px;background:#f5f3ff;color:#4c1d95;font:700 11px/1.35 Arial,sans-serif;text-align:left;box-shadow:0 2px 8px rgba(0,0,0,.2);pointer-events:none;white-space:normal';
+      p.textContent='+New TOUCH CHECK: ready — +New par ek baar tap karein';
+      (document.body||document.documentElement).appendChild(p);
+    }
+    return p;
+  }
+  function report(message){try{panel().textContent='+New TOUCH CHECK: '+message}catch(_){}}
+  function inspect(type,event,point){
+    var button=document.getElementById('topNewMenuNewButton');
+    var target=event&&event.target;
+    var hit='button missing';
+    if(button&&point&&Number.isFinite(point.x)&&Number.isFinite(point.y)){
+      var r=button.getBoundingClientRect();
+      hit=(point.x>=r.left&&point.x<=r.right&&point.y>=r.top&&point.y<=r.bottom)?'YES':'NO';
+    }else if(button){hit='coords unavailable'}
+    report(type+' received; target='+describe(target)+'; +New hitbox='+hit+(point?'; x='+Math.round(point.x)+', y='+Math.round(point.y):''));
+  }
+  function pointFrom(e){
+    if(e&&Number.isFinite(e.clientX)&&Number.isFinite(e.clientY))return{x:e.clientX,y:e.clientY};
+    var t=e&&e.changedTouches&&e.changedTouches[0]||e&&e.touches&&e.touches[0];
+    return t?{x:t.clientX,y:t.clientY}:null;
+  }
+  ['pointerdown','touchstart','click'].forEach(function(type){
+    window.addEventListener(type,function(e){inspect(type,e,pointFrom(e))},true);
+  });
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',function(){panel()}, {once:true});
+  }else{panel()}
+})();
+</script>
