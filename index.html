@@ -4190,8 +4190,8 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
           session=auth&&auth.data&&auth.data.session||null;
         }catch(err){console.warn('Market live sync session lookup failed; using public market reads',err)}
       }
-      // Preserve the owner's in-progress Manual Market edits when the owner is signed in.
-      if(session&&session.user&&session.user.id==='7026de35-0d41-4c25-9e9c-673d072e5ada')return;
+      // Preserve in-progress Manual Market edits through the active-input and save-in-progress guards above.
+      // Do not skip the Owner: the Owner's APK and Web App must read the same shared Cloud Manual Market record.
       // Market read endpoints use the public publishable key, so refresh also works while logged out.
       await loadCloudManualMarket();
       await loadCloudDefaultMarket();
