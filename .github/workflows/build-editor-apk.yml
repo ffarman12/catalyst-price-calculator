@@ -104,7 +104,7 @@ jobs:
           values = android / "values"
           values.mkdir(parents=True, exist_ok=True)
           (values / "ic_launcher_background.xml").write_text(
-              '<?xml version="1.0" encoding="utf-8"?>\\n<resources><color name="ic_launcher_background">#FF6500</color></resources>\\n'
+              '<?xml version="1.0" encoding="utf-8"?>\n<resources><color name="ic_launcher_background">#FF6500</color></resources>\n'
           )
 
           adaptive = android / "mipmap-anydpi-v26"
