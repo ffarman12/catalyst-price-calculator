@@ -104,11 +104,21 @@ jobs:
           # Capacitor's generated Android template includes a default Android-robot vector
           # in drawable-anydpi-v24. Android resource precedence selects that vector over
           # our custom PNG unless it is removed, which caused the installer to show the robot.
-          for stale in [
-              android / "drawable-anydpi-v24" / "ic_launcher_foreground.xml",
-              android / "drawable-anydpi-v24" / "$ic_launcher_foreground__0.xml",
-          ]:
-              stale.unlink(missing_ok=True)
+          # Override the Android template/library's Android-robot vector at the
+          # highest-priority app resource location. Deleting the template file alone
+          # is insufficient because the same vector is also packaged from a library.
+          vector_dir = android / "drawable-anydpi-v24"
+          vector_dir.mkdir(parents=True, exist_ok=True)
+          (vector_dir / "ic_launcher_foreground.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="115dp"
+              android:height="114dp"
+              android:viewportWidth="115"
+              android:viewportHeight="114">
+              <path android:fillColor="#FFFFFFFF" android:pathData="M47,26 L42,31 L42,34 L79,71 L81,71 L83,70 L87,66 L87,63 L73,49 L73,48 L79,42 L79,41 L81,39 L82,39 L87,34 L87,31 L82,26 L79,26 L65,40 L64,40 L50,26 Z"/>
+              <path android:fillColor="#FFFFFFFF" android:pathData="M26,47 L26,49 L40,63 L40,65 L27,78 L26,80 L27,82 L32,87 L33,87 L47,73 L50,73 L64,87 L65,87 L68,84 L69,84 L69,83 L71,81 L71,79 L33,41 L31,42 Z"/>
+          </vector>
+          """)
 
           values = android / "values"
           values.mkdir(parents=True, exist_ok=True)
