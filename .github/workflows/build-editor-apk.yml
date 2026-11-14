@@ -77,9 +77,14 @@ jobs:
           from PIL import Image
           from pathlib import Path
           import io
-          svg = Path("assets/cat-logic-editor-icon.svg").read_bytes()
-          base = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=svg, output_width=512, output_height=512))).convert("RGBA")
+          import re
+
+          source = Path("assets/cat-logic-editor-icon.svg").read_text()
+          svg_bytes = source.encode()
+          base = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=svg_bytes, output_width=512, output_height=512))).convert("RGBA")
           android = Path("android/app/src/main/res")
+
+          # Legacy launcher icons: complete orange tile with the original white glyph.
           sizes = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
           for density, size in sizes.items():
               folder = android / f"mipmap-{density}"
@@ -87,6 +92,31 @@ jobs:
               icon = base.resize((size, size), Image.Resampling.LANCZOS)
               icon.save(folder / "ic_launcher.png", optimize=True)
               icon.save(folder / "ic_launcher_round.png", optimize=True)
+
+          # Android 8+ adaptive icons use separate foreground/background layers.
+          # Remove only the SVG background rectangle so the glyph remains white and transparent.
+          foreground_svg = re.sub(r'<rect[^>]*/>', '', source, count=1).encode()
+          foreground_png = cairosvg.svg2png(bytestring=foreground_svg, output_width=512, output_height=512)
+          drawable = android / "drawable-nodpi"
+          drawable.mkdir(parents=True, exist_ok=True)
+          Image.open(io.BytesIO(foreground_png)).convert("RGBA").save(drawable / "ic_launcher_foreground.png", optimize=True)
+
+          values = android / "values"
+          values.mkdir(parents=True, exist_ok=True)
+          (values / "ic_launcher_background.xml").write_text(
+              '<?xml version="1.0" encoding="utf-8"?>\\n<resources><color name="ic_launcher_background">#FF6500</color></resources>\\n'
+          )
+
+          adaptive = android / "mipmap-anydpi-v26"
+          adaptive.mkdir(parents=True, exist_ok=True)
+          adaptive_xml = '''<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background"/>
+              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+          </adaptive-icon>
+          '''
+          (adaptive / "ic_launcher.xml").write_text(adaptive_xml)
+          (adaptive / "ic_launcher_round.xml").write_text(adaptive_xml)
           PY
 
       - name: Build debug APK
