@@ -1,6 +1,6 @@
-const CACHE='catalyst-calculator-v248-shared-manual-market-sync';;;
+const CACHE='catalyst-calculator-v249-cat-logic-icon-sync';
 const APP='./index.html';
-const ASSETS=[APP,'./','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const ASSETS=[APP,'./','./manifest.webmanifest','./assets/cat-logic-editor-icon.svg','./icon-192.png','./icon-512.png'];
 
 const HISTORY_BRIDGE = `
 <script id="cata-history-search-bridge">
