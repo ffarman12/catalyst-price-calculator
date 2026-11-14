@@ -1,14 +1,19 @@
 {
-  "name": "Catalyst Price Calculator - Cata-Logic",
-  "short_name": "Cata-Logic",
-  "description": "Catalyst converter price calculator",
-  "start_url": "./Catalyst%20Price%20Calculator%20Prototype%20-%20Less%20Refine%20Refresh%20Fixed.html",
+  "name": "Cat-Logic Editor",
+  "short_name": "Cat-Logic",
+  "description": "Cat-Logic Editor - Catalyst price calculator",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#111827",
-  "theme_color": "#111827",
+  "background_color": "#FF6500",
+  "theme_color": "#FF6500",
   "icons": [
-    {"src":"assets/cat-logic-editor-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+    {
+      "src": "assets/cat-logic-editor-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }
