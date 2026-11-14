@@ -101,6 +101,15 @@ jobs:
           drawable.mkdir(parents=True, exist_ok=True)
           Image.open(io.BytesIO(foreground_png)).convert("RGBA").save(drawable / "ic_launcher_foreground.png", optimize=True)
 
+          # Capacitor's generated Android template includes a default Android-robot vector
+          # in drawable-anydpi-v24. Android resource precedence selects that vector over
+          # our custom PNG unless it is removed, which caused the installer to show the robot.
+          for stale in [
+              android / "drawable-anydpi-v24" / "ic_launcher_foreground.xml",
+              android / "drawable-anydpi-v24" / "$ic_launcher_foreground__0.xml",
+          ]:
+              stale.unlink(missing_ok=True)
+
           values = android / "values"
           values.mkdir(parents=True, exist_ok=True)
           (values / "ic_launcher_background.xml").write_text(
