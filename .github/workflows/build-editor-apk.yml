@@ -80,7 +80,16 @@ jobs:
           import re
 
           source = Path("assets/cat-logic-editor-icon.svg").read_text()
-          svg_bytes = source.encode()
+          # Keep the shared SVG as the canonical web/app icon. For Android only,
+          # scale the original white glyph down slightly while leaving the orange tile unchanged.
+          apk_source = source.replace(
+              '<g fill="#FFFFFF">',
+              '<g fill="#FFFFFF" transform="translate(6.9 6.84) scale(0.88)">',
+              1
+          )
+          if apk_source == source:
+              raise SystemExit("Could not find the original Cat-Logic glyph group in SVG")
+          svg_bytes = apk_source.encode()
           base = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=svg_bytes, output_width=512, output_height=512))).convert("RGBA")
           android = Path("android/app/src/main/res")
 
@@ -95,7 +104,7 @@ jobs:
 
           # Android 8+ adaptive icons use separate foreground/background layers.
           # Remove only the SVG background rectangle so the glyph remains white and transparent.
-          foreground_svg = re.sub(r'<rect[^>]*/>', '', source, count=1).encode()
+          foreground_svg = re.sub(r'<rect[^>]*/>', '', apk_source, count=1).encode()
           foreground_png = cairosvg.svg2png(bytestring=foreground_svg, output_width=512, output_height=512)
           drawable = android / "drawable-nodpi"
           drawable.mkdir(parents=True, exist_ok=True)
@@ -115,8 +124,14 @@ jobs:
               android:height="114dp"
               android:viewportWidth="115"
               android:viewportHeight="114">
-              <path android:fillColor="#FFFFFFFF" android:pathData="M47,26 L42,31 L42,34 L79,71 L81,71 L83,70 L87,66 L87,63 L73,49 L73,48 L79,42 L79,41 L81,39 L82,39 L87,34 L87,31 L82,26 L79,26 L65,40 L64,40 L50,26 Z"/>
-              <path android:fillColor="#FFFFFFFF" android:pathData="M26,47 L26,49 L40,63 L40,65 L27,78 L26,80 L27,82 L32,87 L33,87 L47,73 L50,73 L64,87 L65,87 L68,84 L69,84 L69,83 L71,81 L71,79 L33,41 L31,42 Z"/>
+              <group
+                  android:pivotX="57.5"
+                  android:pivotY="57"
+                  android:scaleX="0.88"
+                  android:scaleY="0.88">
+                  <path android:fillColor="#FFFFFFFF" android:pathData="M47,26 L42,31 L42,34 L79,71 L81,71 L83,70 L87,66 L87,63 L73,49 L73,48 L79,42 L79,41 L81,39 L82,39 L87,34 L87,31 L82,26 L79,26 L65,40 L64,40 L50,26 Z"/>
+                  <path android:fillColor="#FFFFFFFF" android:pathData="M26,47 L26,49 L40,63 L40,65 L27,78 L26,80 L27,82 L32,87 L33,87 L47,73 L50,73 L64,87 L65,87 L68,84 L69,84 L69,83 L71,81 L71,79 L33,41 L31,42 Z"/>
+              </group>
           </vector>
           """)
 
