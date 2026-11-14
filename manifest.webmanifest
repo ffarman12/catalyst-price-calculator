@@ -6,8 +6,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FF6500",
-  "theme_color": "#FF6500",
+  "background_color": "#111827",
+  "theme_color": "#111827",
   "icons": [
     {
       "src": "assets/cat-logic-editor-icon.svg",
