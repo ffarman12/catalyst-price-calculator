@@ -1,4 +1,4 @@
-const CACHE='catalyst-calculator-v250-icon-glyph-size';
+const CACHE='catalyst-calculator-v251-web-icon-refresh';
 const APP='./index.html';
 const ASSETS=[APP,'./','./manifest.webmanifest','./assets/cat-logic-editor-icon.svg','./icon-192.png','./icon-512.png'];
 
