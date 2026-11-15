@@ -1,4 +1,5 @@
 name: Build and Publish Editor APK
+# Rebuild requested after the Cat-Logic launcher glyph size adjustment
 
 on:
   workflow_dispatch:
