@@ -10,7 +10,7 @@
   "theme_color": "#111827",
   "icons": [
     {
-      "src": "assets/cat-logic-editor-icon.svg",
+      "src": "assets/cat-logic-editor-icon.svg?v=web-icon-20261115",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
