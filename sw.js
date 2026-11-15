@@ -1,6 +1,6 @@
-const CACHE='catalyst-calculator-v251-web-icon-refresh';
+const CACHE='catalyst-calculator-v252-web-icon-png';
 const APP='./index.html';
-const ASSETS=[APP,'./','./manifest.webmanifest','./assets/cat-logic-editor-icon.svg','./icon-192.png','./icon-512.png'];
+const ASSETS=[APP,'./','./manifest.webmanifest','./assets/cat-logic-editor-icon.svg','./icon-192.png?v=web-icon-20261115b','./icon-512.png?v=web-icon-20261115b'];
 
 const HISTORY_BRIDGE = `
 <script id="cata-history-search-bridge">
