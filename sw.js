@@ -1,6 +1,6 @@
-const CACHE='catalyst-calculator-v253-web-favicon32';
+const CACHE='catalyst-calculator-v254-web-icon-refresh';
 const APP='./index.html';
-const ASSETS=[APP,'./','./manifest.webmanifest','./assets/cat-logic-editor-icon.svg','./favicon-32.png?v=web-icon-20261115c','./icon-192.png?v=web-icon-20261115b','./icon-512.png?v=web-icon-20261115b'];
+const ASSETS=[APP,'./','./manifest.webmanifest','./assets/cat-logic-editor-icon.svg','./favicon-32.png?v=web-icon-20261115d','./icon-192.png?v=web-icon-20261115d','./icon-512.png?v=web-icon-20261115d'];
 
 const HISTORY_BRIDGE = `
 <script id="cata-history-search-bridge">
