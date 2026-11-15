@@ -16,10 +16,10 @@
       "purpose": "any"
     },
     {
-      "src": "icon-512.png?v=web-icon-20261115e",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "assets/cat-logic-editor-icon.svg?v=web-icon-20261115f",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }
