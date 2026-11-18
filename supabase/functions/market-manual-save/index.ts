@@ -26,18 +26,15 @@ Deno.serve(async (req: Request) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !serviceKey) return reply({ error: "Server database credentials are not configured" }, 503);
 
-  const restUrl = url.replace(/\/$/, "") + "/rest/v1/market_manual_state";
+  const baseUrl = url.replace(/\/$/, "");
+  const restUrl = baseUrl + "/rest/v1/market_manual_state";
   const keys = ["pt", "pd", "rh", "usd"] as const;
-
-  if (req.method === "POST") {
-    const authz = await authorizeEditorFeature(req, "manual_market_update");
-    if (!authz.ok) return reply({ error: authz.error }, authz.status);
-  }
+  const dbHeaders = { apikey: serviceKey, Authorization: "Bearer " + serviceKey };
 
   if (req.method === "GET") {
     try {
       const response = await fetch(restUrl + "?id=eq.1&select=id,pt,pd,rh,usd,updated_at", {
-        headers: { "apikey": serviceKey, "Authorization": "Bearer " + serviceKey },
+        headers: dbHeaders,
         signal: AbortSignal.timeout(10000),
         cache: "no-store",
       });
@@ -66,13 +63,58 @@ Deno.serve(async (req: Request) => {
     values[key] = value;
   }
 
+  // Direct Manual Market edits still require the existing Owner Permission.
+  // A non-owner editor may only save the automatic live snapshot when all
+  // submitted values exactly match the server-verified latest MetalpriceAPI
+  // record. This does not grant permission to enter arbitrary Manual rates.
+  const authz = await authorizeEditorFeature(req, "manual_market_update");
+  if (!authz.ok) {
+    if (authz.error === "Editor account membership required") {
+      return reply({ error: authz.error }, authz.status);
+    }
+    try {
+      const liveResponse = await fetch(
+        baseUrl + "/rest/v1/market_live_state?id=eq.1&select=pt,pd,rh,usd,source,updated_at",
+        { headers: dbHeaders, signal: AbortSignal.timeout(8000), cache: "no-store" },
+      );
+      const manualResponse = await fetch(
+        restUrl + "?id=eq.1&select=rh",
+        { headers: dbHeaders, signal: AbortSignal.timeout(8000), cache: "no-store" },
+      );
+      if (!liveResponse.ok || !manualResponse.ok) return reply({ error: authz.error }, authz.status);
+
+      const liveRows = await liveResponse.json();
+      const manualRows = await manualResponse.json();
+      const live = Array.isArray(liveRows) ? liveRows[0] : null;
+      const manual = Array.isArray(manualRows) ? manualRows[0] : null;
+      const expectedRh = live && live.rh != null
+        ? Number(live.rh)
+        : manual && Number.isFinite(Number(manual.rh))
+          ? Number(manual.rh)
+          : null;
+      const matchesCurrentLiveSnapshot = !!live &&
+        live.source === "MetalpriceAPI" &&
+        Number.isFinite(Number(live.pt)) &&
+        Number.isFinite(Number(live.pd)) &&
+        Number.isFinite(Number(live.usd)) &&
+        values.pt === Number(live.pt) &&
+        values.pd === Number(live.pd) &&
+        values.usd === Number(live.usd) &&
+        expectedRh !== null &&
+        values.rh === expectedRh;
+
+      if (!matchesCurrentLiveSnapshot) return reply({ error: authz.error }, authz.status);
+    } catch (_error) {
+      return reply({ error: authz.error }, authz.status);
+    }
+  }
+
   const savedAt = new Date().toISOString();
   try {
     const save = await fetch(restUrl + "?on_conflict=id", {
       method: "POST",
       headers: {
-        "apikey": serviceKey,
-        "Authorization": "Bearer " + serviceKey,
+        ...dbHeaders,
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates,return=representation",
       },
@@ -83,7 +125,7 @@ Deno.serve(async (req: Request) => {
     if (!save.ok) return reply({ error: "Cloud write failed", detail: saveText.slice(0, 300) }, 502);
 
     const verify = await fetch(restUrl + "?id=eq.1&select=id,pt,pd,rh,usd,updated_at", {
-      headers: { "apikey": serviceKey, "Authorization": "Bearer " + serviceKey },
+      headers: dbHeaders,
       signal: AbortSignal.timeout(10000),
       cache: "no-store",
     });
