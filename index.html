@@ -4246,3 +4246,15 @@ html body #app .wrap #market.view.active .marketDefaultsCard{
 
 
 
+
+
+<!-- CAT-LOGIC MARKET PAGE BACKGROUND: Deep Slate only; all cards and other pages unchanged -->
+<style id="cat-logic-market-deep-slate-background">
+  /* Only the Market page canvas changes. Keep cards, controls, and every other page unchanged. */
+  html body #app:has(#market.view.active) { background: #1F2D3D !important; }
+  html body #app .wrap:has(#market.view.active) { background: #1F2D3D !important; }
+  html body #app .wrap #market.view.active {
+    background: #1F2D3D !important;
+    background-image: none !important;
+  }
+</style>
